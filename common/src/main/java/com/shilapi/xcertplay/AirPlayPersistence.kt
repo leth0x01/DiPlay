@@ -124,7 +124,7 @@ object AirPlayPersistence {
 
     const val DEFAULT_MANUFACTURER = "LynkPlay"
     const val DEFAULT_MODEL = "LynkPlay"
-    const val DEFAULT_OEM_LABEL = "BYD"
+    const val DEFAULT_OEM_LABEL = "LYNK & CO"
     const val DEFAULT_MFI_I2C_PATH = "/dev/i2c-1"
 
     fun loadAmbientDelaySeconds(context: Context): Int =
