@@ -23,7 +23,7 @@
     <string name="settings_wheel_keys">Кнопки на руле</string>
     <string name="settings_experimental_display">Экран (экспериментально)</string>
     <string name="settings_diagnostics_summary">Сохраните локальный отчёт при устранении проблем с подключением</string>
-    <string name="settings_full_screen_description">Скрывать строки состояния и навигации в DiPlay и CarPlay.</string>
+    <string name="settings_full_screen_description">Скрывать строки состояния и навигации в LynkPlay и CarPlay.</string>
     <string name="settings_vehicle_description">Функции автомобиля и приборной панели зависят от модели и прошивки. Проверьте их в разделе «Дополнительно», прежде чем включать экспериментальные параметры.</string>
     <string name="settings_open_advanced">Открыть дополнительные настройки</string>
     <string name="settings_reconnect_pending">Сохранено. Некоторые изменения вступят в силу после переподключения CarPlay.</string>
@@ -33,7 +33,7 @@
     <string name="settings_search_empty">Ничего не найдено. Попробуйте другое слово.</string>
     <string name="settings_ready_wireless">Беспроводной CarPlay подключится к %1$s.</string>
     <string name="settings_ready_usb">Подключите iPhone кабелем USB, чтобы запустить CarPlay.</string>
-    <string name="settings_connecting_description">DiPlay запускает CarPlay с вашим iPhone.</string>
+    <string name="settings_connecting_description">LynkPlay запускает CarPlay с вашим iPhone.</string>
     <string name="settings_choose_iphone_title">Выберите iPhone</string>
     <string name="settings_choose_iphone_description">Для беспроводного CarPlay нужен сопряжённый iPhone.</string>
     <string name="settings_choose_iphone_action">Выбрать iPhone</string>

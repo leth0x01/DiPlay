@@ -322,7 +322,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private val export = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) exportDiagnostics(uri)
     }
-    // Android 9: storage access puts the report in the visible Downloads/DiPlay folder.
+    // Android 9 需要存储权限，才能将报告保存到公开的 Downloads/LynkPlay 目录。
     // A denial still saves the report, only in DiPlay's own storage.
     private val reportStoragePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         exportDiagnostics()
@@ -2544,7 +2544,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         }
     }
 
-    private fun userAgent() = "DiPlay/${version()}"
+    private fun userAgent() = "LynkPlay/${version()}"
 
     // An opted-in connection prepares the hotspot in the controller instead of stopping at this reminder.
     private fun carHotspotOff(): Boolean =
@@ -3535,7 +3535,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         })
         body.addView(button(getString(R.string.copy_command), false) {
             getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(
-                android.content.ClipData.newPlainText("DiPlay ADB Command", adbCmd)
+                android.content.ClipData.newPlainText("LynkPlay ADB Command", adbCmd)
             )
             toast(getString(R.string.copied_to_the_car_clipboard_run_the_command_on_your_comput))
         }, matchButton(8, 50))
@@ -5117,7 +5117,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         }, "adb-cluster-authorize").start()
     }
 
-    private fun reportFileName() = "DiPlay-${SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US).format(Date())}.txt"
+    private fun reportFileName() = "LynkPlay-${SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US).format(Date())}.txt"
 
     private fun saveReportToDownloads() {
         if (exportInProgress) return
@@ -5143,7 +5143,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         Thread({
             val result = runCatching {
                 val report = buildString {
-                    appendLine("DiPlay ${version()} · private beta diagnostic report")
+                    appendLine("LynkPlay ${version()} · private beta diagnostic report")
                     appendLine("Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
                     appendLine("Head unit: ${Build.MANUFACTURER} ${Build.MODEL}")
                     appendLine("Connection: ${if (AirPlayPersistence.loadWirelessEnabled(appContext)) "wireless" else "USB"}")
@@ -5237,7 +5237,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                         .setMessage(when {
                             savedReport.savedInApp -> getString(R.string.diagnostic_report_saved_in_app)
                             savedReport.savedPath != null -> getString(R.string.diagnostic_report_saved_to_path, savedReport.savedPath)
-                            uri == null -> "Downloads/DiPlay/$fileName"
+                            uri == null -> "Downloads/LynkPlay/$fileName"
                             else -> getString(R.string.your_report_was_saved_to_the_selected_location)
                         })
                         .setPositiveButton(getString(R.string.view_diagnostic_report)) { _, _ -> showDiagnosticReport(report) }

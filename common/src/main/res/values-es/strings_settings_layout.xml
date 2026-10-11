@@ -23,7 +23,7 @@
     <string name="settings_wheel_keys">Botones del volante</string>
     <string name="settings_experimental_display">Pantalla (experimental)</string>
     <string name="settings_diagnostics_summary">Guarda un informe local al resolver problemas de conexión</string>
-    <string name="settings_full_screen_description">Oculta las barras de estado y navegación en DiPlay y CarPlay.</string>
+    <string name="settings_full_screen_description">Oculta las barras de estado y navegación en LynkPlay y CarPlay.</string>
     <string name="settings_vehicle_description">Las funciones del vehículo y del cuadro de instrumentos varían según el modelo y el firmware. Revísalas en Ajustes avanzados antes de activar controles experimentales.</string>
     <string name="settings_open_advanced">Abrir ajustes avanzados</string>
     <string name="settings_reconnect_pending">Guardado. Algunos cambios se aplican cuando CarPlay se vuelve a conectar.</string>
@@ -33,7 +33,7 @@
     <string name="settings_search_empty">Ningún ajuste coincide. Prueba con otra palabra.</string>
     <string name="settings_ready_wireless">CarPlay inalámbrico se conectará a %1$s.</string>
     <string name="settings_ready_usb">Conecta tu iPhone con un cable USB para iniciar CarPlay.</string>
-    <string name="settings_connecting_description">DiPlay está iniciando CarPlay con tu iPhone.</string>
+    <string name="settings_connecting_description">LynkPlay está iniciando CarPlay con tu iPhone.</string>
     <string name="settings_choose_iphone_title">Elige tu iPhone</string>
     <string name="settings_choose_iphone_description">CarPlay inalámbrico necesita un iPhone emparejado para conectarse.</string>
     <string name="settings_choose_iphone_action">Elegir iPhone</string>

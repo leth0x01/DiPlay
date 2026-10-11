@@ -1,65 +1,49 @@
-# DiPlay
+# LynkPlay
 
-**CarPlay for compatible BYD Android head units.** Wired and wireless, with the familiar DiAuto interface. Independent app: `com.shihab.diplay`.
+A [DiPlay](https://github.com/shihabal3amri/DiPlay) fork targeting the **2023 Lynk & Co 06 petrol model with an Android 9 head unit**. [中文说明](README.zh-CN.md).
 
-> **BYD support scope:** These projects focus on BYD cars. They may work on other brands, but other brands are unsupported and there are no plans to add support or fix brand-specific incompatibilities.
+This stage establishes the application branding and independent install identity. **Vehicle validation is pending.** Upstream Geely/Lynk steering-wheel and microphone support was documented on an Android 11 head unit; it does not establish compatibility with this Android 9 vehicle.
 
-[Download & website](https://shihabal3amri.github.io/DiPlay/) · [Release](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.18) · [Report a problem](https://github.com/shihabal3amri/DiPlay/issues/new/choose)
+## Build and install
 
-![DiPlay home](site/assets/home.png)
+Build the main `mobile` module using JDK 25 and the SDK specified in [BUILD.md](docs/BUILD.md):
 
-## 0.2.18 — public preview
+```powershell
+.\gradlew.bat :mobile:assembleDebug
+```
 
-Install on the **car**, not the iPhone. No jailbreak, dongle, Mac, account or authentication server is required for use. Core CarPlay does not require ADB; optional dashboard, battery, wheel-speed and parked-video features do. Your head unit must permit APK installation. The APK supports Android 7.1+ (API 25); Android 7.1–8.1 support is not yet confirmed on a vehicle. Wireless supports Wi-Fi Direct, the car’s existing hotspot or Existing Wi-Fi / Same LAN. Android 7.1–9 Wi-Fi Direct uses a firmware-dependent legacy path with generated group credentials and unverified requested frequency; see [Android 9 Wi-Fi Direct](docs/ANDROID9_WIFI_DIRECT.md). Android 10+ verifies its negotiated group frequency.
+- Release application ID: `com.leth0x01.lynkplay`.
+- Debug application ID: `com.leth0x01.lynkplay.hudtest`.
+- APK: `mobile/build/outputs/apk/debug/mobile-debug.apk`.
+- DiPlay and LynkPlay can coexist; app data and permissions are separate. Settings do not migrate automatically.
+- Public diagnostic directory: `Downloads/LynkPlay`, with app-specific fallbacks when needed.
+- Internal namespaces and compatibility actions remain unchanged to simplify upstream merges.
 
-- Wired USB and wireless CarPlay with local authentication.
-- BYD HUD navigation with arrows, distance and street names on verified firmware.
-- Car hotspot support, improved audio buffering and saved receive diagnostics.
-- Automatic address discovery, fixed-channel Wi-Fi fallbacks and successful-configuration memory.
-- Icon/text size, resolution and frame rate; applying a display change reconnects CarPlay.
-- Local diagnostic export. Reports are sent only if you choose to share them.
-- Separate installation alongside DiAuto. Run one projection app at a time.
+Ordinary source builds contain no runtime accessory identity. A successful build alone does not establish an iPhone connection. Follow the existing local standalone build instructions if you have provisioned runtime assets; never commit those assets or signing keys.
 
-This is **not an Apple-certified product**. The APK bundles an experimental accessory identity recovered from public Carlinkit firmware, not a newly provisioned MFi identity for DiPlay. A bundled private key is extractable. Acceptance after future iOS updates, reliability across head units and suitability of that identity for general distribution are unresolved. This release invites community testing; it is not a guarantee of universal compatibility.
+Validate USB, the car hotspot, Wi-Fi Direct, audio, Siri, steering-wheel keys, display and startup on the vehicle. See [Android 9 Wi-Fi Direct limits](docs/ANDROID9_WIFI_DIRECT.md). Run one receiver app at a time during testing.
 
-Earlier releases were tested on the development DiLink5.1 car: live windshield guidance and street names work, Car hotspot now starts CarPlay, and Wi-Fi Direct performance is substantially improved. Audio underrun recovery is improved in 0.2.15; remaining cutouts need current diagnostic reports. The 0.2.16 software Opus microphone fallback was accepted on a BOS Mini A1 head unit (Android 9) with an iPhone 12 on iOS 27. The floating-map test build was installed on the development DiLink 5.1 car; feedback led to the pinch corrections in 0.2.9. Earlier wheel-speed and video contributions were tested on a BYD Tang with DiLink 5.0 and an iPhone 15 Pro on iOS 27; wheel-speed dead reckoning in tunnels remains unverified. Broader head-unit and iOS compatibility is not guaranteed. The HUD firmware scope and cleanup limits are documented in [BYD navigation](docs/BYD_NAVIGATION.md).
+## Maintenance
 
-## What’s new in 0.2.18
+`main` follows upstream DiPlay; `lynkplay` carries this fork's changes. Initial baseline: `24ae1fa5` (DiPlay 0.2.18). With a clean working tree:
 
-- Wired CarPlay no longer drops every few minutes when a USB read finishes just as DiPlay stops waiting for it, and it now starts on Android 7.1 head units, on head units whose USB audio driver held the iPhone, and without a VPN dialog when network ADB is approved.
-- Fewer short music dropouts, and the connection screen shows the real stage and failure in every app language.
-- On head units whose Android Bluetooth cannot reach the iPhone, wireless CarPlay stops with a clear message and suggests USB.
-- The wheel's next and previous keys change CarPlay tracks on the CarPlay screen without the wheel-key service, Geely/Lynk `geely_fx11` head units get wheel media keys and Siri, and wheel keys stuck on "Allowed, starting…" recover by themselves.
-- Back up and restore settings from a phone through a QR code in **Settings → About**, and pick another installer, such as MT Manager, for updates.
-- New experimental, off-by-default options: Harman full screen, square corners, clearer navigation voice over USB, MediaTek low-latency decoding, a media-key audio focus opt-out, car phone audio for calls, a cluster speedometer and FCE cluster guidance.
+```powershell
+git fetch upstream
+git switch main
+git merge --ff-only upstream/main
+git push origin main
+git switch lynkplay
+git merge main
+.\gradlew.bat :shared:testDebugUnitTest :common:testDebugUnitTest :home:testDebugUnitTest :mobile:lintDebug :home:lintDebug :maphost:lintDebug :mobile:assembleDebug :home:assembleDebug :maphost:assembleDebug
+git push origin lynkplay
+```
 
-See [0.2.18 release notes](docs/RELEASE-NOTES-0.2.18.md) and [validation](docs/VALIDATION.md) for contribution links and remaining physical tests. General stutter, calls/Siri, decoder and model-specific reports still need current-device evidence. [0.2.17 notes](docs/RELEASE-NOTES-0.2.17.md) remain available as historical guidance.
+Resolve conflicts before running checks. CI runs on pushes to both long-lived branches and on pull requests.
 
-If a problem remains, reproduce it on **0.2.18**, then use **Settings → Diagnostics → Save diagnostic report**. Android 10+ normally saves to **Downloads/DiPlay**; Android 7.1–9 asks for storage access and saves there too. If unavailable, use **View report** or **Share** from the confirmation, which identifies external/private fallback storage. Review the `.txt` and add it to a matching [existing issue](https://github.com/shihabal3amri/DiPlay/issues), or [create one](https://github.com/shihabal3amri/DiPlay/issues/new/choose). Include vehicle/head-unit model, exact firmware and Android/DiLink, phone/iOS, connection backend, relevant settings, steps and failure time. Reports are shared only when you choose; never post your hotspot password.
+The app checks [this fork's Releases](https://github.com/leth0x01/DiPlay/releases). It does not offer upstream DiPlay APKs as LynkPlay updates. No APK is published in this stage. If the repository is renamed, update the app's release endpoint accordingly.
 
-## Documentation
+## Attribution
 
-[Existing Wi-Fi / Same LAN](docs/EXISTING_WIFI.md) keeps the iPhone and head unit
-on an external router. See the guide for setup, build requirements and the
-BYD DiLink 4.0 / Android 10 clean-install validation result.
+LynkPlay derives from DiPlay, whose receiver is based on xcertplay and whose interface follows DiAuto. Existing copyright and licensing notices remain in place. See [LICENSE](LICENSE), [third-party notices](docs/THIRD_PARTY_NOTICES.md), the [upstream README](docs/DIPLAY-README.md), and its [Chinese edition](docs/DIPLAY-README.zh-CN.md). Their support scope and release links describe the upstream project.
 
-- [Install and connect](docs/INSTALL.md)
-- [Compatibility and troubleshooting](docs/COMPATIBILITY.md)
-- [Smooth wireless CarPlay](docs/SMOOTH_WIRELESS.md)
-- [Privacy and diagnostic reports](docs/PRIVACY.md)
-- [Build from source](docs/BUILD.md) — select `mobile` for the main DiPlay app; `maphost` is a map sample.
-- [Validation](docs/VALIDATION.md)
-- [Release notes](CHANGELOG.md)
-- [Credits and licenses](docs/THIRD_PARTY_NOTICES.md)
-
-The app and release website are available in English, Arabic, Russian, Ukrainian, Spanish, Simplified Chinese and Traditional Chinese (Taiwan). Traditional Chinese uses Taiwan wording; the app also recognizes Hong Kong/Macao and explicit Hant selections without claiming separate regional translations. Choose the app language in Settings; on Android 13+, it stays synchronized with Android’s per-app language setting.
-
-## Source and credits
-
-Based on [xcertplay](https://github.com/shilapi/xcertplay), GPL-3.0. The home/settings UI and website adapt [DiAuto](https://github.com/shihabal3amri/DiAuto), AGPL-3.0; that license is included in `docs/licenses`. Preserve those notices when distributing modifications. CarPlay and its icon belong to Apple Inc.; no Apple or BYD affiliation or endorsement is implied.
-
-This repository starts with a clean public source snapshot. Local research, tester reports and release-signing secrets are excluded. The complete source corresponding to the APK is provided with every release; experimental runtime identity assets are described separately in the build instructions and notices.
-
-## Local release packaging
-
-The release APK intentionally contains the experimental accessory identity. The Git repository and source archive exclude all accessory and Android signing keys; tests generate synthetic identities at runtime. Source/CI builds omit runtime identity assets by default. Local release builds explicitly select an external asset directory. Publishing the APK makes its bundled identity extractable; building locally does not preserve that identity's confidentiality.
+CarPlay and its icon belong to Apple Inc. This fork does not imply Apple or Lynk & Co certification.

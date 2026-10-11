@@ -13,7 +13,7 @@ import java.io.IOException
 /** Copies a verified APK where a file manager can reach it, for head units that cannot use the system installer. */
 internal object UpdateApkExport {
     private const val APK_MIME = "application/vnd.android.package-archive"
-    private val DOWNLOADS_DIRECTORY = "${Environment.DIRECTORY_DOWNLOADS}/DiPlay"
+    private val DOWNLOADS_DIRECTORY = "${Environment.DIRECTORY_DOWNLOADS}/LynkPlay"
 
     /** [path] is shown to the driver. [uri] is set only for a MediaStore copy that file managers can open. */
     class Saved(val path: String, val uri: Uri?)

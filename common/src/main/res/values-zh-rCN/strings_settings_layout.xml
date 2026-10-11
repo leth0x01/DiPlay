@@ -23,7 +23,7 @@
     <string name="settings_wheel_keys">方向盘按键</string>
     <string name="settings_experimental_display">显示（实验性）</string>
     <string name="settings_diagnostics_summary">排查连接问题时保存本地报告</string>
-    <string name="settings_full_screen_description">在 DiPlay 与 CarPlay 中隐藏状态栏及导航栏。</string>
+    <string name="settings_full_screen_description">在 LynkPlay 与 CarPlay 中隐藏状态栏及导航栏。</string>
     <string name="settings_vehicle_description">车辆和仪表盘功能因车型和固件而异。启用实验性设置前，请先在高级设置中查看。</string>
     <string name="settings_open_advanced">打开高级设置</string>
     <string name="settings_reconnect_pending">已保存。部分更改将在 CarPlay 重新连接后生效。</string>
@@ -33,7 +33,7 @@
     <string name="settings_search_empty">没有匹配的设置。请换个词试试。</string>
     <string name="settings_ready_wireless">无线 CarPlay 将连接到 %1$s。</string>
     <string name="settings_ready_usb">使用 USB 数据线连接 iPhone 以启动 CarPlay。</string>
-    <string name="settings_connecting_description">DiPlay 正在与你的 iPhone 启动 CarPlay。</string>
+    <string name="settings_connecting_description">LynkPlay 正在与你的 iPhone 启动 CarPlay。</string>
     <string name="settings_choose_iphone_title">选择你的 iPhone</string>
     <string name="settings_choose_iphone_description">无线 CarPlay 需要先配对 iPhone 才能连接。</string>
     <string name="settings_choose_iphone_action">选择 iPhone</string>

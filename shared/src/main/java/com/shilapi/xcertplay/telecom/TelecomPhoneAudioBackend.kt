@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 private const val TAG = "DiPlay-PhoneAudio"
 private const val ACCOUNT_ID = "diplay-car-phone-audio"
-private const val ACCOUNT_LABEL = "DiPlay call audio"
+private const val ACCOUNT_LABEL = "LynkPlay call audio"
 private const val ADDRESS = "carplay@diplay"
 private const val START_TIMEOUT_MILLIS = 3_000L
 

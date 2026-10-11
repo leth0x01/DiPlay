@@ -2,6 +2,6 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <files-path name="reports" path="diagnostic-reports/" />
     <external-files-path name="external_reports" path="diagnostic-reports/" />
-    <!-- Only DiPlay's own folder in the public Downloads, never the rest of shared storage. -->
-    <external-path name="public_reports" path="Download/DiPlay/" />
+    <!-- 仅开放 LynkPlay 的公开下载目录，不开放其余共享存储。 -->
+    <external-path name="public_reports" path="Download/LynkPlay/" />
 </paths>

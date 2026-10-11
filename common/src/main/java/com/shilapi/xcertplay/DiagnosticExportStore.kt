@@ -27,10 +27,10 @@ internal object DiagnosticExportStore {
     )
 
     /**
-     * Saves to the visible Downloads/DiPlay folder whenever the head unit allows it, so the
+     * Saves to the visible Downloads/LynkPlay folder whenever the head unit allows it, so the
      * report can be reached from a file manager or USB. Order:
      *  1. Android 10+: MediaStore Downloads (no permission needed).
-     *  2. Direct file in public Downloads/DiPlay: Android 11+ allows it without permission;
+     *  2. Direct file in public Downloads/LynkPlay: Android 11+ allows it without permission;
      *     Android 9 needs WRITE_EXTERNAL_STORAGE. Some DiLink builds lack a working
      *     MediaStore Downloads provider, so this also covers Android 11+ when step 1 fails.
      *  3. App-specific external storage (Android/data/<package>, hidden on many head units).
@@ -102,18 +102,18 @@ internal object DiagnosticExportStore {
 
     @Suppress("DEPRECATION")
     fun publicDownloadsDirectory(): File =
-        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "DiPlay")
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "LynkPlay")
 
     internal fun saveToPublicDownloads(context: Context, fileName: String, report: String): SavedReport {
         val directory = publicDownloadsDirectory()
-        if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Downloads/DiPlay is unavailable")
+        if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Downloads/LynkPlay is unavailable")
         val base = fileName.removeSuffix(".txt")
         var file = File(directory, fileName)
         var copy = 1
         while (file.exists()) file = File(directory, "$base-${copy++}.txt")
         try {
             file.writeText(report, Charsets.UTF_8)
-            if (file.length() == 0L && report.isNotEmpty()) throw IOException("Downloads/DiPlay did not keep the report")
+            if (file.length() == 0L && report.isNotEmpty()) throw IOException("Downloads/LynkPlay did not keep the report")
         } catch (error: Exception) {
             file.delete()
             throw error
@@ -126,8 +126,8 @@ internal object DiagnosticExportStore {
             FileProvider.getUriForFile(context, "${context.packageName}.diagnostic-reports", file)
         } catch (error: IllegalArgumentException) {
             // Some storage layouts resolve Downloads outside the provider's external root.
-            // Share a private copy instead; the visible file in Downloads/DiPlay stays.
-            Log.w(TAG, "Downloads/DiPlay is not shareable through the provider; sharing a private copy", error)
+            // Share a private copy instead; the visible file in Downloads/LynkPlay stays.
+            Log.w(TAG, "Downloads/LynkPlay is not shareable through the provider; sharing a private copy", error)
             privateShareCopy(context, fileName, report)
         }
         return SavedReport(uri, savedPath = file.absolutePath)
@@ -146,7 +146,7 @@ internal object DiagnosticExportStore {
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, "text/plain")
-            put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/DiPlay")
+            put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/LynkPlay")
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)

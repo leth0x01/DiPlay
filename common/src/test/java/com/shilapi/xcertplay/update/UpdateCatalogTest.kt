@@ -1,5 +1,7 @@
 package com.shilapi.xcertplay.update
 
+import java.io.ByteArrayInputStream
+import java.net.HttpURLConnection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -10,6 +12,24 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
 class UpdateCatalogTest {
+    @Test
+    fun lynkPlayChecksItsForkAndHandlesNoPublishedReleases() {
+        var connection: HttpURLConnection? = null
+        val release = UpdateReleaseLookup.latest("0.2.18", "LynkPlay/test") { url ->
+            object : HttpURLConnection(url) {
+                override fun connect() {}
+                override fun disconnect() {}
+                override fun usingProxy() = false
+                override fun getResponseCode() = 200
+                override fun getInputStream() = ByteArrayInputStream("[]".toByteArray())
+            }.also { connection = it }
+        }
+
+        assertEquals("https://api.github.com/repos/leth0x01/DiPlay/releases?per_page=3", connection?.url.toString())
+        assertEquals("LynkPlay/test", connection?.getRequestProperty("User-Agent"))
+        assertNull(release)
+    }
+
     private val releaseJson = """
         [
           {

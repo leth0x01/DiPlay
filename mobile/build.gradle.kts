@@ -14,7 +14,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shihab.diplay"
+        applicationId = "com.leth0x01.lynkplay"
         minSdk = 25
         targetSdk = 37
         versionCode = 37

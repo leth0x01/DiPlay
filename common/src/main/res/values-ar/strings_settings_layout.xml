@@ -23,7 +23,7 @@
     <string name="settings_wheel_keys">أزرار عجلة القيادة</string>
     <string name="settings_experimental_display">الشاشة (تجريبي)</string>
     <string name="settings_diagnostics_summary">احفظ تقريرًا محليًا عند استكشاف مشكلة في الاتصال</string>
-    <string name="settings_full_screen_description">إخفاء شريطي الحالة والتنقل في DiPlay وCarPlay.</string>
+    <string name="settings_full_screen_description">إخفاء شريطي الحالة والتنقل في LynkPlay وCarPlay.</string>
     <string name="settings_vehicle_description">تختلف ميزات السيارة ولوحة العدادات حسب الطراز والبرنامج الثابت. راجعها في الإعدادات المتقدمة قبل تفعيل عناصر التحكم التجريبية.</string>
     <string name="settings_open_advanced">فتح الإعدادات المتقدمة</string>
     <string name="settings_reconnect_pending">تم الحفظ. تُطبَّق بعض التغييرات عند إعادة اتصال CarPlay.</string>
@@ -33,7 +33,7 @@
     <string name="settings_search_empty">لا يوجد إعداد مطابق. جرّب كلمة أخرى.</string>
     <string name="settings_ready_wireless">سيتصل CarPlay اللاسلكي بـ %1$s.</string>
     <string name="settings_ready_usb">وصّل iPhone بكابل USB لبدء CarPlay.</string>
-    <string name="settings_connecting_description">يبدأ DiPlay تشغيل CarPlay مع iPhone.</string>
+    <string name="settings_connecting_description">يبدأ LynkPlay تشغيل CarPlay مع iPhone.</string>
     <string name="settings_choose_iphone_title">اختر iPhone</string>
     <string name="settings_choose_iphone_description">يحتاج CarPlay اللاسلكي إلى iPhone مقترن قبل الاتصال.</string>
     <string name="settings_choose_iphone_action">اختيار iPhone</string>
