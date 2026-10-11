@@ -72,3 +72,21 @@ BYD HUD、车辆数据、专属 ADB 仪表、胎压和氛围灯的入口受到�
 大字体截图由 `LynkSetupUiTest` 调用真实引导组件并以 Robolectric native graphics 绘制，覆盖紧凑 360 dp / mdpi、宽屏 1280 dp / xhdpi 和阿拉伯语 600 dp / mdpi，字体缩放 1.5。生成截图在 `common/build/reports/lynk-setup-ui/`，审阅副本见 [紧凑布局](screenshots/lynk06-capabilities/compact.png)、[高密度宽屏布局](screenshots/lynk06-capabilities/full-xhdpi.png) 和 [阿拉伯语布局](screenshots/lynk06-capabilities/rtl.png)。UI 渲染环境使用 API 29，车型运行门禁另在 API 28 测试。这些都是模拟验证，不是实车照片。
 
 最终 APK 资源检查确认 `config_vehicle_profile=lynk_06_2023_petrol`、`config_byd_integration=false`。普通 Debug APK 仍是未提供配件认证输入的源码构建；未制作独立车测包，未进行实车连接、声音、Siri 或方向盘验收。
+
+## 2026-10-12：稳定独立车测包
+
+新增 `carTest` 构建，包名为 `com.leth0x01.lynkplay`，版本 `0.1.0-lynk06-test` / versionCode 38，非 debug。未来 release 使用相同的本地长期 APK 签名，保证在递增版本后能够覆盖升级。
+
+签名证书 SHA256：`ea6a1ad297d40af0ab441543b08c3d5a26f237a0ba1096448d07ab5a0227fc74`。密钥和密码只保存在忽略文件中，尚未建立异地备份。初始化脚本重复运行保留原签名。
+
+认证输入来自[原版官方 v0.2.18 APK](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.18)，APK SHA256 与官方 `SHA256SUMS.txt` 一致：`e241457b36b21fe75b06b5682b4dcfc4fbc25cf75b1855c7a4d055129635ce8e`。仅导入固定两项认证资产到 `.private/`，来源记录不会打包。本地验证证书为 P-256 且与私钥配对，不代表 Apple 认证。
+
+已执行负向检查：错误源 APK SHA256、缺失认证、不配对的密钥和证书、错误签名证书指纹均被拒绝。PowerShell 三个脚本语法检查通过，公开源码及新增文件按凭据扫描规则检查通过。源码 debug APK 未包含认证资产。
+
+车测 APK 通过 `apksigner verify --min-sdk-version 28`（v2 签名），证书与固定指纹相同；`aapt2` 确认包名、版本和应用名称 LynkPlay。打包的两个认证文件与选定输入 SHA256 完全一致。重新构建仍使用同一签名。构建流程见 [车测说明](LYNKPLAY-CAR-TEST.md)。
+
+没有进行安装、发布、上传或实车验收。
+
+本次完整执行 AGENTS.md 命令：shared 1350 项中 3 项失败、common 1154 项中 7 项失败、home 4 项通过，共 2508 项。失败名称与上述已确认的 Windows 基线 10 项完全一致。三个 Debug 构建与三个 Debug Lint 通过；全量 CI 仍返回失败，不宣称全量通过。
+
+`:mobile:lintCarTest` 通过；随后重新构建并通过最终包名、签名和认证资产核验。产物 `mobile/build/outputs/apk/carTest/mobile-carTest.apk` 的 SHA256 为 `74ec294ed38bf188f22a9fad7db1b4de17d718271095c9a2a81d655ed1d41a4e`，旁边生成 `SHA256SUMS.txt`。认证输入和签名私钥未进入公开源码。

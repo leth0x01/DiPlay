@@ -1,4 +1,6 @@
-# Build DiPlay
+# Build LynkPlay
+
+For the stable Lynk 06 car-test package, signing setup and authentication provenance, see [LynkPlay car-test builds](LYNKPLAY-CAR-TEST.md).
 
 Use this procedure to build the DiPlay app for an Android head unit.
 Run the commands from the repository root, where `gradlew` and `settings.gradle.kts` are located.
@@ -73,8 +75,8 @@ Check that this file exists:
 mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
 
-The debug application ID is `com.shihab.diplay.hudtest`.
-The release application ID is `com.shihab.diplay`.
+The debug application ID is `com.leth0x01.lynkplay.hudtest`.
+The carTest and release application ID is `com.leth0x01.lynkplay`.
 
 The source APK contains no accessory identity unless you supply runtime authentication assets.
 Standalone CarPlay needs these assets to connect to an iPhone.
@@ -128,7 +130,7 @@ The build rejects unexpected credential containers in APK assets.
 DIPLAY_AUTH_ASSETS_DIR=/absolute/path/to/runtime-assets ./gradlew :mobile:assembleStandaloneDebug
 ```
 
-The task stops if either required file is absent or empty.
+The task stops if either required file is absent, oversized, malformed or does not match its counterpart.
 Its APK output is `mobile/build/outputs/apk/debug/mobile-debug.apk`.
 Check both files in the APK against your selected local inputs:
 
@@ -151,6 +153,9 @@ Set these environment variables locally:
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
 | `ANDROID_KEY_ALIAS` | Signing key alias |
 | `ANDROID_KEY_PASSWORD` | Signing key password |
+| `LYNKPLAY_SIGNER_SHA256` | Expected signing certificate SHA256 (64 hex digits) |
+
+Alternatively, initialize the ignored `release-signing.properties` with `scripts/Initialize-LynkPlaySigning.ps1`. Environment variables take precedence over local properties. `carTest` and `release` use the same signing configuration and enforce its pinned certificate fingerprint.
 
 Keep the keystore and passwords outside Git.
 Run the release checks and build:
