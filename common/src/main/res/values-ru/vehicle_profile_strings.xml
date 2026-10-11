@@ -1,0 +1,6 @@
+<resources>
+    <string name="settings_vehicle_target_title">Целевая конфигурация автомобиля</string>
+    <string name="settings_lynk06_target">Lynk &amp; Co 06 2023 года · Бензин · Android 9</string>
+    <string name="settings_vehicle_target_unverified">Это цель сборки, а не результат определения или проверки прошивки. Непроверенные функции производителя отключены.</string>
+    <string name="settings_vehicle_runtime">Текущая система: Android %1$s / API %2$d</string>
+</resources>

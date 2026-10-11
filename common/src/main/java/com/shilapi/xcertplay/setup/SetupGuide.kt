@@ -19,8 +19,13 @@ object SetupGuide {
     data class Entry(val feature: Feature, val status: Status, val needsAdb: Boolean)
 
     /** Claims follow docs/COMPATIBILITY.md: community reports, not a certified support list. */
-    fun features(generation: DiLinkGeneration): List<Entry> {
+    fun features(generation: DiLinkGeneration, bydIntegration: Boolean = true): List<Entry> {
         fun entry(feature: Feature, status: Status, needsAdb: Boolean = false) = Entry(feature, status, needsAdb)
+        // 通用功能仍可配置，但不把未测试的领克目标标为已验证。
+        if (!bydIntegration) return listOf(
+            entry(Feature.AUTO_CONNECT, Status.EXPERIMENTAL),
+            entry(Feature.LOCATION, Status.EXPERIMENTAL),
+        )
         val dilink3 = generation == DiLinkGeneration.DILINK_3
         val dilink4 = generation == DiLinkGeneration.DILINK_4
         return listOf(

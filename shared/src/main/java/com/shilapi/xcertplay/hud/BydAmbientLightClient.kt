@@ -34,6 +34,7 @@ internal class BydAmbientLightClient(context: Context) : AutoCloseable {
     fun status(): Status = status
 
     fun read(): CompletableFuture<State> = submit {
+        check(com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(app)) { "该车型未启用 BYD 氛围灯接口" }
         val ticket = generation.get()
         ensure(ticket)
         val result = parseState(exchange("read")?.takeIf { it.startsWith("state=") }?.removePrefix("state=") ?: error("worker-read-failed"))
@@ -43,6 +44,7 @@ internal class BydAmbientLightClient(context: Context) : AutoCloseable {
 
     /** Takes the sole restoration snapshot for this session; it is never refreshed by later applies. */
     fun begin(restoreSeed: State? = null): CompletableFuture<State> = submit {
+        check(com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(app)) { "该车型未启用 BYD 氛围灯接口" }
         require(restoreSeed == null || BydAmbientLightPolicy.validSnapshot(restoreSeed.snapshot())) { "invalid-restore-seed" }
         check(status.phase == Phase.IDLE || status.phase == Phase.FAILED) { "session-already-active" }
         val ticket = generation.incrementAndGet()

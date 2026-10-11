@@ -1,0 +1,6 @@
+<resources>
+    <string name="settings_vehicle_target_title">Vehicle configuration target</string>
+    <string name="settings_lynk06_target">2023 Lynk &amp; Co 06 · Petrol · Android 9</string>
+    <string name="settings_vehicle_target_unverified">This is the build target, not a detected or tested firmware. Unverified vendor features remain disabled.</string>
+    <string name="settings_vehicle_runtime">Current system: Android %1$s / API %2$d</string>
+</resources>

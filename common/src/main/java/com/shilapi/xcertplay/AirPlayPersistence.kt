@@ -469,6 +469,7 @@ object AirPlayPersistence {
             .getBoolean(KEY_BT_SUSPEND_DURING_CARPLAY, false)
 
     fun loadHideBydCallPopup(context: Context): Boolean =
+        com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context) &&
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(KEY_HIDE_BYD_CALL_POPUP, false)
 
@@ -750,6 +751,7 @@ object AirPlayPersistence {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_CLUSTER_MAP, false)
 
     fun loadAdbClusterEnabled(context: Context): Boolean = loadClusterMapEnabled(context) &&
+        com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context) &&
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ADB_CLUSTER_ACTIVITY, false)
 
     fun saveAdbClusterEnabled(context: Context, enabled: Boolean) {
@@ -761,6 +763,7 @@ object AirPlayPersistence {
     }
 
     fun loadLegacyClusterEnabled(context: Context): Boolean = loadClusterMapEnabled(context) &&
+        com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context) &&
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("platform21_cluster_enabled", false)
 
     fun saveLegacyClusterEnabled(context: Context, enabled: Boolean) {

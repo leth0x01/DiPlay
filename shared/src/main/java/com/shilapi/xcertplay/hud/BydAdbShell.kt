@@ -10,7 +10,7 @@ import com.shilapi.xcertplay.adb.LocalAdb
  * A lazily opened adb shell on the head unit for background reads. It never asks for approval, so
  * the car's dialog cannot appear while driving; a refused or missing adbd is retried every 30 s.
  */
-internal class BydAdbShell(private val tag: String) {
+internal class BydAdbShell(private val tag: String, private val requiresBydIntegration: Boolean = true) {
     private var adb: LocalAdb? = null
     private var retryAtMillis = 0L
     private var unavailableLogged = false
@@ -25,6 +25,7 @@ internal class BydAdbShell(private val tag: String) {
     /** Same as [run], with a larger bounded read window for a command that is slow to answer. */
     @Synchronized
     fun run(context: Context, command: String, readTimeoutMillis: Int?): String? {
+        if (requiresBydIntegration && !com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return null
         val now = SystemClock.elapsedRealtime()
         if (now < retryAtMillis) return null
         val client = adb ?: LocalAdb(AdbKeys.load(context)).also { adb = it }

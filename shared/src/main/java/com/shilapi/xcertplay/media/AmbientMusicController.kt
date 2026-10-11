@@ -156,6 +156,9 @@ object AmbientMusicController {
 
     /** Checks existing authorization and lamp readback only; never asks for ADB or writes a lamp. */
     fun checkSupport(context: Context): java.util.concurrent.CompletableFuture<Boolean> {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) {
+            return java.util.concurrent.CompletableFuture.completedFuture(false)
+        }
         val result = java.util.concurrent.CompletableFuture<Boolean>()
         executor.execute {
             if (lampSession.isReady()) {

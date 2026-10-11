@@ -19,10 +19,12 @@ object BydOemClusterNavi {
     private var session: OemClusterHoldSession? = null
 
     fun applicable(context: Context): Boolean =
-        runCatching { context.packageManager.getPackageInfo(STOCK_MAP, 0) }.isSuccess
+        com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context) &&
+            runCatching { context.packageManager.getPackageInfo(STOCK_MAP, 0) }.isSuccess
 
     /** Blocking, for the ADB routing worker only; never call from the Android main thread. */
     fun holdForLaunch(context: Context, lease: String, current: () -> Boolean): Boolean {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return false
         val app = context.applicationContext
         return runCatching {
             worker.submit<Boolean> {
@@ -35,6 +37,7 @@ object BydOemClusterNavi {
 
     /** Always enqueue, even when acquire has not saved its journal yet. */
     fun release(context: Context, lease: String? = null) {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return
         val app = context.applicationContext
         worker.execute {
             val pendingLease = lease ?: runCatching { journal(app)?.lease }.getOrNull()

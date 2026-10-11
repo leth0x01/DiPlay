@@ -101,7 +101,7 @@ private object ProcessWifiScanPause : WifiScanPauseControl {
     private val worker: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor {
         Thread(it, WifiScanPause.TAG).apply { isDaemon = true }
     }
-    private val adb = BydAdbShell(WifiScanPause.TAG)
+    private val adb = BydAdbShell(WifiScanPause.TAG, requiresBydIntegration = false)
     private var session: WifiScanPauseSession? = null
     private var retry: ScheduledFuture<*>? = null
 

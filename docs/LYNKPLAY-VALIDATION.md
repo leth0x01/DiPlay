@@ -54,3 +54,21 @@ Windows、JDK 25.0.3、Android SDK Platform 37、Build Tools 36.0.0、NDK 28.2.1
 再次执行上面的完整检查：三个 Debug 构建和三个 Lint 任务全部通过，测试仍为 shared 1348 项中 3 项失败、common 1148 项中 7 项失败、home 4 项通过。失败测试与前述基线问题一致，没有新增失败。
 
 已检查生成的 192 × 192 图标，并从最终 APK 提取 `res/raw/ic_car_home.png`：SHA-256 为 `0ddacb2f9e9b0f0bda8382053521c6e44867400265205a74a54c43e90c5914f3`，与源资源一致。既有 AirPlayIconSizing 测试全部通过，图标仍符合方形 PNG 和最大 192 px 的传输要求。未改变设置布局或行对齐。
+
+## 领克 06 第一优先级：车型与厂商能力隔离
+
+目标配置通过 `mobile/src/main/res/values/vehicle_config.xml` 固定为 `lynk_06_2023_petrol`，关闭 BYD 集成。shared 的通用资源保留上游能力，避免大规模删除 BYD 代码。目标标识是构建配置，不是实车检测结果。
+
+Geely 输入契约和 Siri 录音源分别判断，仅接受已有验证记录的 `geely_fx11` / `CS11_A4` / API 30 组合；Android 9、品牌字段或单个型号字段不启用特殊策略。输入服务还检查可见性、启用状态、导出状态、权限及 Binder 描述符，失败释放绑定并记录标准媒体键回退。标准 MediaSession 与原有录音源后备继续使用。
+
+BYD HUD、车辆数据、专属 ADB 仪表、胎压和氛围灯的入口受到运行门禁保护，已保存的偏好和残留 BYD 包无法开启它们。通用 GPS、电话音频路由、公共第二屏和 Wi-Fi 扫描恢复保留。直接调用 BYD 车辆检查或探测接口会在建立 ADB 连接前拒绝请求。
+
+引导不再要求选择 DiLink 代际，显示领克目标、实际 Android 版本与待验证状态。新增四个字符串覆盖全部七套语言资源。诊断记录构建目标、设备标识、固件、ABI、各项策略及输入服务状态。
+
+完整 CI 命令执行结果：shared 1350 项中 3 项失败，common 1154 项中 7 项失败，home 4 项通过；三个 Lint 和三个 Debug 构建通过。共 2508 项，新增加的 8 项能力隔离、服务回退和 UI 测试通过，剩余 10 项失败与前述已复现的 Windows 基线问题一致，不能宣称全量 CI 通过。
+
+最终补充直接探测门禁后再次执行完整 CI，仍为同一组 10 项基线失败。随后定向复检新 UI、车辆门禁与输入绑定测试全部通过。
+
+大字体截图由 `LynkSetupUiTest` 调用真实引导组件并以 Robolectric native graphics 绘制，覆盖紧凑 360 dp / mdpi、宽屏 1280 dp / xhdpi 和阿拉伯语 600 dp / mdpi，字体缩放 1.5。生成截图在 `common/build/reports/lynk-setup-ui/`，审阅副本见 [紧凑布局](screenshots/lynk06-capabilities/compact.png)、[高密度宽屏布局](screenshots/lynk06-capabilities/full-xhdpi.png) 和 [阿拉伯语布局](screenshots/lynk06-capabilities/rtl.png)。UI 渲染环境使用 API 29，车型运行门禁另在 API 28 测试。这些都是模拟验证，不是实车照片。
+
+最终 APK 资源检查确认 `config_vehicle_profile=lynk_06_2023_petrol`、`config_byd_integration=false`。普通 Debug APK 仍是未提供配件认证输入的源码构建；未制作独立车测包，未进行实车连接、声音、Siri 或方向盘验收。

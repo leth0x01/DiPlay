@@ -1,0 +1,4 @@
+<resources>
+    <string name="config_vehicle_profile" translatable="false">lynk_06_2023_petrol</string>
+    <bool name="config_byd_integration">false</bool>
+</resources>

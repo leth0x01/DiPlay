@@ -21,6 +21,7 @@ object BydAdbAccess {
 
     /** Blocking: run off the main thread. [mayAsk] lets the car show its approval dialog for DiPlay's key. */
     fun check(context: Context, mayAsk: Boolean): Status {
+        check(com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) { "该车型未启用 BYD 车辆接口" }
         LocalAdb(AdbKeys.load(context)).use { adb ->
             val state = state(adb.connect(mayAsk))
             if (state != State.READY) return Status(state)

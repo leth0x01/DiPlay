@@ -48,6 +48,7 @@ object BydBluetoothSuspend {
      * that ends, before the pause begins never leaves a lease that nothing will release.
      */
     fun suspend(context: Context, owner: Any, delayMillis: Long = 10_000L, stillActive: () -> Boolean = { true }) {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return
         synchronized(gate) {
             if (!stillActive()) return
             val state = lease(context)
@@ -62,6 +63,7 @@ object BydBluetoothSuspend {
 
     /** Retire only this controller's work; a late old-controller close cannot release a new one. */
     fun resume(context: Context, owner: Any) {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return
         synchronized(gate) {
             val state = lease(context)
             val ticket = state.end(owner) ?: state.recoveryOnAppOpen() ?: return
@@ -72,6 +74,7 @@ object BydBluetoothSuspend {
     }
 
     fun onAppOpened(context: Context) {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return
         synchronized(gate) {
             val state = lease(context)
             val ticket = state.recoveryOnAppOpen() ?: return
@@ -83,6 +86,7 @@ object BydBluetoothSuspend {
 
     /** Bounded recovery before wireless bootstrap; never enables a radio that was already OFF. */
     fun resumeAndWait(context: Context, adapter: BluetoothAdapter?, timeoutMillis: Long = STATE_TIMEOUT_MILLIS): Boolean {
+        if (!com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context)) return true
         val task = synchronized(gate) {
             val state = lease(context)
             val ticket = state.beforeHandshake()

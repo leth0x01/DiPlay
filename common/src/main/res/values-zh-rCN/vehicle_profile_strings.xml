@@ -1,0 +1,6 @@
+<resources>
+    <string name="settings_vehicle_target_title">车型配置目标</string>
+    <string name="settings_lynk06_target">2023 款领克 06 · 燃油版 · Android 9</string>
+    <string name="settings_vehicle_target_unverified">这是构建目标，不是自动检测或实车验证结论。未验证的厂商功能保持关闭。</string>
+    <string name="settings_vehicle_runtime">当前系统：Android %1$s / API %2$d</string>
+</resources>

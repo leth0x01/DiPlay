@@ -2,6 +2,7 @@ package com.shilapi.xcertplay.hud
 
 import android.content.Context
 import com.shilapi.xcertplay.transport.EvChargingConnectors
+import com.shilapi.xcertplay.vehicle.VehicleIntegration
 
 /**
  * One user switch for BYD navigation output. On the tested car the windshield HUD mirrors what the
@@ -29,18 +30,18 @@ object BydOutputSettings {
     const val DEFAULT_LOW_CHARGE_PERCENT = 20
     val lowChargePresets = listOf(10, 15, 20, 25, 30)
 
-    fun enabled(context: Context): Boolean = prefs(context).getBoolean(KEY_ENABLED, true)
+    fun enabled(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_ENABLED, true)
 
     fun setEnabled(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
 
     /** Ask the iPhone to stop drawing the cluster map while the cluster hides it (needs ADB over network). */
-    fun clusterStreamPause(context: Context): Boolean = prefs(context).getBoolean(KEY_CLUSTER_STREAM_PAUSE, false)
+    fun clusterStreamPause(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_CLUSTER_STREAM_PAUSE, false)
 
     fun setClusterStreamPause(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean(KEY_CLUSTER_STREAM_PAUSE, enabled).apply()
 
     /** Tell the iPhone the car's charge and range (needs ADB over network); applies on the next connection. */
-    fun batteryToIphone(context: Context): Boolean = prefs(context).getBoolean(KEY_BATTERY_TO_IPHONE, false)
+    fun batteryToIphone(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_BATTERY_TO_IPHONE, false)
 
     fun setBatteryToIphone(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_BATTERY_TO_IPHONE, enabled).commit()
@@ -61,7 +62,7 @@ object BydOutputSettings {
     }
 
     /** Send wheel speed and gear with the car's GPS (needs ADB over network); applies on the next connection. */
-    fun wheelSpeedToIphone(context: Context): Boolean = prefs(context).getBoolean(KEY_WHEEL_SPEED_TO_IPHONE, false)
+    fun wheelSpeedToIphone(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_WHEEL_SPEED_TO_IPHONE, false)
 
     fun setWheelSpeedToIphone(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_WHEEL_SPEED_TO_IPHONE, enabled).commit()
@@ -70,27 +71,27 @@ object BydOutputSettings {
     fun wheelSpeedToIphoneActive(context: Context): Boolean =
         wheelSpeedToIphone(context) && supportedInSelectedMode(context) { it.motionSupported }
     /** Offer iOS 27 video in car, played only while the gear reads P (needs ADB over network). */
-    fun videoWhileParked(context: Context): Boolean = prefs(context).getBoolean(KEY_VIDEO_WHILE_PARKED, false)
+    fun videoWhileParked(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_VIDEO_WHILE_PARKED, false)
 
     fun setVideoWhileParked(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_VIDEO_WHILE_PARKED, enabled).commit()
     }
 
     /** Show the CarPlay song in the dashboard's music card (needs ADB over network); applies at once. */
-    fun clusterSong(context: Context): Boolean = prefs(context).getBoolean(KEY_CLUSTER_SONG, false)
+    fun clusterSong(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_CLUSTER_SONG, false)
 
     fun setClusterSong(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean(KEY_CLUSTER_SONG, enabled).apply()
 
     /** Show CarPlay calls on the dashboard and HUD like BYD's CarPlay app (needs ADB over network); applies at once. */
-    fun carPlayCalls(context: Context): Boolean = prefs(context).getBoolean(KEY_CARPLAY_CALLS, false)
+    fun carPlayCalls(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_CARPLAY_CALLS, false)
 
     fun setCarPlayCalls(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean(KEY_CARPLAY_CALLS, enabled).apply()
 
     /** Unverified DiLink 3 call/voice/media key handling requires a separate explicit opt-in. */
     fun carPlayCallControls(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_CARPLAY_CALL_CONTROLS, false)
+        VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_CARPLAY_CALL_CONTROLS, false)
 
     fun setCarPlayCallControls(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean(KEY_CARPLAY_CALL_CONTROLS, enabled).apply()
@@ -139,12 +140,13 @@ object BydOutputSettings {
     }
 
     /** Optional title/lyrics when navigation is absent; only the verified HUD output can send it. */
-    fun hudSong(context: Context): Boolean = prefs(context).getBoolean(KEY_HUD_SONG, false)
+    fun hudSong(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_HUD_SONG, false)
     fun setHudSong(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean(KEY_HUD_SONG, enabled).apply()
 
     /** OEM changes require an explicit selection; fresh installations leave the stock map alone. */
     fun oemClusterHold(context: Context): BydOemClusterHold {
+        if (!VehicleIntegration.bydEnabled(context)) return BydOemClusterHold.OFF
         val settings = prefs(context)
         BydOemClusterHold.fromName(settings.getString(KEY_OEM_CLUSTER_HOLD, null))?.let { return it }
         return if (settings.getBoolean("oem_cluster_freeze", false)) BydOemClusterHold.PACKAGE
@@ -159,30 +161,30 @@ object BydOutputSettings {
     fun setLowChargePercent(context: Context, percent: Int) =
         prefs(context).edit().putInt(KEY_LOW_CHARGE_PERCENT, percent).apply()
 
-    fun standaloneHudAvailable(context: Context): Boolean = BydStandaloneHudOutput.available(context)
+    fun standaloneHudAvailable(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && BydStandaloneHudOutput.available(context)
     fun standaloneHudDiagnosticReport(context: Context): String = BydStandaloneHudOutput.diagnostics(context)
 
     /** Whether the head unit has a BYD navigation receiver. This says nothing about ADB vehicle data. */
     fun navigationAvailable(context: Context): Boolean =
-        BydStandaloneHudOutput.available(context) ||
+        VehicleIntegration.bydEnabled(context) && (BydStandaloneHudOutput.available(context) ||
             BydAmapAdapter.find { installed(context, it) } != null ||
-            installed(context, "com.ts.car.someip.service")
+            installed(context, "com.ts.car.someip.service"))
 
     /** Whether the head unit has the FCE vehicle-property service that feeds its cluster's navigation view. */
-    fun fceClusterAvailable(): Boolean = FceClusterBridge.available()
+    fun fceClusterAvailable(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && FceClusterBridge.available()
 
     /**
      * Opt-in for [FceClusterBridge]: it writes vendor vehicle properties whose meaning was confirmed on one
      * car only, and another head unit with the same service could read them differently.
      */
-    fun fceCluster(context: Context): Boolean = prefs(context).getBoolean(KEY_FCE_CLUSTER, false)
+    fun fceCluster(context: Context): Boolean = VehicleIntegration.bydEnabled(context) && prefs(context).getBoolean(KEY_FCE_CLUSTER, false)
 
     fun setFceCluster(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean(KEY_FCE_CLUSTER, enabled).apply()
 
     /** Whether the head unit has a BYD navigation receiver or is a BYD head unit, so settings can show navigation/map options. */
     fun available(context: Context): Boolean =
-        navigationAvailable(context) ||
+        VehicleIntegration.bydEnabled(context) && (navigationAvailable(context) ||
             installed(context, "com.byd.carsettings") ||
             installed(context, "com.byd.appmgr") ||
             installed(context, "com.byd.deviceinfo") ||
@@ -191,7 +193,7 @@ object BydOutputSettings {
             android.os.Build.BRAND.contains("BYD", ignoreCase = true) ||
             android.os.Build.MANUFACTURER.contains("BYD", ignoreCase = true) ||
             android.os.Build.PRODUCT.contains("BYD", ignoreCase = true) ||
-            android.os.Build.DEVICE.contains("BYD", ignoreCase = true)
+            android.os.Build.DEVICE.contains("BYD", ignoreCase = true))
 
     private fun installed(context: Context, pkg: String): Boolean =
         runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess

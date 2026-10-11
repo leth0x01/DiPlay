@@ -1,0 +1,6 @@
+<resources>
+    <string name="settings_vehicle_target_title">السيارة المستهدفة</string>
+    <string name="settings_lynk06_target">لينك آند كو 06 موديل 2023 · بنزين · Android 9</string>
+    <string name="settings_vehicle_target_unverified">هذا هدف البناء وليس نتيجة اكتشاف البرنامج الثابت أو اختباره. تبقى وظائف الشركة المصنعة غير المتحقق منها معطلة.</string>
+    <string name="settings_vehicle_runtime">النظام الحالي: Android %1$s / API %2$d</string>
+</resources>

@@ -1,0 +1,5 @@
+<resources>
+    <!-- 应用模块覆盖目标；通用库不把某个车型当作已验证固件。 -->
+    <string name="config_vehicle_profile" translatable="false">generic</string>
+    <bool name="config_byd_integration">true</bool>
+</resources>

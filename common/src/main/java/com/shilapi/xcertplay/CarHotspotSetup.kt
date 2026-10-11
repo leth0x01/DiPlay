@@ -13,9 +13,10 @@ import com.shilapi.xcertplay.orchestration.ManualHotspotValidation
 /** Each grant is requested explicitly from settings; startup never calls this authorization path. */
 internal object CarHotspotSetup {
     // Older BYD units report QUALCOMM/qti and have no supported navigation-output service.
-    fun isBydHeadUnit(context: Context): Boolean = BydOutputSettings.navigationAvailable(context) || runCatching {
+    fun isBydHeadUnit(context: Context): Boolean = com.shilapi.xcertplay.vehicle.VehicleIntegration.bydEnabled(context) &&
+        (BydOutputSettings.navigationAvailable(context) || runCatching {
         context.packageManager.getApplicationInfo("com.byd.carsettings", 0).flags and ApplicationInfo.FLAG_SYSTEM != 0
-    }.getOrDefault(false)
+    }.getOrDefault(false))
 
     enum class Permission(val appOp: String) {
         HOTSPOT("WRITE_SETTINGS"), BOOT_LAUNCH("SYSTEM_ALERT_WINDOW");
