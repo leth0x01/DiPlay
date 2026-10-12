@@ -277,6 +277,7 @@ internal class MicrophoneUplink(
         val clock = canceller?.let { CaptureClock(config.sampleRate) }
         val reference = canceller?.let { ShortArray(it.frameSamples) }
         var filled = 0
+        var readRestarts = 0
         try {
             while (running.get()) {
                 stats.reading()
@@ -287,6 +288,16 @@ internal class MicrophoneUplink(
                     if (running.get()) {
                         Log.e(TAG, "microphone read failed code=$count")
                         stats.failure(MicrophoneFailureStage.READ, code = count)
+                    }
+                    // The first read after a head unit enters call mode can fail with
+                    // ERROR_INVALID_OPERATION, and capture used to end there for the whole call
+                    // (#647). Restart recording a few times before giving up.
+                    if (running.get() && count != AudioRecord.ERROR_DEAD_OBJECT &&
+                        readRestarts < MAX_READ_RESTARTS && restartRecording(recorder)
+                    ) {
+                        readRestarts++
+                        stats.restarted(readRestarts)
+                        continue
                     }
                     return
                 }
@@ -318,6 +329,7 @@ internal class MicrophoneUplink(
                                 canceller = null
                             }
                         }
+                        stats.level(frame)
                         sendFrame(socket, counters, frame)
                         filled = 0
                     }
@@ -334,6 +346,15 @@ internal class MicrophoneUplink(
             running.set(false)
             release()
         }
+    }
+
+    private fun restartRecording(recorder: AudioRecord): Boolean = try {
+        runCatching { recorder.stop() }
+        Thread.sleep(READ_RESTART_PAUSE_MILLIS)
+        recorder.startRecording()
+        recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING
+    } catch (error: IllegalStateException) {
+        false
     }
 
     private fun sendFrame(socket: DatagramSocket, counters: MicrophoneCounters, frame: ByteArray) {
@@ -463,6 +484,8 @@ internal class MicrophoneUplink(
         const val CLOSE_JOIN_MILLIS = 500L
         const val ECHO_TAIL_MILLIS = 250
         const val ECHO_REFERENCE_LEAD_NS = 30_000_000L
+        const val MAX_READ_RESTARTS = 3
+        const val READ_RESTART_PAUSE_MILLIS = 50L
     }
 }
 

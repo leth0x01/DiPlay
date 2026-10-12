@@ -799,4 +799,13 @@
     <string name="settings_fce_cluster_guidance">Подсказки на приборной панели FCE (экспериментально)</string>
     <string name="settings_fce_cluster_guidance_description">Показывает стрелки CarPlay и расстояние до следующего манёвра в навигационном виде приборной панели на головных устройствах FCE, записывая данные в сервис автомобиля. Проверено только на одном автомобиле; отключите, если панель ведёт себя необычно.</string>
     <string name="settings_lynk06_cluster_description">Попробуйте вывести навигацию CarPlay в область карты приборной панели Lynk 06. Во время навигации карта следует режиму навигации панели, если доступен её интерфейс. Примените изменения и подключитесь заново.</string>
+    <string name="settings_cluster_music">Музыка на приборной панели (экспериментально)</string>
+    <string name="settings_cluster_music_description">Показывает квадратную обложку поверх карты. Выберите временную обложку (8 секунд) или постоянную; название и исполнитель всегда появляются поверх неё на 8 секунд при смене песни. Положение и размер применяются сразу. Нужны проекция и данные iPhone.</string>
+    <string name="settings_cluster_music_mode">Видимость обложки</string>
+    <string name="settings_cluster_music_temporary">Временно · 8 секунд</string>
+    <string name="settings_cluster_music_permanent">Постоянно</string>
+    <string name="settings_cluster_music_horizontal">Музыка · положение по горизонтали</string>
+    <string name="settings_cluster_music_vertical">Музыка · положение по вертикали</string>
+    <string name="settings_cluster_music_size">Музыка · размер</string>
+    <string name="settings_cluster_music_unknown">Неизвестный исполнитель</string>
 </resources>

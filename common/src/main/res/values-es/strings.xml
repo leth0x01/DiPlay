@@ -799,4 +799,13 @@
     <string name="settings_fce_cluster_guidance">Indicaciones en el cuadro FCE (experimental)</string>
     <string name="settings_fce_cluster_guidance_description">Muestra las flechas de CarPlay y la distancia al próximo giro en la vista de navegación del cuadro de instrumentos en unidades FCE, escribiendo en el servicio del vehículo de la unidad. Probado solo en un coche; desactívalo si el cuadro se comporta de forma inesperada.</string>
     <string name="settings_lynk06_cluster_description">Prueba a mostrar la navegación CarPlay en el área del mapa del cuadro de instrumentos del Lynk 06. Durante la navegación, el mapa sigue el modo de navegación del cuadro cuando su interfaz está disponible. Aplica los cambios y vuelve a conectar para que surtan efecto.</string>
+    <string name="settings_cluster_music">Música en el cuadro (experimental)</string>
+    <string name="settings_cluster_music_description">Muestra la portada cuadrada sobre el mapa del cuadro. Elige portada temporal (8 segundos) o permanente; el título y artista siempre aparecen sobre ella durante 8 segundos al cambiar de canción. La posición y el tamaño se aplican al instante. Requiere proyección al cuadro y datos del iPhone.</string>
+    <string name="settings_cluster_music_mode">Visibilidad de la portada</string>
+    <string name="settings_cluster_music_temporary">Temporal · 8 segundos</string>
+    <string name="settings_cluster_music_permanent">Permanente</string>
+    <string name="settings_cluster_music_horizontal">Tarjeta musical · posición horizontal</string>
+    <string name="settings_cluster_music_vertical">Tarjeta musical · posición vertical</string>
+    <string name="settings_cluster_music_size">Tarjeta musical · tamaño</string>
+    <string name="settings_cluster_music_unknown">Artista desconocido</string>
 </resources>

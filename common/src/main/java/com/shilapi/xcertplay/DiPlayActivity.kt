@@ -206,6 +206,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private var settingsSearchPopup: PopupWindow? = null
     private var settingsSearchIndex: List<SettingsSearchResult>? = null
     private var settingsSearchQuery = ""
+    private var settingsSearchExpanded = false
     private var settingsSearchIndexing = false
     private var settingsSearchRestoreFocus = false
     private var renderedReadiness: SettingsReadiness? = null
@@ -643,6 +644,8 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         // The results hang off the old header; the new header reopens them if the search continues.
         settingsSearchPopup?.dismiss()
         settingsSearchPopup = null
+        settingsSearchRestoreFocus = settingsSearchRestoreFocus ||
+            (settingsSearchExpanded && settingsSearchBox?.hasFocus() == true)
         settingsSearchBox = null
         if (page != "settings") clearSettingsSearchState()
         status = null; connectButton = null; disconnectButton = null; lastRunning = null; carButtonCard = null
@@ -771,7 +774,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     private fun navigateBack() {
         // Back closes an open search first, like a system search bar.
-        if (page == "settings" && settingsSearchQuery.isNotEmpty()) {
+        if (page == "settings" && settingsSearchExpanded) {
             closeSettingsSearch()
             return
         }
@@ -810,17 +813,63 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     }
 
     private fun settingsHeader(compact: Boolean): LinearLayout = row().apply {
+        val controlHeight = dp(if (compact) 44 else 52)
+        val iconOnlySearch = compact || resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         gravity = Gravity.CENTER_VERTICAL
         addView(headerButton(getString(R.string.back), R.drawable.ic_dp_back, compact, ::navigateBack),
             LinearLayout.LayoutParams(-2, if (compact) dp(44) else dp(52)))
-        addView(label(getString(R.string.settings), if (compact) 20 else 26, TEXT, true,
+        val settingsTitle = label(getString(R.string.settings), if (compact) 20 else 26, TEXT, true,
             centreGlyphs = true).apply {
             setPadding(dp(12), 0, dp(12), 0)
-        }, LinearLayout.LayoutParams(-2, if (compact) dp(44) else dp(52)))
-        addView(settingsSearchField(compact), LinearLayout.LayoutParams(0, if (compact) dp(44) else dp(52), 1f).apply {
-            marginEnd = dp(if (compact) 8 else 12)
-        })
-        addView(appearanceButton(), LinearLayout.LayoutParams(dp(if (compact) 44 else 52), dp(if (compact) 44 else 52)))
+            setSingleLine(true)
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+        // Reserve the action buttons first; only the title may shrink in a narrow header.
+        addView(settingsTitle, LinearLayout.LayoutParams(
+            if (settingsSearchExpanded) -2 else 0, controlHeight,
+            if (settingsSearchExpanded) 0f else 1f,
+        ))
+        val searchGap = dp(if (compact) SETTINGS_HEADER_COMPACT_GAP_DP else SETTINGS_HEADER_GAP_DP)
+        if (settingsSearchExpanded) {
+            val searchField = settingsSearchField(compact)
+            addView(searchField, LinearLayout.LayoutParams(0, controlHeight, 1f).apply {
+                marginEnd = searchGap
+            })
+            searchField.doOnLayout {
+                // Give a squeezed editor the title's space, using the current locale and font scale.
+                val hintWidth = searchField.paint.measureText(searchField.hint.toString())
+                val requiredWidth = hintWidth + searchField.compoundPaddingLeft + searchField.compoundPaddingRight
+                if (searchField.width < requiredWidth) {
+                    settingsTitle.visibility = View.GONE
+                    searchField.layoutParams = (searchField.layoutParams as LinearLayout.LayoutParams).apply {
+                        marginStart = searchGap
+                    }
+                }
+            }
+        } else {
+            val openSearch = {
+                // Indexing rebuilds the settings widgets. Do it before focusing an editor,
+                // so the first keystroke never replaces the IME's input connection.
+                settingsSearchIndex = buildSettingsSearchIndex()
+                settingsSearchExpanded = true
+                settingsSearchRestoreFocus = true
+                render()
+            }
+            val searchButton = if (iconOnlySearch) {
+                iconButton(R.drawable.ic_dp_search, getString(R.string.settings_search), openSearch).apply {
+                    imageTintList = ColorStateList.valueOf(TEXT)
+                }
+            } else {
+                headerButton(getString(R.string.settings_search_hint), R.drawable.ic_dp_search, compact, openSearch)
+            }.apply {
+                tag = SETTINGS_SEARCH_BUTTON_TAG
+                contentDescription = getString(R.string.settings_search)
+            }
+            addView(searchButton, LinearLayout.LayoutParams(if (iconOnlySearch) controlHeight else -2, controlHeight).apply {
+                marginEnd = searchGap
+            })
+        }
+        addView(appearanceButton(), LinearLayout.LayoutParams(controlHeight, controlHeight))
     }
 
     private fun appearanceButton(): ImageButton = iconButton(
@@ -1209,6 +1258,8 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     }
 
     private fun openSettingsCategory(category: SettingsCategory) {
+        setSearchKeyboard(settingsSearchBox, false)
+        clearSettingsSearchState()
         settingsCategory = category
         render()
     }
@@ -1368,10 +1419,10 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     /**
      * The settings header search box; matches drop down under it as the driver types.
-     * The index is built on the first keystroke. Building re-renders the page, so the
-     * replacement box takes over the query, focus and keyboard.
+     * The index is built before expanding the field, so typing keeps the same editor
+     * and keyboard input connection.
      */
-    private fun settingsSearchField(compact: Boolean): EditText = EditText(this).apply {
+    private fun settingsSearchField(compact: Boolean): EditText = SettingsSearchEditText(this).apply {
         settingsSearchBox = this
         setSingleLine()
         hint = getString(R.string.settings_search_hint)
@@ -1379,12 +1430,23 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         textSize = if (compact) 16f else 18f
         setTextColor(TEXT)
         setHintTextColor(MUTED)
-        background = rounded(BUTTON, BORDER)
-        foreground = focusRing()
-        setPadding(dp(16), 0, dp(16), 0)
-        compoundDrawablePadding = dp(10)
-        setCompoundDrawablesRelativeWithIntrinsicBounds(
-            getDrawable(R.drawable.ic_dp_search)?.mutate()?.apply { setTint(MUTED) }, null, null, null)
+        // The editor scrolls long text sideways and its drawing canvas scrolls with it, but Android
+        // draws the background unscrolled. The icon and focus ring live there, so they stay put
+        // without compensating for scroll or for the text's vertical centring.
+        val iconSize = headerIconSize(compact)
+        val icon = getDrawable(R.drawable.ic_dp_search)?.mutate()?.apply { setTint(MUTED) }
+        background = android.graphics.drawable.LayerDrawable(
+            listOfNotNull(buttonShape(BUTTON, BORDER), icon, buttonFocusRing()).toTypedArray(),
+        ).apply {
+            if (icon != null) {
+                setLayerGravity(1, Gravity.START or Gravity.CENTER_VERTICAL)
+                setLayerSize(1, iconSize, iconSize)
+                setLayerInsetRelative(1, dp(16), 0, 0, 0)
+            }
+        }
+        gravity = Gravity.CENTER_VERTICAL or Gravity.START
+        includeFontPadding = false
+        setPaddingRelative(dp(16) + if (icon != null) iconSize + dp(10) else 0, 0, dp(16), 0)
         inputType = android.text.InputType.TYPE_CLASS_TEXT
         // Landscape head units would otherwise cover the results with a full-screen editor.
         imeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI or
@@ -1410,6 +1472,18 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             true
         }
         doAfterTextChanged { onSettingsSearchChanged(this) }
+        // The keyboard resizes the window, not this field, so follow window layouts. A listener added
+        // here would join the window's observer and outlive every rebuilt field; register it only
+        // while this field is attached.
+        val followWindow = android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            if (settingsSearchBox === this && settingsSearchPopup?.isShowing == true) {
+                positionSettingsSearchResults(this, settingsSearchPopup!!)
+            }
+        }
+        addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(view: View) = view.viewTreeObserver.addOnGlobalLayoutListener(followWindow)
+            override fun onViewDetachedFromWindow(view: View) = view.viewTreeObserver.removeOnGlobalLayoutListener(followWindow)
+        })
         if (settingsSearchRestoreFocus) {
             settingsSearchRestoreFocus = false
             post {
@@ -1425,8 +1499,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         if (box !== settingsSearchBox) return
         settingsSearchQuery = box.text.toString()
         if (settingsSearchQuery.isEmpty()) {
-            // Rebuilt for the next search, so it follows settings that changed meanwhile.
-            settingsSearchIndex = null
+            // Keep this search's index when the query is cleared. Closing search invalidates it.
             settingsSearchPopup?.dismiss()
             return
         }
@@ -1462,27 +1535,53 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             })
         }
         results.forEach { list.addView(settingsSearchRow(it)) }
-        val width = box.width.coerceAtLeast(dp(320))
-        // Short screens keep the results above the keyboard.
-        val maxHeight = dp(if (resources.configuration.screenHeightDp < 600) 180 else 360)
         val existing = settingsSearchPopup?.takeIf { it.isShowing }
         val scroll = (existing?.contentView as? ScrollView) ?: ScrollView(this)
         scroll.removeAllViews()
         scroll.addView(list)
-        scroll.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST))
-        val height = scroll.measuredHeight.coerceIn(1, maxHeight)
         if (existing != null) {
-            existing.update(box, 0, dp(6), width, height)
+            positionSettingsSearchResults(box, existing)
             return
         }
-        settingsSearchPopup = PopupWindow(scroll, width, height, false).apply {
+        settingsSearchPopup = PopupWindow(scroll, box.width, 0, false).apply {
             setBackgroundDrawable(rounded(SURFACE, BORDER))
             elevation = dp(8).toFloat()
             // Tapping elsewhere closes the list and keeps the query; tapping the box reopens it.
             isOutsideTouchable = true
             inputMethodMode = PopupWindow.INPUT_METHOD_NEEDED
-            showAsDropDown(box, 0, dp(6), Gravity.END)
+            setIsLaidOutInScreen(true)
+            positionSettingsSearchResults(box, this)
+        }
+    }
+
+    private fun positionSettingsSearchResults(box: EditText, popup: PopupWindow) {
+        val visible = android.graphics.Rect()
+        box.getWindowVisibleDisplayFrame(visible)
+        val location = IntArray(2)
+        box.getLocationOnScreen(location)
+        val top = location[1] + box.height + dp(SETTINGS_SEARCH_RESULTS_GAP_DP)
+        val width = minOf(box.width, visible.width())
+        val maxHeight = minOf(
+            visible.bottom - top,
+            dp(if (resources.configuration.screenHeightDp < 600)
+                SETTINGS_SEARCH_RESULTS_SHORT_HEIGHT_DP else SETTINGS_SEARCH_RESULTS_HEIGHT_DP),
+        )
+        // Never let Android flip the list above its anchor and cover the field.
+        if (width <= 0 || maxHeight <= 0) {
+            popup.dismiss()
+            return
+        }
+        val left = location[0].coerceIn(visible.left, visible.right - width)
+        val content = popup.contentView
+        content.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST))
+        val height = content.measuredHeight.coerceIn(1, maxHeight)
+        if (popup.isShowing) {
+            popup.update(left, top, width, height)
+        } else {
+            popup.width = width
+            popup.height = height
+            popup.showAtLocation(box.rootView, Gravity.TOP or Gravity.LEFT, left, top)
         }
     }
 
@@ -1505,13 +1604,14 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         val box = settingsSearchBox
         setSearchKeyboard(box, false)
         clearSettingsSearchState()
-        box?.setText("")
         box?.clearFocus()
-        box?.isFocusableInTouchMode = false
+        render()
+        descendants(window.decorView).firstOrNull { it.tag == SETTINGS_SEARCH_BUTTON_TAG }?.requestFocus()
     }
 
     private fun clearSettingsSearchState() {
         settingsSearchQuery = ""
+        settingsSearchExpanded = false
         settingsSearchIndex = null
         settingsSearchRestoreFocus = false
         settingsSearchPopup?.dismiss()
@@ -1968,6 +2068,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             }
             if (clusterMapEnabled) {
                 clusterSpeedometerControls(card)
+                clusterMusicControls(card)
                 toggle(card, getString(R.string.center_map_card),
                     if (clusterDisplay != null || adbCluster) getString(R.string.center_map_card_description)
                     else getString(R.string.center_map_card_virtual_description),
@@ -3311,6 +3412,35 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         step == 0 -> getString(R.string.marker_centre_default)
         step < 0 -> "$negative ${-step * CarPlayClusterDisplay.MARKER_STEP_PERCENT} %"
         else -> "$positive ${step * CarPlayClusterDisplay.MARKER_STEP_PERCENT} %"
+    }
+
+    private fun clusterMusicControls(card: LinearLayout) {
+        toggle(card, getString(R.string.settings_cluster_music), getString(R.string.settings_cluster_music_description),
+            ClusterMusicSettings.enabled(this)) {
+            ClusterMusicSettings.saveEnabled(this, it)
+            render()
+        }
+        if (!ClusterMusicSettings.enabled(this)) return
+        choice(card, getString(R.string.settings_cluster_music_mode), listOf(
+            getString(R.string.settings_cluster_music_temporary), getString(R.string.settings_cluster_music_permanent)),
+            if (ClusterMusicSettings.permanent(this)) 1 else 0, reconnects = false) {
+            ClusterMusicSettings.savePermanent(this, it == 1)
+        }
+        listOf(
+            Triple("x", R.string.settings_cluster_music_horizontal, ClusterMusicSettings.x(this)),
+            Triple("y", R.string.settings_cluster_music_vertical, ClusterMusicSettings.y(this)),
+            Triple("size", R.string.settings_cluster_music_size, ClusterMusicSettings.size(this)),
+        ).forEach { (key, title, value) ->
+            card.addView(overlaySliderRow(getString(title),
+                (if (key == "size") 50..150 step 5 else 5..95 step 5).toList(), value) { "$it%" }.also {
+                it.onSave = { percent -> ClusterMusicSettings.save(this, key, percent) }
+                val head = it.getChildAt(0) as LinearLayout
+                val value = head.getChildAt(head.childCount - 1)
+                value.layoutParams = (value.layoutParams as LinearLayout.LayoutParams).apply {
+                    marginStart = dp(SETTINGS_BLOCK_GAP_DP)
+                }
+            })
+        }
     }
 
     private fun clusterSpeedometerControls(card: LinearLayout) {
@@ -5602,6 +5732,54 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private fun card() = column().apply { background = rounded(SURFACE, BORDER); setPadding(dp(24), dp(24), dp(24), dp(24)) }
     private fun column() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(-1, -2) }
     private fun row() = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; layoutParams = LinearLayout.LayoutParams(-1, -2) }
+    private class SettingsSearchEditText(context: android.content.Context) : EditText(context) {
+        private val glyphBounds = android.graphics.Rect()
+        private var measuredHint: String? = null
+        private var measuredHintHeight = -1
+        private var measuredHintTextSize = -1f
+        private var measuredHintBaseline = 0
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            val value: CharSequence = if (text.isNullOrEmpty()) hint ?: "" else text
+            val drawingBaseline = if (text.isNullOrEmpty() && value.isNotEmpty()) hintBaseline(value) else baseline
+            val offset = if (baseline >= 0) {
+                val contentCentre = paddingTop + (height - paddingTop - paddingBottom) / 2f
+                contentCentre - alignedTextCentreY(this, value, glyphBounds, drawingBaseline)
+            } else 0f
+            // Text, selection and cursor move together.
+            val checkpoint = canvas.save()
+            canvas.translate(0f, offset)
+            super.onDraw(canvas)
+            canvas.restoreToCount(checkpoint)
+        }
+
+        /**
+         * TextView.baseline describes the editable layout, even while it draws a hint, and a hint in
+         * a fallback font can sit differently. Measured once per hint, height and text size rather
+         * than on every frame of the blinking cursor.
+         */
+        private fun hintBaseline(value: CharSequence): Int {
+            if (value.toString() != measuredHint || height != measuredHintHeight || paint.textSize != measuredHintTextSize) {
+                // The editor scrolls horizontally rather than wrapping: lay the hint out on one line.
+                val hintWidth = maxOf(
+                    (width - compoundPaddingLeft - compoundPaddingRight).coerceAtLeast(1),
+                    kotlin.math.ceil(android.text.Layout.getDesiredWidth(value, paint).toDouble()).toInt(),
+                )
+                val hintLayout = android.text.StaticLayout.Builder.obtain(value, 0, value.length, paint, hintWidth)
+                    .setMaxLines(1).setIncludePad(includeFontPadding).apply {
+                        if (Build.VERSION.SDK_INT >= 28) setUseLineSpacingFromFallbacks(isFallbackLineSpacing)
+                    }.build()
+                measuredHintBaseline = extendedPaddingTop +
+                    ((height - extendedPaddingTop - extendedPaddingBottom - hintLayout.height).coerceAtLeast(0) / 2) +
+                    hintLayout.getLineBaseline(0)
+                measuredHint = value.toString()
+                measuredHintHeight = height
+                measuredHintTextSize = paint.textSize
+            }
+            return measuredHintBaseline
+        }
+    }
+
     private class HeaderTitleView(context: android.content.Context) : TextView(context) {
         private val glyphBounds = android.graphics.Rect()
 
@@ -5610,12 +5788,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             paint.getTextBounds(value, 0, value.length, glyphBounds)
             val checkpoint = canvas.save()
             if (layout?.lineCount == 1 && !glyphBounds.isEmpty && baseline >= 0) {
-                val textCentre = if (usesChineseGlyphAlignment(resources.configuration.locales[0].language, value)) {
-                    baseline + (glyphBounds.top + glyphBounds.bottom) / 2f
-                } else {
-                    val metrics = paint.fontMetrics
-                    baseline + (metrics.ascent + metrics.descent) / 2f
-                }
+                val textCentre = alignedTextCentreY(this, value, glyphBounds)
                 val contentCentre = paddingTop + (height - paddingTop - paddingBottom) / 2f
                 canvas.translate(0f, contentCentre - textCentre)
             }
@@ -5630,6 +5803,8 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         typeface = if (bold) Typeface.create("sans-serif-medium", Typeface.NORMAL) else Typeface.create("sans-serif", Typeface.NORMAL)
         setLineSpacing(dp(3).toFloat(), 1f)
     }
+    private fun headerIconSize(compact: Boolean) = dp(if (compact) 20 else 24)
+
     private fun headerButton(title: String, icon: Int, compact: Boolean, click: () -> Unit) = button(title, false, click).apply {
         alignVisibleGlyphs = false
         if (compact) textSize = 16f
@@ -5637,7 +5812,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         setTextColor(TEXT)
         setSingleLine(true)
         gravity = Gravity.CENTER
-        val iconSize = dp(if (compact) 20 else 24)
+        val iconSize = headerIconSize(compact)
         val drawable = getDrawable(icon)?.mutate()?.apply {
             setTint(TEXT)
             setBounds(0, 0, iconSize, iconSize)
@@ -5726,14 +5901,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         private val glyphBounds = android.graphics.Rect()
 
         fun textAlignmentCentreY(): Float {
-            if (usesChineseGlyphAlignment(resources.configuration.locales[0].language, text)) {
-                val value = text.toString()
-                paint.getTextBounds(value, 0, value.length, glyphBounds)
-                return baseline + (glyphBounds.top + glyphBounds.bottom) / 2f
-            }
-            // Keep the baseline stable when labels contain descenders or accents.
-            val metrics = paint.fontMetrics
-            return baseline + (metrics.ascent + metrics.descent) / 2f
+            return alignedTextCentreY(this, text, glyphBounds)
         }
 
         override fun onDraw(canvas: android.graphics.Canvas) {
@@ -5947,6 +6115,22 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private val FOCUS_RING get() = palette.focusRing
 
     companion object {
+        private fun alignedTextCentreY(
+            view: TextView,
+            text: CharSequence,
+            bounds: android.graphics.Rect,
+            drawingBaseline: Int = view.baseline,
+        ): Float {
+            if (usesChineseGlyphAlignment(view.resources.configuration.locales[0].language, text)) {
+                val value = text.toString()
+                view.paint.getTextBounds(value, 0, value.length, bounds)
+                return drawingBaseline + (bounds.top + bounds.bottom) / 2f
+            }
+            // Keep the baseline stable when labels contain descenders or accents.
+            val metrics = view.paint.fontMetrics
+            return drawingBaseline + (metrics.ascent + metrics.descent) / 2f
+        }
+
         private fun usesChineseGlyphAlignment(language: String, text: CharSequence): Boolean {
             return language == "zh" && text.isNotBlank() &&
                 text.none { it in 'A'..'Z' || it in 'a'..'z' }
@@ -5961,6 +6145,12 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         private const val ADB_KEY_SAVE_WAIT_MILLIS = 500L
         private const val APPEARANCE_POLL_MILLIS = 2_000L
         private const val APPEARANCE_BUTTON_TAG = "app_appearance_button"
+        private const val SETTINGS_SEARCH_BUTTON_TAG = "settings_search_button"
+        private const val SETTINGS_HEADER_COMPACT_GAP_DP = 8
+        private const val SETTINGS_HEADER_GAP_DP = 12
+        private const val SETTINGS_SEARCH_RESULTS_GAP_DP = 6
+        private const val SETTINGS_SEARCH_RESULTS_SHORT_HEIGHT_DP = 200
+        private const val SETTINGS_SEARCH_RESULTS_HEIGHT_DP = 380
         private const val VALUE_SEPARATOR = " · "
         private const val SEARCH_HIGHLIGHT_MILLIS = 900L
         private const val SPACER = "spacer"

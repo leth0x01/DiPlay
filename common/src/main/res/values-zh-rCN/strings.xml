@@ -859,4 +859,13 @@
     <string name="settings_fce_cluster_guidance">FCE 仪表导航（实验性）</string>
     <string name="settings_fce_cluster_guidance_description">在 FCE 平台车机上，通过车机的车辆服务把 CarPlay 转向箭头和到下一路口的距离显示在仪表的导航界面。仅在一辆车上测试过；如果仪表显示异常，请关闭。</string>
     <string name="settings_lynk06_cluster_description">尝试在领克 06 仪表地图区域显示 CarPlay 导航。导航期间，接口可用时地图跟随仪表导航模式显示。应用并重新连接后生效。</string>
+    <string name="settings_cluster_music">仪表音乐（实验性）</string>
+    <string name="settings_cluster_music_description">在仪表地图上显示方形专辑封面。可选择临时（8秒）或常驻封面；切歌时，歌曲名称和艺人始终在封面上显示8秒。位置和大小更改立即生效。需要仪表投屏及iPhone歌曲信息。</string>
+    <string name="settings_cluster_music_mode">封面显示模式</string>
+    <string name="settings_cluster_music_temporary">临时 · 8秒</string>
+    <string name="settings_cluster_music_permanent">常驻</string>
+    <string name="settings_cluster_music_horizontal">音乐卡片 · 水平位置</string>
+    <string name="settings_cluster_music_vertical">音乐卡片 · 垂直位置</string>
+    <string name="settings_cluster_music_size">音乐卡片 · 大小</string>
+    <string name="settings_cluster_music_unknown">未知艺人</string>
 </resources>
