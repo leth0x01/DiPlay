@@ -10,6 +10,11 @@
 build/
 local.properties
 
+# Python and uv local state
+.venv/
+__pycache__/
+*.py[cod]
+
 # Native build output
 .cxx/
 .externalNativeBuild/

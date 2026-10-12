@@ -172,7 +172,7 @@ val verifyLynkPlaySigning by tasks.registering {
     val expected = expectedSigner.lowercase()
     doLast {
         check(keyStoreFile.isFile && expected.matches(Regex("[0-9a-f]{64}"))) {
-            "缺少签名配置；请先运行 scripts/Initialize-LynkPlaySigning.ps1，或配置环境变量及 LYNKPLAY_SIGNER_SHA256"
+            "缺少签名配置；请先运行 uv run scripts/initialize_lynkplay_signing.py，或配置环境变量及 LYNKPLAY_SIGNER_SHA256"
         }
         val keyStore = KeyStore.getInstance(keyStoreFile, storePass.toCharArray())
         check(keyStore.getKey(alias, keyPass.toCharArray()) is PrivateKey) {

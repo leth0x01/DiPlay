@@ -22,13 +22,10 @@
 e241457b36b21fe75b06b5682b4dcfc4fbc25cf75b1855c7a4d055129635ce8e  DiPlay-0.2.18.apk
 ```
 
-在仓库根目录执行：
+安装 [uv](https://docs.astral.sh/uv/) 后，在仓库根目录执行。该命令可直接用于 macOS、Windows PowerShell 和 Windows 命令提示符：
 
-```powershell
-.\scripts\Import-DiPlayAuthentication.ps1 `
-  -ApkPath .private\upstream-release\DiPlay-0.2.18.apk `
-  -ExpectedSha256 e241457b36b21fe75b06b5682b4dcfc4fbc25cf75b1855c7a4d055129635ce8e `
-  -SourceUrl 'https://github.com/shihabal3amri/DiPlay/releases/download/v0.2.18/DiPlay-0.2.18.apk'
+```sh
+uv run scripts/import_diplay_authentication.py --apk-path .private/upstream-release/DiPlay-0.2.18.apk --expected-sha256 e241457b36b21fe75b06b5682b4dcfc4fbc25cf75b1855c7a4d055129635ce8e --source-url https://github.com/shihabal3amri/DiPlay/releases/download/v0.2.18/DiPlay-0.2.18.apk
 ```
 
 脚本只导入 `assets/offline-mfi/identity.pk8` 和 `certificate.p7b`，保存到 `.private/auth-assets/offline-mfi/`。来源记录为 `.private/auth-source.json`，不会打包进 APK。导入不会安装或执行原版 APK，不会覆盖已有不同身份。
@@ -37,10 +34,10 @@ e241457b36b21fe75b06b5682b4dcfc4fbc25cf75b1855c7a4d055129635ce8e  DiPlay-0.2.18.
 
 ## 初始化与备份签名
 
-先配置 `JAVA_HOME` 为 JDK 25，`ANDROID_HOME` 为 Android SDK，然后执行：
+先配置 `JAVA_HOME` 为 JDK 25，`ANDROID_HOME`（或 `ANDROID_SDK_ROOT`）为 Android SDK，然后执行：
 
-```powershell
-.\scripts\Initialize-LynkPlaySigning.ps1
+```sh
+uv run scripts/initialize_lynkplay_signing.py
 ```
 
 生成 `.private/signing/lynkplay.p12` 和 `release-signing.properties`。**这两个文件必须一起安全备份**。此操作只生成本地文件，不替用户建立异地备份。重复运行保留现有签名；密钥丢失时应恢复备份，不能重新生成密钥覆盖旧安装。
@@ -49,11 +46,11 @@ e241457b36b21fe75b06b5682b4dcfc4fbc25cf75b1855c7a4d055129635ce8e  DiPlay-0.2.18.
 
 ## 构建与检查
 
-```powershell
-.\scripts\Build-LynkPlayCarTest.ps1
+```sh
+uv run scripts/build_lynkplay_car_test.py
 ```
 
-也可通过 `-AuthenticationAssetsDirectory` 指定另一目录。脚本运行 `:mobile:assembleCarTest`，核验 Android 9 APK 签名、长期证书指纹、正式包名及打包资产与选定输入完全一致。输出：
+也可通过 `--authentication-assets-directory` 指定另一目录。脚本运行 `:mobile:assembleCarTest`，核验 Android 9 APK 签名、长期证书指纹、正式包名及打包资产与选定输入完全一致。输出：
 
 ```text
 mobile/build/outputs/apk/carTest/mobile-carTest.apk

@@ -5,7 +5,9 @@ import re
 import subprocess
 
 root = Path(__file__).resolve().parents[1]
-names = subprocess.check_output(['git', 'ls-files', '-z'], cwd=root).decode().split('\0')
+names = subprocess.check_output(
+    ['git', 'ls-files', '-z'], cwd=root, text=True, encoding='utf-8'
+).split('\0')
 blocked_suffixes = {'.pk8', '.p7b', '.pem', '.key', '.p12', '.pfx', '.jks', '.keystore', '.apk', '.aab'}
 private_block = re.compile(rb'-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----\s+[A-Za-z0-9+/=\r\n]{40,}')
 failures = []

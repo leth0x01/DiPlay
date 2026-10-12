@@ -5,7 +5,7 @@ import json
 from html import escape as e
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / 'site'
-data = json.loads((SITE / 'content.json').read_text())
+data = json.loads((SITE / 'content.json').read_text(encoding='utf-8'))
 BASE = 'https://shihabal3amri.github.io/DiPlay/'
 REPO = 'https://github.com/shihabal3amri/DiPlay'
 VERSION = '0.2.18'
@@ -34,5 +34,5 @@ for lang, d in data.items():
 <section class="signing"><h2>{e(d['update'])}</h2><p>{e(d['updateText'])}</p></section>
 <section class="card"><h2>{e(d['diagnosticsTitle'])}</h2><p>{e(d['diagnosticsText'])}</p><a href="{REPO}/issues">{e(d['feedback'])} ↗</a> · <a href="{REPO}/issues/new/choose">{e(d['newIssue'])} ↗</a></section>
 <footer><nav><a href="{REPO}/blob/main/docs/PRIVACY.md">{e(d["privacy"])}</a><a href="{REPO}">{e(d['source'])}</a><a href="{RELEASE}">{e(d['notes'])}</a><a href="{REPO}/issues">{e(d['feedback'])}</a></nav><p>{e(d['footer'])}</p></footer>
-</main></body></html>''')
+</main></body></html>''', encoding='utf-8', newline='\n')
 print('Generated', len(data), 'language pages')

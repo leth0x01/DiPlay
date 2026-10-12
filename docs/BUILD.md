@@ -34,7 +34,9 @@ Install these tools:
 - Android SDK Build-Tools 36.0.0.
 - Android SDK Platform-Tools.
 - Android NDK 28.2.13676358.
+- [uv](https://docs.astral.sh/uv/) for repository Python scripts.
 
+Run repository Python scripts as `uv run scripts/<script-name>.py`; this form is the same on macOS and Windows.
 Use the Gradle wrapper included in this repository.
 The first build needs an internet connection to download dependencies.
 
@@ -155,7 +157,7 @@ Set these environment variables locally:
 | `ANDROID_KEY_PASSWORD` | Signing key password |
 | `LYNKPLAY_SIGNER_SHA256` | Expected signing certificate SHA256 (64 hex digits) |
 
-Alternatively, initialize the ignored `release-signing.properties` with `scripts/Initialize-LynkPlaySigning.ps1`. Environment variables take precedence over local properties. `carTest` and `release` use the same signing configuration and enforce its pinned certificate fingerprint.
+Alternatively, initialize the ignored `release-signing.properties` with `uv run scripts/initialize_lynkplay_signing.py`. The same command works on macOS and Windows. Environment variables take precedence over local properties. `carTest` and `release` use the same signing configuration and enforce its pinned certificate fingerprint.
 
 Keep the keystore and passwords outside Git.
 Run the release checks and build:

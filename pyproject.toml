@@ -1,0 +1,9 @@
+[project]
+name = "lynkplay-scripts"
+version = "0.1.0"
+description = "LynkPlay 跨平台开发脚本"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv]
+package = false
