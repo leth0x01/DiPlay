@@ -25,7 +25,15 @@ APK 位于 `mobile/build/outputs/apk/debug/mobile-debug.apk`。普通源码构�
 
 ## 更新与上游同步
 
-LynkPlay 检查 [本 fork 的 Releases](https://github.com/leth0x01/LynkPlay/releases)，不提供原版 DiPlay APK 作为本应用更新。尚无发布版本时不会推荐更新；本阶段没有发布 APK。
+LynkPlay 检查 [本 fork 的 Releases](https://github.com/leth0x01/LynkPlay/releases)。默认在后台检查更新，也可进入 **设置 → 关于 → 检查更新**，下载并校验 APK 后点击安装。
+
+正式更新包使用现有长期签名和认证素材，在仓库根目录执行：
+
+```sh
+uv run --locked scripts/build_lynkplay_release.py
+```
+
+脚本执行完整 Android CI 检查和正式构建，核验 APK 后生成 `mobile/build/outputs/publish/<版本>/LynkPlay-<版本>.apk` 与 `SHA256SUMS.txt`。每次更新都递增 `gradle.properties` 中的版本名称和版本代码，将这两个附件一起上传到对应版本的 GitHub Release。完整流程见 [正式出包与更新发布](docs/BUILD.md#build-a-release-apk)。
 
 - `main`：保留 DiPlay 上游。
 - `lynkplay`：品牌修改和领克 06 适配。

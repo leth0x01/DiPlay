@@ -14,6 +14,7 @@ class CliEncodingTest(unittest.TestCase):
             "import_diplay_authentication.py",
             "initialize_lynkplay_signing.py",
             "build_lynkplay_car_test.py",
+            "build_lynkplay_release.py",
         ):
             with self.subTest(script=name):
                 result = subprocess.run(

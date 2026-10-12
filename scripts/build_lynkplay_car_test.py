@@ -88,6 +88,23 @@ def build_car_test(authentication_assets_directory: Path) -> None:
         ROOT / "mobile" / "build" / "outputs" / "apk" / "carTest" / "mobile-carTest.apk",
         "车测 APK",
     )
+    verify_apk(apk, input_directory, apksigner, aapt2)
+    apk_hash = sha256_file(apk)
+    write_utf8(apk.parent / "SHA256SUMS.txt", f"{apk_hash}  mobile-carTest.apk\n")
+    print(f"APK SHA256：{apk_hash}")
+    print(f"车测包：{apk}")
+
+
+def verify_apk(
+    apk: Path,
+    input_directory: Path,
+    apksigner: Path,
+    aapt2: Path,
+    *,
+    version_name: str | None = None,
+    version_code: int | None = None,
+) -> None:
+    """核验最终 APK 的签名、包名、版本和认证素材。"""
     verification = run_command(
         [apksigner, "verify", "--min-sdk-version", "28", "--verbose", "--print-certs", apk],
         error_message="APK 签名无法通过 Android 9 校验。",
@@ -123,13 +140,14 @@ def build_car_test(authentication_assets_directory: Path) -> None:
     ):
         raise ScriptError("最终 APK 包名校验失败。")
 
+    metadata = dict(re.findall(r"(\w+)='([^']*)'", badging_lines[0]))
+    if version_name is not None and metadata.get("versionName") != version_name:
+        raise ScriptError("最终 APK 版本名称与发布版本不一致。")
+    if version_code is not None and metadata.get("versionCode") != str(version_code):
+        raise ScriptError("最终 APK 版本代码与发布版本不一致。")
     verify_packaged_assets(apk, input_directory)
-    apk_hash = sha256_file(apk)
-    write_utf8(apk.parent / "SHA256SUMS.txt", f"{apk_hash}  mobile-carTest.apk\n")
     print(badging_lines[0])
     print(f"签名证书 SHA256：{pin}")
-    print(f"APK SHA256：{apk_hash}")
-    print(f"车测包：{apk}")
 
 
 def main() -> int:
