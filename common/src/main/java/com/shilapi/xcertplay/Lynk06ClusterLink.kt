@@ -32,6 +32,8 @@ internal class Lynk06ClusterLink(
     private var navi: Any? = null
     private var naviClass: Class<*>? = null
     private var connectClass: Class<*>? = null
+    private var watcherRegistered = false
+    private var watcherGeneration = 0L
     private var callback: Any? = null
     private var connected = false
     private var connecting = false
@@ -63,9 +65,10 @@ internal class Lynk06ClusterLink(
             if (connect.isInstance(dim)) {
                 connectClass = connect
                 val watcher = Class.forName("com.ecarx.xui.adaptapi.binder.IConnectable\$IConnectWatcher")
+                val generation = ++watcherGeneration
                 val proxy = callbackProxy(watcher) { name, _ ->
                     worker.post {
-                        if (!stopped) {
+                        if (!stopped && watcherRegistered && watcherGeneration == generation) {
                             if (name == "onConnected") attach()
                             // 主动重连产生的断线回调不缩短当前连接的等待窗口。
                             if (name == "onDisConnected" && !connecting) {
@@ -78,9 +81,21 @@ internal class Lynk06ClusterLink(
                     }
                 }
                 connect.getMethod("registerConnectWatcher", watcher).invoke(dim, proxy)
+                watcherRegistered = true
                 beginConnection(reset = false)
             } else attach()
-        } catch (error: Throwable) { connectionFailed(error) }
+        } catch (error: Throwable) {
+            if (!watcherRegistered) {
+                // 注册可能已产生部分副作用；撤销旧回调并让重试完整初始化。
+                watcherGeneration++
+                runCatching { connectClass?.getMethod("unregisterConnectWatcher")?.invoke(dim) }
+                runCatching { connectClass?.getMethod("disconnect")?.invoke(dim) }
+                dim = null
+                dimClass = null
+                connectClass = null
+            }
+            connectionFailed(error)
+        }
     }
 
     private fun attach() {
@@ -177,6 +192,7 @@ internal class Lynk06ClusterLink(
     }
 
     private fun beginConnection(reset: Boolean) {
+        check(watcherRegistered) { "仪表连接 watcher 尚未注册" }
         connecting = true
         worker.removeCallbacks(reconnect)
         worker.removeCallbacks(connectionTimeout)
@@ -203,7 +219,7 @@ internal class Lynk06ClusterLink(
             reconnectDelayMillis = (reconnectDelayMillis * 2).coerceAtMost(MAX_RECONNECT_DELAY_MILLIS)
             try {
                 val connect = connectClass
-                if (dim == null) initialize()
+                if (dim == null || (connect != null && !watcherRegistered)) initialize()
                 else if (connect == null) attach()
                 else beginConnection(reset = true)
             } catch (error: Throwable) { connectionFailed(error) }

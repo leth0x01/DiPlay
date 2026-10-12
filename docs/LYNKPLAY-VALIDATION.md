@@ -1,3 +1,11 @@
+## 2026-10-12：仪表 watcher 注册失败恢复与 root attempt 异常后备
+
+仪表链接新增明确的 `watcherRegistered` 状态，仅在注册调用成功返回后置为 true。注册前或注册中途失败时，尝试解除回调与断开接口，清空 DimInteraction 和连接类引用，让下一次重试重新创建对象、注册 watcher，再连接服务。旧注册代次的迟到回调不再参与连接状态处理。
+
+新增 2 项仪表回归，分别模拟首次注册直接抛异常，以及保存 watcher 后再抛异常。两项均验证第二次创建和注册成功、仅调用一次 connect、接口恢复 available；部分注册用例还验证清理调用与旧回调失效。新增 1 项 VPN 回归验证 root attempt 的 RuntimeException 被记为 UNAVAILABLE 后，继续系统授权验证、ADB 后备及最终验证。
+
+修改前 26 项定向测试中，这 3 项新增回归均失败。修复后完整执行 AGENTS.md 命令：shared 1374 项（跳过 1）、common 1213 项、home 4 项，0 失败／错误；仪表链接 16 项与 VPN 特权授权 10 项均通过，三个 Lint 与三个 Debug 构建通过。public-tree 检查通过。
+
 ## 2026-10-12：VPN 真实授权 fallback、ABI 隔离与仪表连接退避
 
 VPN 特权授权改为 root → 系统验证 → 未授权时 ADB → 再次系统验证。命令退出码为 0 但 `VpnService.prepare()` 仍要求授权时，也执行 ADB 后备；结果单独记录真实授权状态。前台仍复核系统授权与 USB 模式后才继续连接。新增 4 项测试覆盖命令成功但未授权后 ADB 恢复、ADB READY 但仍未授权、系统已授权时跳过 ADB，以及授权检查异常。

@@ -97,6 +97,19 @@ class VpnPreConsentTest {
         assertFalse(result.granted)
     }
 
+    @Test fun rootAttemptExceptionStillVerifiesAndFallsBackToAdb() {
+        val events = mutableListOf<String>()
+        var granted = false
+        val result = VpnPreConsent.grant(RuntimeEnvironment.getApplication(),
+            rootGrant = { events += "root"; throw IllegalStateException("模拟 root attempt 异常") },
+            verifier = { events += "verify"; granted },
+            adbGrant = { events += "adb"; granted = true; LocalAdb.Access.READY })
+        assertEquals(listOf("root", "verify", "adb", "verify"), events)
+        assertEquals(VpnPreConsent.RootAccess.UNAVAILABLE, result.root)
+        assertEquals(LocalAdb.Access.READY, result.adb)
+        assertTrue(result.granted)
+    }
+
     @Test fun invalidPackageCannotBecomeAShellCommand() {
         assertThrows(IllegalArgumentException::class.java) {
             VpnPreConsent.grantRoot("bad; id") { fail("不应执行命令"); null }

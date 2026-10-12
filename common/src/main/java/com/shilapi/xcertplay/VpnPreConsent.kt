@@ -25,7 +25,7 @@ internal object VpnPreConsent {
             }
         },
     ): Result {
-        val root = rootGrant()
+        val root = runCatching(rootGrant).getOrDefault(RootAccess.UNAVAILABLE)
         // 厂商 appops 可能返回成功却未授权；后备流程只依据系统实际授权。
         if (runCatching(verifier).getOrDefault(false)) return Result(root, granted = true)
         val adb = adbGrant()

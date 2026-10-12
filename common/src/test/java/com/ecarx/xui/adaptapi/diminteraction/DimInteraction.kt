@@ -15,6 +15,13 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var notificationFailuresRemaining = 0
     @Volatile var readCalls = 0
     @Volatile var connectCalls = 0
+    @Volatile var createCalls = 0
+    @Volatile var watcherRegistrationFailuresRemaining = 0
+    @Volatile var failAfterStoringWatcher = false
+    @Volatile var watcherRegistrationCalls = 0
+    @Volatile var watcherUnregisterCalls = 0
+    @Volatile var menuRegistrationCalls = 0
+    @Volatile var failedWatcher: IConnectable.IConnectWatcher? = null
     @Volatile var suppressConnectCallback = false
     @Volatile var connectCallbackDelayMillis = 0L
     val connectTimes = CopyOnWriteArrayList<Long>()
@@ -22,8 +29,19 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var watcher: IConnectable.IConnectWatcher? = null
     val notifications = CopyOnWriteArrayList<Int>()
     @Volatile var disconnected = false
-    override fun registerConnectWatcher(watcher: IConnectable.IConnectWatcher) { this.watcher = watcher }
-    override fun unregisterConnectWatcher() { watcher = null }
+    override fun registerConnectWatcher(watcher: IConnectable.IConnectWatcher) {
+        watcherRegistrationCalls++
+        if (watcherRegistrationFailuresRemaining > 0) {
+            watcherRegistrationFailuresRemaining--
+            if (failAfterStoringWatcher) {
+                this.watcher = watcher
+                failedWatcher = watcher
+            }
+            error("模拟连接 watcher 注册失败")
+        }
+        this.watcher = watcher
+    }
+    override fun unregisterConnectWatcher() { watcherUnregisterCalls++; watcher = null }
     override fun connect() {
         connectCalls++
         disconnected = false
@@ -48,7 +66,10 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         check(!failRead) { "模拟固件读取失败" }
         return mode
     }
-    override fun registerDimMenuInteractionCallback(callback: IDimMenuInteraction.IDimMenuInteractionCallback) { menuCallback = callback }
+    override fun registerDimMenuInteractionCallback(callback: IDimMenuInteraction.IDimMenuInteractionCallback) {
+        menuRegistrationCalls++
+        menuCallback = callback
+    }
     override fun unregisterDimMenuInteractionCallback(callback: IDimMenuInteraction.IDimMenuInteractionCallback) {
         check(menuCallback === callback)
         menuCallback = null
@@ -62,7 +83,7 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     }
     companion object {
         @Volatile var instance = DimInteraction()
-        @JvmStatic fun create(context: Context): DimInteraction = instance
+        @JvmStatic fun create(context: Context): DimInteraction = instance.also { it.createCalls++ }
     }
 }
 

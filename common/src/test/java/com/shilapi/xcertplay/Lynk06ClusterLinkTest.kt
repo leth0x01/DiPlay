@@ -190,6 +190,42 @@ class Lynk06ClusterLinkTest {
         assertTrue("持续缺失回调时应增加退避", secondRetryGap > firstRetryGap)
     }
 
+    @Test fun `first watcher registration failure retries initialization and recovers`() {
+        assertWatcherRegistrationRecovers(afterStoringWatcher = false)
+    }
+
+    @Test fun `partial watcher registration failure is cleaned up before retry`() {
+        assertWatcherRegistrationRecovers(afterStoringWatcher = true)
+    }
+
+    private fun assertWatcherRegistrationRecovers(afterStoringWatcher: Boolean) {
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        states.clear()
+        vendor = DimInteraction().apply {
+            watcherRegistrationFailuresRemaining = 1
+            failAfterStoringWatcher = afterStoringWatcher
+        }
+        DimInteraction.instance = vendor
+        link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, {})
+        link.start()
+        await { states.lastOrNull()?.available == true }
+        assertEquals(2, vendor.createCalls)
+        assertEquals(2, vendor.watcherRegistrationCalls)
+        assertEquals(1, vendor.connectCalls)
+        assertEquals(1, vendor.watcherUnregisterCalls)
+        if (afterStoringWatcher) {
+            val menuRegistrations = vendor.menuRegistrationCalls
+            vendor.failedWatcher!!.onConnected()
+            // 后续 worker 操作完成后，确认旧回调没有再次获取和注册菜单接口。
+            link.setNavigation(true)
+            await { states.lastOrNull()?.navigating == true }
+            assertEquals(menuRegistrations, vendor.menuRegistrationCalls)
+        }
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+    }
+
     @Test fun `read failure hides map and teardown still restores navigation`() {
         link.setNavigation(true)
         await { vendor.notifications.lastOrNull() == 1 }
