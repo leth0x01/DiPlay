@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_vehicle_target_title">車両構成の対象</string>
+    <string name="settings_lynk06_target">2023年式 Lynk &amp; Co 06 · ガソリン · Android 9</string>
+    <string name="settings_vehicle_target_unverified">これはビルド対象であり、ファームウェアを検出または実車検証した結果ではありません。未検証のメーカー機能は無効のままです。</string>
+    <string name="settings_vehicle_runtime">現在のシステム：Android %1$s / API %2$d</string>
+</resources>

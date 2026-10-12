@@ -898,6 +898,7 @@
     <string name="bluetooth_connections_not_real">この車載端末のAndroid Bluetoothは接続中と報告しますが、iPhoneには実際の通信が届きません。存在しないサービスへの接続さえ成功と表示されます。メーカー独自のBluetoothモジュールをアプリが利用できないため、この端末ではワイヤレスCarPlayを使用できません。USB接続をお試しください。</string>
     <string name="settings_fce_cluster_guidance">FCEメーターへの案内表示（実験的機能）</string>
     <string name="settings_fce_cluster_guidance_description">FCE車載端末の車両サービスに情報を書き込み、CarPlayの案内矢印と次の曲がり角までの距離をメーターのナビ画面に表示します。実車検証は1台のみです。メーターに異常が起きたらオフにしてください。</string>
+    <string name="settings_lynk06_cluster_description">Lynk 06のメーター地図領域にCarPlayナビを表示します。ナビ中は、インターフェースが利用可能な場合にメーターのナビモードに合わせて地図を表示します。適用して再接続すると有効になります。</string>
     <string name="settings_cluster_music">メーターに音楽を表示（実験的機能）</string>
     <string name="settings_cluster_music_description">メーターの地図上に正方形のアルバムアートを表示します。一時表示（8秒）または常時表示を選択できます。曲が変わると、タイトルとアーティストはどちらのモードでもアルバムアート上に8秒間表示されます。位置とサイズの変更はすぐに反映されます。メーターへの投影とiPhoneからの曲情報が必要です。</string>
     <string name="settings_cluster_music_mode">アルバムアートの表示</string>
