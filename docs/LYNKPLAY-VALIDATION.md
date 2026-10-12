@@ -1,4 +1,54 @@
+## 2026-10-12：领克 06 实车密度宽屏适配（0.1.4）
+
+按采集的 1920 × 720、160 dpi 主屏参数新增宽屏尺寸策略。可用窗口达到 1400 × 600 dp 时，菜单最大宽度 1120 dp、弹窗最大宽度 960 dp、按钮和输入框最低高度 72 dp；菜单正文最低 20 sp，弹窗正文 20 sp、标题 26 sp。窄窗和低高度窗口使用紧凑布局。
+
+车型自动匹配使用 IHU514G product / device / model、xecarx hardware 和 API 28 的完整组合，统一使用领克 06 燃油版配置。新增测试覆盖完整匹配、部分标识误匹配、其他平台以及 Android 运行时匹配和诊断输出。
+
+界面测试覆盖实车主屏尺寸、普通应用安全窗口 1800 × 670、深浅主题、窄窗、高密度窗口、RTL 和 1.5 字体缩放。热点弹窗另以 400 px 可用高度模拟软键盘占用，验证底部操作按钮可见；这是窗口高度模拟，实际车机键盘行为仍需实测。
+
+大字体截图由 API 29 Robolectric native graphics 生成，存放在本地 `common/build/reports/carplay-menu-ui/` 和 `common/build/reports/app-dialog-ui/`。
+
+USB 继续使用已实现的 root 优先流程，5 项 VpnPreConsent 回归测试通过。实车目前已有 ACTIVATE_VPN allow 和 USB 视频阶段证据；本轮未取得新版本完整前台 USB 会话。
+
+最终完整 CI 命令通过：shared 1353 项（1 项跳过）、common 1166 项、home 4 项，0 失败；mobile、home、maphost 的 Lint 和 Debug 构建均通过。
+
+已生成 `0.1.4-lynk06-test` / versionCode 42；正式包名、长期签名、Android 9 签名兼容性和认证素材检查通过。APK SHA256：`2dad1aad8018cc0e9fec65363b258b2418e00155fdeae9dd023048ebf2e23be2`。
+
 # LynkPlay 品牌基线验证（2026-10-11）
+
+## 2026-10-12：三指下滑菜单主体适配
+
+菜单主体改为固定标题栏、可滚动分组卡片和固定操作栏，配色与主设置页一致。输入框使用主题圆角背景，窄窗口中标签与输入框纵向排列；操作按钮按可用宽度调整排列。横排选项空间不足时转为纵排，窗口变宽后可恢复横排。系统栏和屏幕缺口通过窗口 insets 保留安全边距。
+
+已有 34 项菜单功能测试通过，覆盖手势、草稿、取消、保存重连及主题切换。新增 UI 测试在深浅色、360 dp 紧凑窗口、1920 × 720 横屏、宽屏和 RTL 场景中检查分组卡片、固定区域可见性、输入框样式以及取消时的草稿回退。
+
+完整 CI 命令通过：shared 1350 项（1 项跳过）、common 1164 项、home 4 项，0 失败；三个 Lint 和三个 Debug 构建通过。
+
+截图由 API 29 Robolectric native graphics 绘制，字体缩放为 1.5，存放在本地 `common/build/reports/carplay-menu-ui/`。1920 × 720 场景使用模拟密度 320 dpi，实车密度仍以诊断报告为准。
+
+已生成 `0.1.3-lynk06-test` / versionCode 41 车测包，原长期签名、Android 9 签名、正式包名和认证素材检查通过。APK SHA256：`c6d6366575a71f16e58def1c65bf9a596c4ce1f792e1d1f37d761d02734739c1`。菜单的实车显示、触摸和键盘行为待覆盖安装后确认。
+
+## 2026-10-12：应用弹窗样式统一
+
+热点配置、文字及数值输入、选择列表、确认提示和时间选择弹窗使用统一的应用样式入口。外框、输入框和按钮沿用软件的深浅色配色与圆角规则。按钮按可用宽度及文字长度横排或纵排，长内容弹窗保留操作区的最低高度。
+
+用户提供的车机信息为 12.3 英寸、8:3、1920 × 720 横屏、亿咖通 E02、6 GB 内存、64 GB 存储，Android 9。
+
+完整 CI 命令通过：shared 1350 项（1 项跳过）、common 1163 项、home 4 项，0 失败；三个 Lint 和三个 Debug 构建通过。新增 4 项 UI 测试验证热点校验、密码显隐、保存与取消、列表选中及回调、时间选择和低高度横屏操作按钮可见性。分辨率、夜间模式及氛围灯长内容弹窗的既有测试通过。补充 1920 × 720 横屏场景后，定向 UI 测试再次通过。
+
+大字体截图由 API 29 Robolectric native graphics 绘制，字体缩放为 1.5，存放在本地 `common/build/reports/app-dialog-ui/`。1920 × 720 场景按模拟密度 320 dpi 配置；截图为弹窗本身，不能代表实车实际密度或软键盘行为。
+
+已生成 `0.1.2-lynk06-test` / versionCode 40 车测 APK，包含上一版的 root VPN 授权修复。Android 9 签名、正式包名、认证素材及原长期签名检查通过。APK SHA256：`8504d564f9297b81a84bceb3b54619bbb6c572ac874a538e230748c159555178`。本版实车显示和输入行为待覆盖安装后确认。
+
+## 2026-10-12：USB VPN root 授权修复
+
+用户实车反馈：2023 款领克 06 燃油版能够无线连接，但 CarPlay 画面和操作卡顿；USB 模式提示无法打开 VPN 授权界面。车机已有 root，电脑 ADB 已连接过。
+
+VPN 授权界面无法使用时，新增 App 内 root 优先的授权路径。通过 `su -c id -u` 确认 root 后，仅为当前应用包名设置 `ACTIVATE_VPN`；未取得 root 才使用原有 ADB 后备。root 命令失败不会触发 ADB，最终通过 `VpnService.prepare()` 验证系统授权。后台完成时确认仍为 USB 模式，避免无线切换期间触发 USB 启动。
+
+本地完整 CI 命令通过：shared 1350 项（1 项跳过）、common 1159 项、home 4 项，0 失败；mobile、home、maphost 的 Lint 和 Debug 构建通过。新增 5 项测试覆盖当前包名授权、root 不可用、root 命令失败、ADB 后备顺序及包名校验。
+
+已生成 `0.1.1-lynk06-test` / versionCode 39 的车测 APK。构建脚本核验 Android 9 签名、正式包名、认证素材配对及原长期签名通过。APK SHA256：`64b7b28db8d9f3729d5192842a75a0763e7fa5834fe298f9d1537b2d84fe31ba`。root 授权修复的实车结果待新版验证。
 
 ## 修改范围
 
@@ -69,7 +119,7 @@ BYD HUD、车辆数据、专属 ADB 仪表、胎压和氛围灯的入口受到�
 
 最终补充直接探测门禁后再次执行完整 CI，仍为同一组 10 项基线失败。随后定向复检新 UI、车辆门禁与输入绑定测试全部通过。
 
-大字体截图由 `LynkSetupUiTest` 调用真实引导组件并以 Robolectric native graphics 绘制，覆盖紧凑 360 dp / mdpi、宽屏 1280 dp / xhdpi 和阿拉伯语 600 dp / mdpi，字体缩放 1.5。生成截图在 `common/build/reports/lynk-setup-ui/`，审阅副本见 [紧凑布局](screenshots/lynk06-capabilities/compact.png)、[高密度宽屏布局](screenshots/lynk06-capabilities/full-xhdpi.png) 和 [阿拉伯语布局](screenshots/lynk06-capabilities/rtl.png)。UI 渲染环境使用 API 29，车型运行门禁另在 API 28 测试。这些都是模拟验证，不是实车照片。
+大字体截图由 `LynkSetupUiTest` 调用真实引导组件并以 Robolectric native graphics 绘制，覆盖紧凑 360 dp / mdpi、宽屏 1280 dp / xhdpi 和阿拉伯语 600 dp / mdpi，字体缩放 1.5。生成截图保存在本地 `common/build/reports/lynk-setup-ui/`。UI 渲染环境使用 API 29，车型运行门禁另在 API 28 测试。这些都是模拟验证，不是实车照片。
 
 最终 APK 资源检查确认 `config_vehicle_profile=lynk_06_2023_petrol`、`config_byd_integration=false`。普通 Debug APK 仍是未提供配件认证输入的源码构建；未制作独立车测包，未进行实车连接、声音、Siri 或方向盘验收。
 

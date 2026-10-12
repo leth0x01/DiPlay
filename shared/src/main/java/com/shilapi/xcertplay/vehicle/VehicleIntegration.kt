@@ -9,14 +9,24 @@ import com.shilapi.xcertplay.shared.R
 object VehicleIntegration {
     const val LYNK_06_2023_PETROL = "lynk_06_2023_petrol"
 
-    fun profile(context: Context): String = context.getString(R.string.config_vehicle_profile)
+    /** 只匹配已采集的完整设备组合，不根据亿咖通品牌推断具体车型配置。 */
+    fun detectedProfile(product: String?, device: String?, model: String?, hardware: String?, sdk: Int): String? =
+        if (product.equals("IHU514G", true) && device.equals("IHU514G", true) &&
+            model.equals("IHU514G", true) && hardware.equals("xecarx", true) && sdk == 28)
+            LYNK_06_2023_PETROL else null
+
+    private fun detectedProfile(): String? =
+        detectedProfile(Build.PRODUCT, Build.DEVICE, Build.MODEL, Build.HARDWARE, Build.VERSION.SDK_INT)
+
+    fun profile(context: Context): String = detectedProfile() ?: context.getString(R.string.config_vehicle_profile)
 
     fun isLynk06(context: Context): Boolean = profile(context) == LYNK_06_2023_PETROL
 
-    fun bydEnabled(context: Context): Boolean = context.resources.getBoolean(R.bool.config_byd_integration)
+    fun bydEnabled(context: Context): Boolean = detectedProfile() == null && context.resources.getBoolean(R.bool.config_byd_integration)
 
     fun diagnosticReport(context: Context): String = buildString {
-        appendLine("Vehicle target: ${profile(context)} (build target; not a vehicle test result)")
+        appendLine("Vehicle build target: ${context.getString(R.string.config_vehicle_profile)}")
+        appendLine("车机自动匹配：${detectedProfile() ?: "未匹配，使用构建目标"}")
         appendLine("BYD integration: ${bydEnabled(context)}")
         appendLine("Device identifiers: product=${Build.PRODUCT}; device=${Build.DEVICE}; model=${Build.MODEL}; brand=${Build.BRAND}")
         appendLine("Firmware: ${Build.DISPLAY}; ABI=${Build.SUPPORTED_ABIS.joinToString()}")

@@ -20,6 +20,15 @@ internal fun Context.appDialogTheme(): Int = if (
 
 internal fun Context.appDialogContext(): Context = ContextThemeWrapper(this, appDialogTheme())
 
-internal fun Context.appDialogBuilder(): AlertDialog.Builder = AlertDialog.Builder(this, appDialogTheme())
+internal fun Context.appDialogBuilder(
+    night: Boolean = (this as? AppAppearanceOwner)?.currentAppNight ?: resolveAppNightNow(),
+): AlertDialog.Builder = object : AlertDialog.Builder(this,
+    if (night) R.style.Theme_Xcertplay_Dialog_Dark else R.style.Theme_Xcertplay_Dialog_Light) {
+    override fun create(): AlertDialog = super.create().also {
+        // 提前安装内容再统一样式，调用方的 OnShowListener 仍可处理校验和保存。
+        it.create()
+        it.applyAppDialogStyle(DiPlayPalette.of(night))
+    }
+}
 
 internal fun Context.appDialog(): Dialog = Dialog(this, appDialogTheme())

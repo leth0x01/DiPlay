@@ -4971,7 +4971,10 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                     control.text = labelFor(updatedMinute)
                     handler.post(::checkForAppearanceChange)
                 }
-            }, selected / 60, selected % 60, true).show()
+            }, selected / 60, selected % 60, true).apply {
+                create()
+                applyAppDialogStyle(palette)
+            }.show()
         }
         parent.addView(control, matchButton(0, 60))
         parent.addView(space(12))
@@ -5512,7 +5515,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         val paletteButton = button(getString(R.string.settings_ambient_palette_summary, draft.selectedColors.size), false) {}
         paletteButton.setOnClickListener {
             val checked = BooleanArray(31) { it + 1 in draft.selectedColors }
-            val paletteDialog = AlertDialog.Builder(this).setTitle(getString(R.string.settings_ambient_palette))
+            val paletteDialog = appDialogBuilder().setTitle(getString(R.string.settings_ambient_palette))
                 .setMultiChoiceItems((1..31).map { it.toString() }.toTypedArray(), checked) { _, index, selected -> checked[index] = selected }
                 .setNeutralButton(getString(R.string.settings_ambient_select_all), null)
                 .setPositiveButton(getString(R.string.save), null)
@@ -5541,7 +5544,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         choice(body, getString(R.string.settings_ambient_area), listOf(getString(R.string.settings_ambient_front), getString(R.string.settings_ambient_rear), getString(R.string.settings_ambient_all)), draft.area - 1, reconnects = false) {
             draft = draft.copy(area = it + 1)
         }
-        val dialog = AlertDialog.Builder(this).setTitle(getString(R.string.settings_ambient_configuration))
+        val dialog = appDialogBuilder().setTitle(getString(R.string.settings_ambient_configuration))
             .setView(ScrollView(this).apply { addView(body) })
             .setPositiveButton(getString(R.string.save), null)
             .setNegativeButton(getString(R.string.cancel), null).create()

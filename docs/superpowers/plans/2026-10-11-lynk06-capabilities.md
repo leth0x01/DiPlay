@@ -20,4 +20,4 @@ minSdk 25，目标车机 Android 9，未实车验证；中文注释与全部语�
 
 各任务在本会话顺序执行；完成后保留在当前 lynkplay 分支供审阅。
 
-验证结果：新增 8 项测试通过；全部构建和 Lint 通过。完整测试仍有先前已复现的 10 项 Windows 基线失败。高密度/紧凑/阿拉伯语大字体截图已审阅并保存到 docs/screenshots/lynk06-capabilities。详见 docs/LYNKPLAY-VALIDATION.md。
+验证结果：新增 8 项测试通过；全部构建和 Lint 通过。完整测试仍有先前已复现的 10 项 Windows 基线失败。高密度/紧凑/阿拉伯语大字体截图已审阅并保存到本地 common/build/reports/lynk-setup-ui。详见 docs/LYNKPLAY-VALIDATION.md。

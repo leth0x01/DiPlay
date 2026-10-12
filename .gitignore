@@ -44,3 +44,10 @@ release-signing.properties
 *.key
 *.apk
 *.aab
+
+# 实车采集原始数据保存在本地。
+/lynk06_*/
+/lynk06_*.zip
+
+# 本地测试截图。
+/docs/screenshots/

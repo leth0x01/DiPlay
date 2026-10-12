@@ -307,12 +307,12 @@ class CarPlayHostSettingsTest {
         assertEquals("Unsaved hotspot", field("manualHotspotSsid"))
         assertEquals(false, field("appNight"))
         assertEquals(
-            DiPlayPalette.LIGHT.overlayBackground,
+            DiPlayPalette.LIGHT.background,
             (menu().background as android.graphics.drawable.ColorDrawable).color,
         )
         val heading = views(menu()).filterIsInstance<TextView>()
             .first { it.text == activity.getString(R.string.carplay_settings) }
-        assertEquals(DiPlayPalette.LIGHT.overlayPrimaryText, heading.currentTextColor)
+        assertEquals(DiPlayPalette.LIGHT.primaryText, heading.currentTextColor)
     }
 
     @Test fun savingPersistsSettingsAndRestartsOnce() {
