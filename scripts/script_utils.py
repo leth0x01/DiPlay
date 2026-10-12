@@ -20,6 +20,13 @@ class ScriptError(RuntimeError):
     """可直接展示给用户的脚本错误。"""
 
 
+def configure_console() -> None:
+    """保证中文帮助和错误信息能写入 Windows 的重定向输出。"""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def platform_executable(name: str, *, windows_suffix: str = ".exe") -> str:
     """返回当前平台上的工具文件名。"""
     return name + windows_suffix if os.name == "nt" else name

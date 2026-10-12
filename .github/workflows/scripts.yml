@@ -20,13 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - name: Check Python scripts
-        run: |
-          uv run --locked python -m compileall -q scripts
-          uv run --locked scripts/check_public_tree.py
-          uv run --locked scripts/import_diplay_authentication.py --help
-          uv run --locked scripts/initialize_lynkplay_signing.py --help
-          uv run --locked scripts/build_lynkplay_car_test.py --help
+      - name: Compile Python scripts
+        run: uv run --locked python -m compileall -q scripts
+      - name: Check public source tree
+        run: uv run --locked scripts/check_public_tree.py
+      - name: Check authentication import CLI
+        run: uv run --locked scripts/import_diplay_authentication.py --help
+      - name: Check signing initialization CLI
+        run: uv run --locked scripts/initialize_lynkplay_signing.py --help
+      - name: Check car-test build CLI
+        run: uv run --locked scripts/build_lynkplay_car_test.py --help
+      - name: Check CLI output with Windows legacy encoding
+        run: uv run --locked python -m unittest discover -s scripts/tests
       - name: Check static-site generation
         run: |
           uv run --locked scripts/build_site.py

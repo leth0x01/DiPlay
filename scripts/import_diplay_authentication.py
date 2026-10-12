@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
-from script_utils import ROOT, ScriptError, report_error, require_file, sha256_file, write_utf8
+from script_utils import configure_console, ROOT, ScriptError, report_error, require_file, sha256_file, write_utf8
 
 ASSET_NAMES = ("identity.pk8", "certificate.p7b")
 MAX_ASSET_SIZE = 16_384
@@ -98,6 +98,7 @@ def import_authentication(
 
 
 def main() -> int:
+    configure_console()
     args = parse_args()
     try:
         import_authentication(args.apk_path, args.expected_sha256, args.source_url)

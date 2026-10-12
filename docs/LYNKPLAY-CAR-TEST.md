@@ -50,7 +50,7 @@
 
 当车机无法打开系统 VPN 授权界面时，App 在后台先通过 `su -c id -u` 确认自身取得 root，再执行针对当前包名的 `appops set … ACTIVATE_VPN allow`。root 命令等待上限为每次 15 秒。首次使用时，root 管理器可能要求允许 LynkPlay。
 
-未取得 root 时才尝试车主已经批准的本机 ADB；取得 root 但授权命令失败时记录失败。完成后重新调用 `VpnService.prepare()`，仅在系统确认授权且仍为 USB 模式时继续连接。诊断日志记录 root 结果、ADB 状态及最终授权结果。
+root 不可用或 appops 授权命令失败时，会尝试车主已经批准的本机 ADB。完成后重新调用 `VpnService.prepare()`，仅在系统确认授权且仍为 USB 模式时继续连接。诊断日志记录 root 结果、ADB 状态及最终授权结果。
 
 覆盖安装新版后，允许 LynkPlay 使用 root，再测试 USB 连接。此修复尚待目标车机验证。
 

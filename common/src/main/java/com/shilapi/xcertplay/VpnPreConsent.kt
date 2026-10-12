@@ -4,7 +4,7 @@ import android.content.Context
 import com.shilapi.xcertplay.adb.AdbKeys
 import com.shilapi.xcertplay.adb.LocalAdb
 
-/** 授权界面缺失时优先使用 root；未取得 root 才使用车主已批准的本机 ADB。 */
+/** 授权界面缺失时优先使用 root；root 授权失败后使用车主已批准的本机 ADB。 */
 internal object VpnPreConsent {
     enum class RootAccess { UNAVAILABLE, COMMAND_SUCCEEDED, COMMAND_FAILED }
     data class Result(val root: RootAccess, val adb: LocalAdb.Access? = null)
@@ -24,7 +24,7 @@ internal object VpnPreConsent {
         },
     ): Result {
         val root = rootGrant()
-        return Result(root, if (root == RootAccess.UNAVAILABLE) adbGrant() else null)
+        return Result(root, if (root != RootAccess.COMMAND_SUCCEEDED) adbGrant() else null)
     }
 
     fun grantRoot(packageName: String, runCommand: (String) -> CommandResult? = ::runRootCommand): RootAccess {

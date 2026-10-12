@@ -40,7 +40,7 @@ class VpnPreConsentTest {
         }
     }
 
-    @Test fun adbIsOnlyUsedWhenRootIsUnavailable() {
+    @Test fun adbIsUsedUnlessRootCommandSucceeded() {
         val app = RuntimeEnvironment.getApplication()
         for (root in VpnPreConsent.RootAccess.entries) {
             var adbCalls = 0
@@ -49,8 +49,8 @@ class VpnPreConsentTest {
                 LocalAdb.Access.READY
             })
             assertEquals(root, result.root)
-            assertEquals(if (root == VpnPreConsent.RootAccess.UNAVAILABLE) 1 else 0, adbCalls)
-            assertEquals(if (root == VpnPreConsent.RootAccess.UNAVAILABLE) LocalAdb.Access.READY else null,
+            assertEquals(if (root != VpnPreConsent.RootAccess.COMMAND_SUCCEEDED) 1 else 0, adbCalls)
+            assertEquals(if (root != VpnPreConsent.RootAccess.COMMAND_SUCCEEDED) LocalAdb.Access.READY else null,
                 result.adb)
         }
     }

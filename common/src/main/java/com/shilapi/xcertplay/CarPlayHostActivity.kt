@@ -861,7 +861,7 @@ class CarPlayHostActivity : ComponentActivity() {
         if (!vpnPrivilegedConsentTried) preConsentVpnWithPrivileges()
     }
 
-    /** 缺少系统授权界面时先尝试 root，未取得 root 才使用已有 ADB 授权。 */
+    /** 缺少系统授权界面时先尝试 root，root 授权失败后使用已有 ADB 授权。 */
     private fun preConsentVpnWithPrivileges() {
         vpnPrivilegedConsentTried = true
         val app = applicationContext

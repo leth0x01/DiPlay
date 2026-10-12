@@ -1,3 +1,15 @@
+## 2026-10-12：仪表自动恢复、VPN fallback 与 Windows CLI 编码修复
+
+仪表单次读取或导航通知异常只发布 unavailable 状态，并在 1 秒后重试；连续 3 次失败重连厂商接口。Service 断线与连接回调缺失会继续尝试连接，重新取得接口并发布本会话导航状态。关闭后取消恢复任务，仍尝试撤销已发送的导航通知。
+
+`Lynk06ClusterLinkTest` 共 10 项通过，新增 7 项覆盖首次读取失败后自动恢复、连续失败重连及导航重新发布、开始／结束通知重试、Service 断线恢复、连接回调缺失后恢复、关闭取消重试，以及只读 ABI 采集。`VpnPreConsentTest` 共 5 项通过，fallback 测试覆盖 root 不可用、appops 命令失败和命令成功三种分支。
+
+完整执行 AGENTS.md 的 Android 检查命令，shared 1374 项（跳过 1）、common 1202 项、home 4 项，0 失败／错误；三个 Lint 与三个 Debug 构建通过。
+
+读取 [Windows 失败日志](https://github.com/leth0x01/LynkPlay/actions/runs/38225756196/job/114732733150)，确认三个中文 CLI 的 `--help` 因 CP1252 输出而抛出 `UnicodeEncodeError`。本地以 `PYTHONIOENCODING=cp1252` 复现后，三个入口统一配置 UTF-8 标准输出与错误输出。新增编码回归通过三个脚本子用例；脚本编译、public-tree 扫描、三个 CLI 帮助与静态站点生成检查均通过。workflow 已拆分为独立步骤，并加入编码回归；新代码的 Windows／macOS runner 结果待提交后复核。
+
+运行时 ABI Probe 已接入仪表会话日志，采集方式见 [仪表研究记录](LYNK06-CLUSTER-INTEGRATION-RESEARCH.md#运行时-abi-probe-与文本-snapshot)。实车签名 snapshot、USB 插拔／冷启动／覆盖升级、无线稳定性与 FULL／SIMPLIFY／OFF 导航组合仍待实车验证。
+
 ## 2026-10-12：领克 06 仪表模式联动（0.1.6）
 
 从本车 AdapterAPI.jar 和 XSFNaviService APK 核对连接方式、仪表模式接口与导航通知值。新增 CarPlayNavigationStatus，独立跟踪 iAP2 导航状态；Lynk06ClusterLink 在独立线程连接厂商服务，读取／监听模式，导航进行发送 1、结束发送 0。仅在接口可用、导航进行且 FULL（3）模式下显示仪表窗口；简洁或失败时隐藏窗口，保留解码 Surface。关闭时撤销本次导航通知并释放回调。

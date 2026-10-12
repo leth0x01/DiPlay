@@ -80,3 +80,11 @@ powershell -ExecutionPolicy Bypass -File .\collect_lynk06_cluster.ps1
 0.1.6 新增 CarPlayNavigationStatus 与 Lynk06ClusterLink。领克链接仅在已确认的实车配置且仪表地图开关开启时初始化，厂商调用使用独立线程；读取／监听仪表模式，跟随真实导航状态显示或隐藏窗口。接口失败隐藏输出，关闭时撤销本次导航通知并释放菜单和连接回调。模式切换保留视频 Surface，不因此重连 CarPlay。
 
 原车投屏服务与 MCU 开关调用、权限和实车模式回调待核对。采集脚本增加 ecarx.power.service、com.neusoft.extraservice、com.ecarx.ecarxinteractiveservice，支持 -StartPhase 与 -SkipComponents；断线后停止推进、保留目录与 ZIP。
+
+## 运行时 ABI Probe 与文本 snapshot
+
+`Lynk06ClusterAbiProbe` 在仪表链接首次初始化时使用 `Class.forName(..., false, classLoader)` 读取六个仪表相关类的声明方法，排序后以 `领克仪表 ABI：` 前缀写入会话日志。Probe 不调用厂商方法。仪表链接仍由已验证车型与仪表地图开关控制。
+
+在本车开启仪表地图并建立会话后，导出诊断报告，提取 `领克仪表 ABI：开始` 至 `领克仪表 ABI：结束` 的全部记录，去掉每行时间戳后保存为 UTF-8 文本。snapshot 应附实际固件号与 AdapterAPI 版本，重点核对 `create(Context)`、连接 watcher 注册／解除、连接／断开、菜单与导航接口获取、模式读取／回调注册／解除，以及 `notifyNavigationStatus(int)`。记录中的读取失败属于 ABI 验证异常，需先核对再判断兼容。
+
+测试桩验证反射采集流程、恢复状态机和生命周期；本次新增 Probe 的实车输出尚待采集。固件 ABI snapshot 以实车运行结果为准，厂商 JAR 保留在本地采集资料中。

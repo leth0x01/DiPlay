@@ -9,6 +9,7 @@ import os
 import secrets
 
 from script_utils import (
+    configure_console,
     ROOT,
     ScriptError,
     find_command,
@@ -103,6 +104,7 @@ def initialize_signing() -> None:
 
 
 def main() -> int:
+    configure_console()
     parse_args()
     try:
         initialize_signing()

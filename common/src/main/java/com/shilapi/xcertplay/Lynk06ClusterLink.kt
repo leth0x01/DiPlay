@@ -23,6 +23,7 @@ internal class Lynk06ClusterLink(
     private val worker = Handler(thread.looper)
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var stopped = false
+    private var abiLogged = false
     private var dim: Any? = null
     private var dimClass: Class<*>? = null
     private var menu: Any? = null
@@ -32,8 +33,10 @@ internal class Lynk06ClusterLink(
     private var connectClass: Class<*>? = null
     private var callback: Any? = null
     private var connected = false
+    private var consecutiveFailures = 0
     private var navigation = false
     private var sentNavigation = false
+    private var republishNavigation = false
     private var state = Lynk06ClusterState()
 
     fun start() { worker.post { initialize() } }
@@ -42,6 +45,10 @@ internal class Lynk06ClusterLink(
     private fun initialize() {
         if (stopped) return
         try {
+            if (!abiLogged) {
+                Lynk06ClusterAbiProbe.snapshot().forEach(::logOnMain)
+                abiLogged = true
+            }
             val type = Class.forName("com.ecarx.xui.adaptapi.diminteraction.DimInteraction")
             dimClass = type
             dim = type.getMethod("create", Context::class.java).invoke(null, context)
@@ -56,15 +63,18 @@ internal class Lynk06ClusterLink(
                             if (name == "onConnected") attach()
                             if (name == "onDisConnected") {
                                 connected = false
+                                worker.removeCallbacks(poll)
                                 publish(Lynk06ClusterState())
+                                scheduleReconnect()
                             }
                         }
                     }
                 }
                 connect.getMethod("registerConnectWatcher", watcher).invoke(dim, proxy)
                 connect.getMethod("connect").invoke(dim)
+                scheduleReconnect()
             } else attach()
-        } catch (error: Throwable) { failed(error) }
+        } catch (error: Throwable) { connectionFailed(error) }
     }
 
     private fun attach() {
@@ -81,20 +91,19 @@ internal class Lynk06ClusterLink(
             }
             menuClass!!.getMethod("registerDimMenuInteractionCallback", type).invoke(menu, callback)
             connected = true
+            consecutiveFailures = 0
             // 服务重连后重新发布本次导航，停止时仍负责撤销。
-            if (navigation) notifyNavigation(true)
+            worker.removeCallbacks(reconnect)
+            republishNavigation = navigation
             logOnMain("领克仪表：AdaptAPI 已连接")
-            worker.removeCallbacks(poll)
             refresh()
-            worker.postDelayed(poll, 1000)
-        } catch (error: Throwable) { failed(error) }
+        } catch (error: Throwable) { connectionFailed(error) }
     }
 
     private val poll = object : Runnable {
         override fun run() {
             if (stopped || !connected) return
             refresh()
-            if (connected) worker.postDelayed(this, 1000)
         }
     }
 
@@ -104,16 +113,30 @@ internal class Lynk06ClusterLink(
             // 菜单读取失败也不能阻止导航结束通知，避免本次导航状态残留。
             if (!navigation && sentNavigation) notifyNavigation(false)
             if (!connected) return
-            if (navigation && !sentNavigation) notifyNavigation(true)
+            if (navigation && (!sentNavigation || republishNavigation)) notifyNavigation(true)
             val mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
+            consecutiveFailures = 0
             publish(Lynk06ClusterState(true, navigation, mode))
-        } catch (error: Throwable) { failed(error) }
+        } catch (error: Throwable) {
+            publish(Lynk06ClusterState())
+            logFailure(error)
+            // 单次事务异常不代表 Service 断开；保留连接并自动再试。
+            consecutiveFailures++
+            if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                connected = false
+                scheduleReconnect()
+            }
+        } finally {
+            worker.removeCallbacks(poll)
+            if (!stopped && connected) worker.postDelayed(poll, RETRY_DELAY_MILLIS)
+        }
     }
 
     private fun notifyNavigation(active: Boolean) {
         // 与实车 XSFNaviService 一致：1 为导航成功进行，0 为未导航。
         naviClass!!.getMethod("notifyNavigationStatus", Int::class.javaPrimitiveType).invoke(navi, if (active) 1 else 0)
         sentNavigation = active
+        republishNavigation = false
         logOnMain("领克仪表：导航状态=${if (active) "进行中" else "结束"}")
     }
 
@@ -123,10 +146,45 @@ internal class Lynk06ClusterLink(
         main.post { if (!stopped) onState(next) }
     }
 
-    private fun failed(error: Throwable) {
+    private fun connectionFailed(error: Throwable) {
         connected = false
+        worker.removeCallbacks(poll)
         publish(Lynk06ClusterState())
+        logFailure(error)
+        scheduleReconnect()
+    }
+
+    private fun logFailure(error: Throwable) {
         logOnMain("领克仪表：接口调用失败 ${error.cause?.message ?: error.message}")
+    }
+
+    private fun scheduleReconnect() {
+        worker.removeCallbacks(poll)
+        worker.removeCallbacks(reconnect)
+        if (!stopped) worker.postDelayed(reconnect, RETRY_DELAY_MILLIS)
+    }
+
+    private val reconnect = Runnable {
+        if (!stopped && !connected) {
+            try {
+                val connect = connectClass
+                if (dim == null) initialize()
+                else if (connect == null) attach()
+                else {
+                    // 只重连仪表厂商接口；导航通知所有权保留到结束或关闭。
+                    detachMenu()
+                    runCatching { connect.getMethod("disconnect").invoke(dim) }
+                    connect.getMethod("connect").invoke(dim)
+                    // connect 没有回调时也继续重试，避免永远等待厂商 Service。
+                    scheduleReconnect()
+                }
+            } catch (error: Throwable) { connectionFailed(error) }
+        }
+    }
+
+    private companion object {
+        const val RETRY_DELAY_MILLIS = 1000L
+        const val MAX_CONSECUTIVE_FAILURES = 3
     }
 
     private fun logOnMain(message: String) { main.post { if (!stopped) log(message) } }

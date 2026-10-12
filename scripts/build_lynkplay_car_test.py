@@ -11,6 +11,7 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 from script_utils import (
+    configure_console,
     ROOT,
     ScriptError,
     find_android_build_tools,
@@ -132,6 +133,7 @@ def build_car_test(authentication_assets_directory: Path) -> None:
 
 
 def main() -> int:
+    configure_console()
     args = parse_args()
     try:
         build_car_test(args.authentication_assets_directory)
