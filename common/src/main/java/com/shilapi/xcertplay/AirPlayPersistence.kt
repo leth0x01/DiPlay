@@ -952,14 +952,18 @@ object AirPlayPersistence {
                 ClusterTurnCardOverlay.snap(percent, CarPlayClusterDisplay.markerXPercents)).apply()
     }
 
+    fun defaultClusterMarkerYPercent(): Int =
+        if (Lynk06ClusterDisplay.supported()) Lynk06ClusterDisplay.DEFAULT_MARKER_Y_PERCENT else 45
+
     fun loadClusterMarkerYPercent(context: Context): Int {
+        val default = defaultClusterMarkerYPercent()
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (prefs.contains(KEY_CLUSTER_MARKER_Y_PERCENT)) {
-            return ClusterTurnCardOverlay.snap(prefs.getInt(KEY_CLUSTER_MARKER_Y_PERCENT, 45), CarPlayClusterDisplay.markerYPercents)
+            return ClusterTurnCardOverlay.snap(prefs.getInt(KEY_CLUSTER_MARKER_Y_PERCENT, default), CarPlayClusterDisplay.markerYPercents)
         }
         val step = prefs.getInt(KEY_CLUSTER_MARKER_Y, 0)
         return ClusterTurnCardOverlay.snap(
-            45 + step * CarPlayClusterDisplay.MARKER_STEP_PERCENT,
+            default + step * CarPlayClusterDisplay.MARKER_STEP_PERCENT,
             CarPlayClusterDisplay.markerYPercents,
         )
     }
@@ -1152,8 +1156,10 @@ object AirPlayPersistence {
         overlaySettingsListener?.invoke()
     }
 
-    fun loadClusterMapScalePercent(context: Context): Int = CarPlayClusterDisplay.STREAM_SCALE_PERCENT.let { default ->
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_CLUSTER_MAP_SCALE, default)
+    fun loadClusterMapScalePercent(context: Context): Int {
+        val default = if (Lynk06ClusterDisplay.supported()) Lynk06ClusterDisplay.DEFAULT_SCALE_PERCENT
+            else CarPlayClusterDisplay.STREAM_SCALE_PERCENT
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_CLUSTER_MAP_SCALE, default)
             .takeIf { it in CarPlayClusterDisplay.scalePresets } ?: default
     }
 

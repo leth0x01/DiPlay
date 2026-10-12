@@ -1959,7 +1959,8 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 DiLink4ClusterDisplay.matches(clusterDisplay.name, clusterSize.x, clusterSize.y))
             val clusterMapEnabled = AirPlayPersistence.loadClusterMapEnabled(this)
             reconnectingToggle(card, getString(R.string.carplay_map_on_instrument_cluster_experimental),
-                if (clusterDisplay != null || adbCluster) getString(R.string.shows_the_iphone_s_cluster_map_on_the_instrument_cluster_c)
+                if (clusterDisplay != null && Lynk06ClusterDisplay.accepts(clusterDisplay)) getString(R.string.settings_lynk06_cluster_description)
+                else if (clusterDisplay != null || adbCluster) getString(R.string.shows_the_iphone_s_cluster_map_on_the_instrument_cluster_c)
                 else getString(R.string.shows_the_iphone_s_cluster_map_virtual_stream_description),
                 clusterMapEnabled) {
                 AirPlayPersistence.saveClusterMapEnabled(this, it)
@@ -2114,12 +2115,12 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                                 getString(if (turnCard) R.string.turn_card_vertical else R.string.car_marker_vertical),
                                 CarPlayClusterDisplay.markerYPercents,
                                 AirPlayPersistence.loadClusterMarkerYPercent(this),
-                            ) { it -> overlayOffsetLabel(it, getString(R.string.marker_up), getString(R.string.marker_down), 45) }
+                            ) { it -> overlayOffsetLabel(it, getString(R.string.marker_up), getString(R.string.marker_down), AirPlayPersistence.defaultClusterMarkerYPercent()) }
                                 .also { it.onSave = { v -> AirPlayPersistence.saveClusterMarkerYPercent(this, v) } }
                                 .also { it.onCommit = { markReconnectNeeded() } })
                             card.addView(button(getString(if (turnCard) R.string.reset_turn_card_to_centre else R.string.reset_car_marker_to_centre), false) {
                                 AirPlayPersistence.saveClusterMarkerXPercent(this, 50)
-                                AirPlayPersistence.saveClusterMarkerYPercent(this, 45)
+                                AirPlayPersistence.saveClusterMarkerYPercent(this, AirPlayPersistence.defaultClusterMarkerYPercent())
                                 render()
                                 markReconnectNeeded()
                             }, matchButton(10, 56))
@@ -2165,7 +2166,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                                     getString(R.string.cluster_small_window_vertical),
                                     CarPlayClusterDisplay.markerYPercents,
                                     AirPlayPersistence.loadClusterSmallWindowMarkerYPercent(this),
-                                ) { it -> overlayOffsetLabel(it, getString(R.string.marker_up), getString(R.string.marker_down), 45) }
+                                ) { it -> overlayOffsetLabel(it, getString(R.string.marker_up), getString(R.string.marker_down), AirPlayPersistence.defaultClusterMarkerYPercent()) }
                                     .also { it.onSave = { v -> AirPlayPersistence.saveClusterSmallWindowMarkerYPercent(this, v) } }
                                     .also { it.onCommit = { markReconnectNeeded() } })
                                 if (AirPlayPersistence.loadClusterContent(this) ==

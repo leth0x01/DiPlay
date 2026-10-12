@@ -29,13 +29,7 @@ import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.host.R
 import com.shilapi.xcertplay.hud.ClusterTurnGuidance
 
-/**
- * Shows CarPlay's instrument-cluster stream on a BYD cluster projection display.
- *
- * BYD exposes the cluster's projection area as public presentation displays owned by
- * com.byd.containerservice (DiLink 5) or com.xdja.containerservice (DiLink 4). The
- * cluster only shows this display while its projection mode is on, which DiPlay cannot switch.
- */
+/** 在已匹配的仪表投影显示上呈现独立 CarPlay 地图流。原车投影模式由车机管理。 */
 internal class ClusterMapPresentation(
     context: Context,
     display: Display,
@@ -203,6 +197,8 @@ internal class ClusterMapPresentation(
         fun findDisplay(context: Context, theme: DiLink51ClusterLayout.Theme = DiLink51ClusterLayout.theme(context)): Display? {
             val displays = context.getSystemService(DisplayManager::class.java)
                 ?.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION) ?: return null
+            // 领克只选择已采集的显示，不能回退到比亚迪或其他副屏。
+            if (Lynk06ClusterDisplay.supported()) return displays.firstOrNull(Lynk06ClusterDisplay::accepts)
             val name = DiLink51ClusterLayout.displayName(
                 displays.map { it.name }, android.os.Build.FINGERPRINT, theme,
             )

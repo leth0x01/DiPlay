@@ -51,3 +51,7 @@ release-signing.properties
 
 # 本地测试截图。
 /docs/screenshots/
+
+# 仪表专项采集结果可生成在脚本所在目录。
+lynk06_cluster_*/
+lynk06_cluster_*.zip

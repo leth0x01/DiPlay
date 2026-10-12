@@ -858,4 +858,5 @@
     <string name="bluetooth_connections_not_real">此車機的系統藍牙回報「已連線」，但實際上沒有連到 iPhone：連一個不存在的服務也回報成功。這裡的藍牙由廠商自己的模組處理，App 無法使用，所以此車機無法使用無線 CarPlay。請嘗試使用 USB 連線。</string>
     <string name="settings_fce_cluster_guidance">FCE 儀表導航（實驗性）</string>
     <string name="settings_fce_cluster_guidance_description">在 FCE 平台車機上，透過車機的車輛服務把 CarPlay 轉向箭頭和到下一路口的距離顯示在儀表的導航畫面。僅在一輛車上測試過；如果儀表顯示異常，請關閉。</string>
+    <string name="settings_lynk06_cluster_description">嘗試在領克 06 儀表地圖區域顯示 CarPlay 導航。導航期間，介面可用時地圖隨儀表導航模式顯示。套用並重新連線後生效。</string>
 </resources>

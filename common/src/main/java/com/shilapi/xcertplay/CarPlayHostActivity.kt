@@ -342,6 +342,11 @@ class CarPlayHostActivity : ComponentActivity() {
     private var currentSurfaceTexture: SurfaceTexture? = null
     private var clusterPresentation: ClusterMapPresentation? = null
     private var clusterSurface: Surface? = null
+    private var lynk06ClusterLink: Lynk06ClusterLink? = null
+    private var lynk06ClusterState = Lynk06ClusterState()
+    private val lynk06NavigationListener: (Boolean) -> Unit = { active ->
+        lynk06ClusterLink?.setNavigation(active)
+    }
     private var clusterMonitor: DiLink51ClusterMonitor? = null
     private var detectedCluster = ClusterActivityState.Snapshot(null, false)
     // Keep one surface per layer alive, including while its map card is hidden.
@@ -1084,11 +1089,28 @@ class CarPlayHostActivity : ComponentActivity() {
         else -> false
     }
 
+    private fun ensureLynk06ClusterLink() {
+        if (!Lynk06ClusterDisplay.supported() || lynk06ClusterLink != null) return
+        lateinit var link: Lynk06ClusterLink
+        link = Lynk06ClusterLink(this, { state ->
+            if (lynk06ClusterLink === link) {
+                lynk06ClusterState = state
+                appendLog("领克仪表：接口可用=${state.available} 导航=${state.navigating} 模式=${state.mode}")
+                clusterPresentation?.setMapVisible(state.showMap)
+                updateClusterMapShown()
+            }
+        }, ::appendLog)
+        lynk06ClusterLink = link
+        link.start()
+        com.shilapi.xcertplay.hud.CarPlayNavigationStatus.setListener(lynk06NavigationListener)
+    }
+
     private fun ensureClusterPresentation() {
         if (!AirPlayPersistence.loadClusterMapEnabled(this)) {
             dismissClusterPresentation()
             return
         }
+        ensureLynk06ClusterLink()
         if (AdbClusterRouter.enabled(this)) {
             ClusterActivityOutput.bind(this, taskId) { onClusterSurface(it) }
             ClusterActivityOutput.setStreamActive(SCREEN_TYPE_ALT in activeScreenStreamTypes)
@@ -1119,6 +1141,8 @@ class CarPlayHostActivity : ComponentActivity() {
             }
         }
         try {
+            // 领克显示器常驻；先按真实导航和仪表模式隐藏窗口，避免覆盖原车简洁画面。
+            if (Lynk06ClusterDisplay.supported()) presentation.setMapVisible(lynk06ClusterState.showMap)
             presentation.show()
             clusterPresentation = presentation
             updateClusterMapShown()
@@ -1206,6 +1230,10 @@ class CarPlayHostActivity : ComponentActivity() {
         }
     }
     private fun dismissClusterPresentation() {
+        com.shilapi.xcertplay.hud.CarPlayNavigationStatus.clearListener(lynk06NavigationListener)
+        lynk06ClusterLink?.close()
+        lynk06ClusterLink = null
+        lynk06ClusterState = Lynk06ClusterState()
         ClusterActivityOutput.stop(this)
         val presentations = (clusterLayers.values + listOfNotNull(clusterPresentation)).distinct()
         clusterLayers.clear()
@@ -1294,6 +1322,7 @@ class CarPlayHostActivity : ComponentActivity() {
                         markerYPercent = AirPlayPersistence.loadClusterMarkerYPercent(this),
                     ).also { MapMirrors.streamAspect = it.widthPixels.toDouble() / it.heightPixels }
                 }
+                val lynk06 = Lynk06ClusterDisplay.accepts(display)
                 val requestedScale = AirPlayPersistence.loadClusterMapScalePercent(this)
                 val smallWindow = smallWindowActive()
                 requestedSmallWindowForStream = smallWindow
@@ -1308,6 +1337,9 @@ class CarPlayHostActivity : ComponentActivity() {
                     else AirPlayPersistence.loadClusterMarkerXPercent(this),
                     markerYPercent = if (smallWindow) AirPlayPersistence.loadClusterSmallWindowMarkerYPercent(this)
                     else AirPlayPersistence.loadClusterMarkerYPercent(this),
+                    // 领克地图边界尚未实测，使用居中的通用边距，不沿用比亚迪布局。
+                    baseSafeArea = if (lynk06) CarPlayClusterDisplay.VIRTUAL_SAFE_AREA_PERCENT
+                        else CarPlayClusterDisplay.SAFE_AREA_PERCENT,
                 )
                 val requested = streamAt(requestedScale)
                 // The smaller-map preset enlarges the encoded canvas beyond this panel. Probe
@@ -1326,7 +1358,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 } else requested
                 return effective.also {
                     MapMirrors.streamAspect = it.widthPixels.toDouble() / it.heightPixels
-                    appendLog("Cluster map: requesting ${it.widthPixels}x${it.heightPixels} on ${size.x}x${size.y} safeArea=${it.safeArea} url=${it.initialUrl}")
+                    appendLog("Cluster map: display=${display.displayId}:${display.name} requesting ${it.widthPixels}x${it.heightPixels} on ${size.x}x${size.y} fps=${it.fps} safeArea=${it.safeArea} url=${it.initialUrl}")
                 }
             }
         }
