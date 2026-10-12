@@ -25,7 +25,7 @@ class UpdateCatalogTest {
             }.also { connection = it }
         }
 
-        assertEquals("https://api.github.com/repos/leth0x01/DiPlay/releases?per_page=3", connection?.url.toString())
+        assertEquals("https://api.github.com/repos/leth0x01/LynkPlay/releases?per_page=3", connection?.url.toString())
         assertEquals("LynkPlay/test", connection?.getRequestProperty("User-Agent"))
         assertNull(release)
     }

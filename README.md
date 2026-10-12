@@ -40,7 +40,7 @@ git push origin lynkplay
 
 Resolve conflicts before running checks. CI runs on pushes to both long-lived branches and on pull requests.
 
-The app checks [this fork's Releases](https://github.com/leth0x01/DiPlay/releases). It does not offer upstream DiPlay APKs as LynkPlay updates. No APK is published in this stage. If the repository is renamed, update the app's release endpoint accordingly.
+The app checks [this fork's Releases](https://github.com/leth0x01/LynkPlay/releases). It does not offer upstream DiPlay APKs as LynkPlay updates. No APK is published in this stage.
 
 ## Attribution
 

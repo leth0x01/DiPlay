@@ -25,7 +25,7 @@ APK 位于 `mobile/build/outputs/apk/debug/mobile-debug.apk`。普通源码构�
 
 ## 更新与上游同步
 
-LynkPlay 检查 [本 fork 的 Releases](https://github.com/leth0x01/DiPlay/releases)，不提供原版 DiPlay APK 作为本应用更新。尚无发布版本时不会推荐更新；本阶段没有发布 APK。以后仓库改名时须同步修改更新地址。
+LynkPlay 检查 [本 fork 的 Releases](https://github.com/leth0x01/LynkPlay/releases)，不提供原版 DiPlay APK 作为本应用更新。尚无发布版本时不会推荐更新；本阶段没有发布 APK。
 
 - `main`：保留 DiPlay 上游。
 - `lynkplay`：品牌修改和领克 06 适配。
