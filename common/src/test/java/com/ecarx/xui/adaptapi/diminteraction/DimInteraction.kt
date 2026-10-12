@@ -1,6 +1,9 @@
 package com.ecarx.xui.adaptapi.diminteraction
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import com.ecarx.xui.adaptapi.binder.IConnectable
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -13,6 +16,8 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var readCalls = 0
     @Volatile var connectCalls = 0
     @Volatile var suppressConnectCallback = false
+    @Volatile var connectCallbackDelayMillis = 0L
+    val connectTimes = CopyOnWriteArrayList<Long>()
     @Volatile var menuCallback: IDimMenuInteraction.IDimMenuInteractionCallback? = null
     @Volatile var watcher: IConnectable.IConnectWatcher? = null
     val notifications = CopyOnWriteArrayList<Int>()
@@ -22,7 +27,14 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     override fun connect() {
         connectCalls++
         disconnected = false
-        if (!suppressConnectCallback) watcher?.onConnected()
+        connectTimes.add(SystemClock.uptimeMillis())
+        if (!suppressConnectCallback) {
+            val attempt = connectCalls
+            if (connectCallbackDelayMillis == 0L) watcher?.onConnected()
+            else Handler(Looper.getMainLooper()).postDelayed({
+                if (!disconnected && connectCalls == attempt) watcher?.onConnected()
+            }, connectCallbackDelayMillis)
+        }
     }
     override fun disconnect() { disconnected = true; watcher?.onDisConnected() }
     fun getDimMenuInteraction(): IDimMenuInteraction = this

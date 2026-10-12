@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File .\collect_lynk06_cluster.ps1
 
 ## 运行时 ABI Probe 与文本 snapshot
 
-`Lynk06ClusterAbiProbe` 在仪表链接首次初始化时使用 `Class.forName(..., false, classLoader)` 读取六个仪表相关类的声明方法，排序后以 `领克仪表 ABI：` 前缀写入会话日志。Probe 不调用厂商方法。仪表链接仍由已验证车型与仪表地图开关控制。
+`Lynk06ClusterAbiProbe` 在仪表链接首次初始化时使用 `Class.forName(..., false, classLoader)` 读取六个仪表相关类的声明方法，排序后以 `领克仪表 ABI：` 前缀写入会话日志。Probe 不调用厂商方法。每个类与方法的反射异常单独记录，继续采集后续签名；链接初始化处再隔离整体异常，并在采集前标记已尝试，避免失败后反复采集或阻止仪表连接。仪表链接仍由已验证车型与仪表地图开关控制。
 
 在本车开启仪表地图并建立会话后，导出诊断报告，提取 `领克仪表 ABI：开始` 至 `领克仪表 ABI：结束` 的全部记录，去掉每行时间戳后保存为 UTF-8 文本。snapshot 应附实际固件号与 AdapterAPI 版本，重点核对 `create(Context)`、连接 watcher 注册／解除、连接／断开、菜单与导航接口获取、模式读取／回调注册／解除，以及 `notifyNavigationStatus(int)`。记录中的读取失败属于 ABI 验证异常，需先核对再判断兼容。
 

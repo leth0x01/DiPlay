@@ -8,10 +8,14 @@ internal object Lynk06ClusterAbiProbe {
             try {
                 val type = Class.forName(name, false, Lynk06ClusterAbiProbe::class.java.classLoader)
                 add("领克仪表 ABI：class ${type.name}")
-                type.declaredMethods.map { it.toGenericString() }.sorted().forEach {
+                type.declaredMethods.map { method ->
+                    try { method.toGenericString() }
+                    catch (error: Exception) { "${type.name}.${method.name} 签名读取失败 ${error.javaClass.simpleName}" }
+                    catch (error: LinkageError) { "${type.name}.${method.name} 签名读取失败 ${error.javaClass.simpleName}" }
+                }.sorted().forEach {
                     add("领克仪表 ABI：$it")
                 }
-            } catch (error: ReflectiveOperationException) {
+            } catch (error: Exception) {
                 add("领克仪表 ABI：$name 读取失败 ${error.javaClass.simpleName}")
             } catch (error: LinkageError) {
                 add("领克仪表 ABI：$name 读取失败 ${error.javaClass.simpleName}")

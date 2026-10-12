@@ -1,17 +1,19 @@
 package com.shilapi.xcertplay
 
 import android.content.Context
+import android.net.VpnService
 import com.shilapi.xcertplay.adb.AdbKeys
 import com.shilapi.xcertplay.adb.LocalAdb
 
-/** 授权界面缺失时优先使用 root；root 授权失败后使用车主已批准的本机 ADB。 */
+/** 授权界面缺失时优先使用 root；系统未确认授权时使用车主已批准的本机 ADB。 */
 internal object VpnPreConsent {
     enum class RootAccess { UNAVAILABLE, COMMAND_SUCCEEDED, COMMAND_FAILED }
-    data class Result(val root: RootAccess, val adb: LocalAdb.Access? = null)
+    data class Result(val root: RootAccess, val adb: LocalAdb.Access? = null, val granted: Boolean = false)
     data class CommandResult(val exitCode: Int, val output: String)
 
     fun grant(
         context: Context,
+        verifier: () -> Boolean = { VpnService.prepare(context) == null },
         rootGrant: () -> RootAccess = { grantRoot(context.packageName) },
         adbGrant: () -> LocalAdb.Access = {
             LocalAdb(AdbKeys.load(context)).use {
@@ -24,7 +26,10 @@ internal object VpnPreConsent {
         },
     ): Result {
         val root = rootGrant()
-        return Result(root, if (root != RootAccess.COMMAND_SUCCEEDED) adbGrant() else null)
+        // 厂商 appops 可能返回成功却未授权；后备流程只依据系统实际授权。
+        if (runCatching(verifier).getOrDefault(false)) return Result(root, granted = true)
+        val adb = adbGrant()
+        return Result(root, adb, runCatching(verifier).getOrDefault(false))
     }
 
     fun grantRoot(packageName: String, runCommand: (String) -> CommandResult? = ::runRootCommand): RootAccess {

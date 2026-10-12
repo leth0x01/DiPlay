@@ -861,7 +861,7 @@ class CarPlayHostActivity : ComponentActivity() {
         if (!vpnPrivilegedConsentTried) preConsentVpnWithPrivileges()
     }
 
-    /** 缺少系统授权界面时先尝试 root，root 授权失败后使用已有 ADB 授权。 */
+    /** 缺少系统授权界面时先尝试 root，系统未确认 root 授权时使用已有 ADB 授权。 */
     private fun preConsentVpnWithPrivileges() {
         vpnPrivilegedConsentTried = true
         val app = applicationContext
@@ -873,7 +873,7 @@ class CarPlayHostActivity : ComponentActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 val granted = runCatching { CarPlayVpnService.prepare(this) == null }.getOrDefault(false)
-                appendLog("VPN consent root=${result?.root} adb=${result?.adb} granted=$granted")
+                appendLog("VPN consent root=${result?.root} adb=${result?.adb} verified=${result?.granted} granted=$granted")
                 if (granted && !wirelessEnabled && !awaitingVpnConsent && !vpnReady) {
                     vpnReady = true
                     maybeStartCarPlay()

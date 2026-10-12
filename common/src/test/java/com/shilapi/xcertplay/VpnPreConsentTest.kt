@@ -40,11 +40,11 @@ class VpnPreConsentTest {
         }
     }
 
-    @Test fun adbIsUsedUnlessRootCommandSucceeded() {
+    @Test fun verifiedRootSkipsAdbAndUnverifiedRootUsesAdb() {
         val app = RuntimeEnvironment.getApplication()
         for (root in VpnPreConsent.RootAccess.entries) {
             var adbCalls = 0
-            val result = VpnPreConsent.grant(app, rootGrant = { root }, adbGrant = {
+            val result = VpnPreConsent.grant(app, verifier = { root == VpnPreConsent.RootAccess.COMMAND_SUCCEEDED }, rootGrant = { root }, adbGrant = {
                 adbCalls++
                 LocalAdb.Access.READY
             })
@@ -53,6 +53,48 @@ class VpnPreConsentTest {
             assertEquals(if (root != VpnPreConsent.RootAccess.COMMAND_SUCCEEDED) LocalAdb.Access.READY else null,
                 result.adb)
         }
+    }
+
+    @Test fun rootCommandSuccessWithoutConsentFallsBackAndVerifiesAdb() {
+        val events = mutableListOf<String>()
+        var granted = false
+        val result = VpnPreConsent.grant(RuntimeEnvironment.getApplication(),
+            rootGrant = { events += "root"; VpnPreConsent.RootAccess.COMMAND_SUCCEEDED },
+            verifier = { events += "verify"; granted },
+            adbGrant = { events += "adb"; granted = true; LocalAdb.Access.READY })
+        assertEquals(listOf("root", "verify", "adb", "verify"), events)
+        assertEquals(LocalAdb.Access.READY, result.adb)
+        assertTrue(result.granted)
+    }
+
+    @Test fun readyAdbWithoutConsentIsStillVerified() {
+        var verifications = 0
+        val result = VpnPreConsent.grant(RuntimeEnvironment.getApplication(),
+            rootGrant = { VpnPreConsent.RootAccess.COMMAND_SUCCEEDED },
+            verifier = { verifications++; false },
+            adbGrant = { LocalAdb.Access.READY })
+        assertEquals(2, verifications)
+        assertFalse(result.granted)
+    }
+
+    @Test fun verifiedConsentSkipsAdbRegardlessOfRootCommandResult() {
+        for (root in VpnPreConsent.RootAccess.entries) {
+            val result = VpnPreConsent.grant(RuntimeEnvironment.getApplication(),
+                rootGrant = { root }, verifier = { true },
+                adbGrant = { fail("已确认授权时不应尝试 ADB"); LocalAdb.Access.READY })
+            assertTrue(result.granted)
+            assertNull(result.adb)
+        }
+    }
+
+    @Test fun verificationExceptionAllowsAdbFallbackButDoesNotReportSuccess() {
+        var adbCalls = 0
+        val result = VpnPreConsent.grant(RuntimeEnvironment.getApplication(),
+            rootGrant = { VpnPreConsent.RootAccess.COMMAND_SUCCEEDED },
+            verifier = { throw SecurityException("模拟系统授权检查失败") },
+            adbGrant = { adbCalls++; LocalAdb.Access.READY })
+        assertEquals(1, adbCalls)
+        assertFalse(result.granted)
     }
 
     @Test fun invalidPackageCannotBecomeAShellCommand() {

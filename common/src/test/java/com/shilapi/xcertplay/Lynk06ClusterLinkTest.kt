@@ -32,10 +32,10 @@ class Lynk06ClusterLinkTest {
     @After fun tearDown() { link.close(); await { vendor.disconnected && vendor.watcher == null } }
 
     private fun await(condition: () -> Boolean) {
-        val deadline = System.nanoTime() + 6_000_000_000L
+        val deadline = System.nanoTime() + 12_000_000_000L
         while (!condition() && System.nanoTime() < deadline) {
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(10))
-            Thread.sleep(10)
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(20))
+            Thread.sleep(5)
         }
         assertTrue("异步仪表状态未在时限内完成", condition())
     }
@@ -140,6 +140,54 @@ class Lynk06ClusterLinkTest {
         assertTrue(snapshot.any { it.contains("onDisConnected()") })
         assertEquals(readCalls, vendor.readCalls)
         assertTrue(vendor.notifications.isEmpty())
+    }
+
+    @Test fun `ABI runtime failure does not prevent connection and is attempted once`() {
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        states.clear()
+        var probeCalls = 0
+        val logs = CopyOnWriteArrayList<String>()
+        link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, { logs.add(it) },
+            abiSnapshot = { probeCalls++; throw SecurityException("模拟 ROM 拒绝反射") })
+        link.start()
+        await { states.lastOrNull()?.available == true }
+        assertTrue(logs.any { it.contains("ABI：采集失败") })
+        vendor.watcher!!.onDisConnected()
+        await { states.lastOrNull()?.available == false }
+        await { states.lastOrNull()?.available == true }
+        assertEquals(1, probeCalls)
+    }
+
+    @Test fun `slow service connection is allowed to finish without being disconnected`() {
+        vendor.connectCallbackDelayMillis = 2500
+        vendor.watcher!!.onDisConnected()
+        await { states.lastOrNull()?.available == false }
+        await { states.lastOrNull()?.available == true }
+        assertEquals(2, vendor.connectCalls)
+    }
+
+    @Test fun `cold start waits for a slow initial connection`() {
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        states.clear()
+        vendor = DimInteraction().apply { connectCallbackDelayMillis = 2500 }
+        DimInteraction.instance = vendor
+        link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, {})
+        link.start()
+        await { states.lastOrNull()?.available == true }
+        assertEquals(1, vendor.connectCalls)
+    }
+
+    @Test fun `missing callbacks reduce reconnect pressure with increasing delays`() {
+        vendor.suppressConnectCallback = true
+        vendor.watcher!!.onDisConnected()
+        await { vendor.connectCalls >= 4 }
+        val times = vendor.connectTimes.toList().take(4)
+        val firstRetryGap = times[2] - times[1]
+        val secondRetryGap = times[3] - times[2]
+        assertTrue("连接等待应超过瞬时读取重试间隔", firstRetryGap >= 5000)
+        assertTrue("持续缺失回调时应增加退避", secondRetryGap > firstRetryGap)
     }
 
     @Test fun `read failure hides map and teardown still restores navigation`() {

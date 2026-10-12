@@ -17,6 +17,7 @@ internal class Lynk06ClusterLink(
     context: Context,
     private val onState: (Lynk06ClusterState) -> Unit,
     private val log: (String) -> Unit,
+    private val abiSnapshot: () -> List<String> = Lynk06ClusterAbiProbe::snapshot,
 ) {
     private val context = context.applicationContext
     private val thread = HandlerThread("lynk06-cluster-link").apply { start() }
@@ -33,6 +34,8 @@ internal class Lynk06ClusterLink(
     private var connectClass: Class<*>? = null
     private var callback: Any? = null
     private var connected = false
+    private var connecting = false
+    private var reconnectDelayMillis = RETRY_DELAY_MILLIS
     private var consecutiveFailures = 0
     private var navigation = false
     private var sentNavigation = false
@@ -44,11 +47,14 @@ internal class Lynk06ClusterLink(
 
     private fun initialize() {
         if (stopped) return
-        try {
-            if (!abiLogged) {
-                Lynk06ClusterAbiProbe.snapshot().forEach(::logOnMain)
-                abiLogged = true
+        if (!abiLogged) {
+            // 诊断只尝试一次，失败不能阻止仪表业务初始化或重连。
+            abiLogged = true
+            runCatching { abiSnapshot().forEach(::logOnMain) }.onFailure {
+                logOnMain("领克仪表 ABI：采集失败 ${it.javaClass.simpleName}")
             }
+        }
+        try {
             val type = Class.forName("com.ecarx.xui.adaptapi.diminteraction.DimInteraction")
             dimClass = type
             dim = type.getMethod("create", Context::class.java).invoke(null, context)
@@ -61,7 +67,8 @@ internal class Lynk06ClusterLink(
                     worker.post {
                         if (!stopped) {
                             if (name == "onConnected") attach()
-                            if (name == "onDisConnected") {
+                            // 主动重连产生的断线回调不缩短当前连接的等待窗口。
+                            if (name == "onDisConnected" && !connecting) {
                                 connected = false
                                 worker.removeCallbacks(poll)
                                 publish(Lynk06ClusterState())
@@ -71,8 +78,7 @@ internal class Lynk06ClusterLink(
                     }
                 }
                 connect.getMethod("registerConnectWatcher", watcher).invoke(dim, proxy)
-                connect.getMethod("connect").invoke(dim)
-                scheduleReconnect()
+                beginConnection(reset = false)
             } else attach()
         } catch (error: Throwable) { connectionFailed(error) }
     }
@@ -91,6 +97,9 @@ internal class Lynk06ClusterLink(
             }
             menuClass!!.getMethod("registerDimMenuInteractionCallback", type).invoke(menu, callback)
             connected = true
+            connecting = false
+            worker.removeCallbacks(connectionTimeout)
+            reconnectDelayMillis = RETRY_DELAY_MILLIS
             consecutiveFailures = 0
             // 服务重连后重新发布本次导航，停止时仍负责撤销。
             worker.removeCallbacks(reconnect)
@@ -148,6 +157,8 @@ internal class Lynk06ClusterLink(
 
     private fun connectionFailed(error: Throwable) {
         connected = false
+        connecting = false
+        worker.removeCallbacks(connectionTimeout)
         worker.removeCallbacks(poll)
         publish(Lynk06ClusterState())
         logFailure(error)
@@ -159,25 +170,42 @@ internal class Lynk06ClusterLink(
     }
 
     private fun scheduleReconnect() {
+        if (stopped || connected || connecting) return
         worker.removeCallbacks(poll)
         worker.removeCallbacks(reconnect)
-        if (!stopped) worker.postDelayed(reconnect, RETRY_DELAY_MILLIS)
+        worker.postDelayed(reconnect, reconnectDelayMillis)
+    }
+
+    private fun beginConnection(reset: Boolean) {
+        connecting = true
+        worker.removeCallbacks(reconnect)
+        worker.removeCallbacks(connectionTimeout)
+        val connect = connectClass!!
+        if (reset) {
+            // 只重连仪表厂商接口；导航通知所有权保留到结束或关闭。
+            detachMenu()
+            runCatching { connect.getMethod("disconnect").invoke(dim) }
+        }
+        connect.getMethod("connect").invoke(dim)
+        worker.postDelayed(connectionTimeout, CONNECTION_TIMEOUT_MILLIS)
+    }
+
+    private val connectionTimeout = Runnable {
+        if (!stopped && connecting && !connected) {
+            connecting = false
+            logOnMain("领克仪表：连接等待超时，稍后重试")
+            scheduleReconnect()
+        }
     }
 
     private val reconnect = Runnable {
-        if (!stopped && !connected) {
+        if (!stopped && !connected && !connecting) {
+            reconnectDelayMillis = (reconnectDelayMillis * 2).coerceAtMost(MAX_RECONNECT_DELAY_MILLIS)
             try {
                 val connect = connectClass
                 if (dim == null) initialize()
                 else if (connect == null) attach()
-                else {
-                    // 只重连仪表厂商接口；导航通知所有权保留到结束或关闭。
-                    detachMenu()
-                    runCatching { connect.getMethod("disconnect").invoke(dim) }
-                    connect.getMethod("connect").invoke(dim)
-                    // connect 没有回调时也继续重试，避免永远等待厂商 Service。
-                    scheduleReconnect()
-                }
+                else beginConnection(reset = true)
             } catch (error: Throwable) { connectionFailed(error) }
         }
     }
@@ -185,6 +213,8 @@ internal class Lynk06ClusterLink(
     private companion object {
         const val RETRY_DELAY_MILLIS = 1000L
         const val MAX_CONSECUTIVE_FAILURES = 3
+        const val CONNECTION_TIMEOUT_MILLIS = 4000L
+        const val MAX_RECONNECT_DELAY_MILLIS = 8000L
     }
 
     private fun logOnMain(message: String) { main.post { if (!stopped) log(message) } }
