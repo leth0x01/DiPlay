@@ -2,7 +2,11 @@
 
 基于 [DiPlay](https://github.com/shihabal3amri/DiPlay) 的 CarPlay 接收器，面向 **2023 款领克 06 燃油版、Android 9 车机**维护。
 
-当前为品牌与独立安装基线，**待实车验证**。现有吉利／领克方向盘及麦克风适配来自上游已记录的 Android 11 车机结果，不代表已验证本车型的 Android 9 车机。
+当前 LynkPlay 版本为 **0.1.8**（versionCode 46），已同步 DiPlay 0.2.19。
+
+根据 2026-10-13 的实车反馈，**无线、有线 CarPlay 均已在目标车机上连接成功**。**仪表地图目前无法使用，声音出现异常，待排查**。连接成功尚不足以确认音频和仪表功能正常。现有吉利／领克方向盘及麦克风适配来自上游已记录的 Android 11 车机结果，仍需在本车型的 Android 9 车机上分别验证。
+
+本次更新包含 CarPlay 三指下滑菜单布局迁移、手机端诊断报告下载，以及上游 USB 启动和音频修复。详见 [LynkPlay 0.1.8 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.1.8.md)、[车测说明](docs/LYNKPLAY-CAR-TEST.md) 和 [验证记录](docs/LYNKPLAY-VALIDATION.md)。
 
 ## 安装与构建
 
@@ -21,7 +25,7 @@
 
 APK 位于 `mobile/build/outputs/apk/debug/mobile-debug.apk`。普通源码构建默认没有运行时配件身份；仅编译成功不足以连接 iPhone。本地 standalone 构建流程见构建说明，不应提交认证资源或签名密钥。
 
-初次实车验证建议依次测试 USB、车机热点、Wi-Fi Direct，以及音频、Siri、方向盘按键、全屏和开机启动。Android 9 的 Wi-Fi Direct 限制见 [说明](docs/ANDROID9_WIFI_DIRECT.md)。测试时只运行一款接收器应用，避免同时占用连接和音频。
+后续实车验证重点为声音异常、仪表地图、连接稳定性，以及 Siri、方向盘按键、全屏和开机启动。Android 9 的 Wi-Fi Direct 限制见 [说明](docs/ANDROID9_WIFI_DIRECT.md)。测试时只运行一款接收器应用，避免同时占用连接和音频。
 
 ## 更新与上游同步
 
@@ -38,6 +42,7 @@ uv run --locked scripts/build_lynkplay_release.py
 - `main`：保留 DiPlay 上游。
 - `lynkplay`：品牌修改和领克 06 适配。
 - 初始基线：`24ae1fa5`（DiPlay 0.2.18）。
+- 当前已合并基线：`9aa9c549`（DiPlay 0.2.19）。
 
 提交或暂存当前修改后，同步上游：
 

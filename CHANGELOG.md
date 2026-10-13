@@ -1,3 +1,11 @@
+# LynkPlay 0.1.8
+
+- 同步 DiPlay 0.2.19，保留 LynkPlay 品牌、安装标识、领克车型门禁和仪表适配。
+- 迁移 CarPlay 三指下滑菜单玻璃面板布局，保留领克宽屏尺寸和安全边距。
+- 支持从手机端下载诊断报告，同步上游 USB 启动、音频和画面恢复修复。
+
+2026-10-13 实车反馈确认无线、有线 CarPlay 均能连接；仪表地图无法使用，声音异常待排查。反馈未指定安装包版本。详见 [LynkPlay 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.1.8.md)和[验证记录](docs/LYNKPLAY-VALIDATION.md)。
+
 # DiPlay 0.2.19 — 2026-10-12
 
 - Start wired CarPlay several seconds sooner by not waiting 2 s on each refused USB network write, ask for CarPlay mode first on iOS 26, grant USB access through approved ADB on Android 7.1–9 head units without a USB permission page, and let Auto-confirm USB permission find the system dialog (#644, #689).

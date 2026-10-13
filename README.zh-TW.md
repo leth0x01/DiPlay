@@ -1,75 +1,43 @@
-# DiPlay
+# LynkPlay
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md)
+基於 [DiPlay](https://github.com/shihabal3amri/DiPlay) 的 CarPlay 接收器，針對 **2023 款領克 06 燃油版、Android 9 車機**維護。[简体中文](README.zh-CN.md) · [English](README.md)。
 
-為相容的比亞迪 Android 車機提供有線與無線 CarPlay，採用熟悉的 DiAuto 介面。DiPlay 是獨立應用程式，正式版套件名稱為 `com.shihab.diplay`。
+目前 LynkPlay 版本為 **0.1.8**（versionCode 46），已同步 DiPlay 0.2.19。
 
-> 專案以比亞迪汽車為主要支援對象。其他品牌可能可以執行，但不在一般支援範圍內；特定韌體的個別整合不代表整個品牌受到支援。
+依據 2026-10-13 的實車回饋，**無線、有線 CarPlay 均已在目標車機上連線成功**。**儀表地圖目前無法使用，聲音出現異常，待排查**。連線成功尚不足以確認音訊與儀表功能正常。上游吉利／領克方向盤與麥克風整合來自 Android 11 車機的驗證紀錄，仍需在本車型的 Android 9 車機上分別驗證。
 
-[下載與繁體中文網站](https://shihabal3amri.github.io/DiPlay/zh-Hant/) · [0.2.19 版本](https://github.com/shihabal3amri/DiPlay/releases/tag/v0.2.19) · [回報問題](https://github.com/shihabal3amri/DiPlay/issues/new/choose)
+## 安裝與建置
 
-![DiPlay 主畫面](site/assets/home.png)
+- 主應用程式模組：`mobile`。
+- Release 與 carTest 套件名稱：`com.leth0x01.lynkplay`。
+- Debug 套件名稱：`com.leth0x01.lynkplay.hudtest`。
+- 可與 DiPlay 共存，各自儲存資料與權限；設定可透過備份／還原移轉。
+- 診斷報告儲存至 `Downloads/LynkPlay`，車機限制可能使其改存應用程式專用目錄。
 
-## 開始使用
+依[建置指南](docs/BUILD.md)準備 JDK 25 與 Android SDK，再執行：
 
-請將 DiPlay 安裝在**車機上，而非 iPhone**。車機需要允許安裝 APK，且 Android 版本須為 7.1 以上（API 25+）；Android 7.1–8.1 尚待實車驗證。使用時無須越獄、轉接盒、Mac、帳號或遠端認證伺服器。
+```powershell
+.\gradlew.bat :mobile:assembleDebug
+```
 
-有線與無線 CarPlay 的核心功能不需要 ADB。部分儀表板、車輛資料、方向盤或停車影片功能需要相容韌體及已授權的網路 ADB，請依各設定的說明操作。
+APK 位於 `mobile/build/outputs/apk/debug/mobile-debug.apk`。一般原始碼建置預設不包含執行時認證素材；獨立車測包的認證輸入、長期簽章及建置流程請見[車測說明](docs/LYNKPLAY-CAR-TEST.md)。
 
-1. 停車後安裝 APK，開啟 DiPlay 並授予所需權限。
-2. 無線模式可選車載熱點、Wi-Fi Direct 或現有 Wi-Fi／同一區域網路；有線模式請使用支援資料傳輸的 USB 連接埠與傳輸線。
-3. 在 iPhone 上接受 CarPlay 提示。連線前先關閉其他手機投影應用程式。
+後續實車驗證重點為聲音異常、儀表地圖、連線穩定性，以及 Siri、方向盤按鍵、全螢幕和開機啟動。測試時只執行一款接收器應用程式。
 
-完整步驟請見[安裝與連線指南](docs/INSTALL.zh-TW.md)。
+## 更新與上游同步
 
-## 切換為繁體中文
+LynkPlay 檢查[本 fork 的 Releases](https://github.com/leth0x01/LynkPlay/releases)，也可進入 **設定 → 關於 → 檢查更新**，下載並驗證 APK 後安裝。正式更新包沿用長期簽章與認證素材：
 
-開啟 **設定 → 語言 → 應用程式語言**，選擇 **繁體中文**，再按 **套用**。也可選擇 **跟隨系統**。
+```sh
+uv run --locked scripts/build_lynkplay_release.py
+```
 
-Android 13 以上會與 Android 的個別應用程式語言設定同步；Android 7.1–12 由 DiPlay 儲存語言選擇。繁體中文使用臺灣用語；香港、澳門及明確指定 `Hant` 的語言選擇共用這份翻譯，並未提供獨立的地區版本。DiPlay 的語言選擇控制其自身介面，CarPlay 內的應用程式語言則由 iPhone 及各應用程式管理。
+完整流程請見[正式出包與更新發布](docs/BUILD.md#build-a-release-apk)。`main` 保留 DiPlay 上游，`lynkplay` 維護品牌與領克 06 調整；目前已合併 DiPlay 0.2.19（`9aa9c549`）。上游同步指令請見[簡體中文首頁](README.zh-CN.md#更新与上游同步)。
 
-選用的 **DiPlay Home** 啟動器與 **DiPlay map host** 範例也提供繁體中文，依各自的 Android 系統語言顯示，不共用主要 DiPlay 應用程式的語言偏好。第三方小工具與應用程式名稱由提供者決定。
+本次更新包含 CarPlay 三指下滑選單版面、手機端診斷報告下載，以及上游 USB 啟動與音訊修正。詳見 [LynkPlay 0.1.8 版本說明](docs/LYNKPLAY-RELEASE-NOTES-0.1.8.md)與[驗證紀錄](docs/LYNKPLAY-VALIDATION.md)。
 
-## 主要功能與 0.2.19 更新
+## 來源與授權
 
-- 有線 USB 與無線 CarPlay，使用本機認證。
-- 相容韌體上的比亞迪抬頭顯示器（HUD）與儀表板導航提示。
-- 解析度、影格率、圖示與文字大小調整；依設定說明，在重新連線後套用。
-- 0.2.19 讓有線 CarPlay 在許多車機上更快啟動，修正通話、Siri 與導航語音的播放時間，並修正 DiLink 4 儀表地圖與倒車影像後 CarPlay 重新連線或畫面縮小的問題。
-- 新增日文，繁體中文已完整；可在 **設定 → 診斷 → 在手機上取得報告** 下載診斷報告。
-- 可在 **設定 → 關於 → 在手機上備份或還原** 透過 QR 碼備份設定，更新時可選其他安裝程式。
-- 本機診斷報告匯出，只有在你選擇分享後才會傳送。
-- 實驗性選項預設關閉，請停車後依說明測試。
+LynkPlay 衍生自 DiPlay，接收器源自 xcertplay，介面採用 DiAuto 設計。保留原專案版權、授權與貢獻聲明，詳見 [LICENSE](LICENSE)、[第三方聲明](docs/THIRD_PARTY_NOTICES.md)及[上游繁體中文 README](docs/DIPLAY-README.zh-TW.md)。上游文件中的車型支援與發布連結屬於 DiPlay。
 
-[英文版本說明](docs/RELEASE-NOTES-0.2.19.md)與[驗證紀錄](docs/VALIDATION.md)記錄完整變更、已知限制及尚待實車測試的項目。自動化測試通過不代表所有車型、iOS、Siri 或通話情境都已驗證。
-
-## 繁體中文文件
-
-| 文件 | 內容 |
-| --- | --- |
-| [安裝與連線](docs/INSTALL.zh-TW.md) | 首次使用、權限、USB、熱點及 Wi-Fi 模式 |
-| [設定與疑難排解](docs/SETTINGS.zh-TW.md) | 設定分類、重新連線、畫面與聲音、診斷回報 |
-| [隱私權與診斷](docs/PRIVACY.zh-TW.md) | 資料儲存、權限、報告分享及更新檢查 |
-| [從原始碼建置](docs/BUILD.zh-TW.md) | Windows／Android Studio、建置環境、APK 路徑及認證素材 |
-| [翻譯維護](docs/LOCALIZATION.zh-TW.md) | 臺灣用語、資源檢查與文件同步方式 |
-| [本次繁體中文驗證紀錄](docs/VALIDATION.zh-TW.md) | 測試、建置結果及完整 CI 的未解失敗 |
-
-進階車型整合可參考[比亞迪導航](docs/BYD_NAVIGATION.md)、[Wi-Fi Direct 舊版限制](docs/ANDROID9_WIFI_DIRECT.md)及[現有 Wi-Fi 指南](docs/EXISTING_WIFI.md)；這些深入文件目前為英文。
-
-## 相容性與公開預覽版限制
-
-這是**未經 Apple 認證的公開預覽版**。公開 APK 包含從公開 Carlinkit 韌體取得的實驗性配件身分，並非為 DiPlay 新核發的 MFi 身分；內含私密金鑰可被擷取。未來 iOS 是否接受、各車機的可靠性及該身分是否適合公開散布，仍有未解問題。
-
-Wi-Fi Direct 在 Android 7.1–9 使用依賴韌體的舊版路徑，無法驗證實際協商頻率；Android 10 以上可驗證。車機支援連上 5 GHz Wi-Fi，不代表能建立 5 GHz Wi-Fi Direct 群組。遇到卡頓可先使用車載熱點、30 fps、預設圖示大小及較低解析度，保留 HEVC 關閉。
-
-更新時使用相同套件與相符簽章才能保留設定及配對資料；請勿只憑 APK 檔名判斷更新相容性。安裝限制取決於車機韌體。
-
-## 回報問題
-
-重現問題後，開啟 **設定 → 診斷 → 儲存診斷報告**，記錄故障時間並檢查 TXT 內容，再附到[相關問題](https://github.com/shihabal3amri/DiPlay/issues)或[新增問題](https://github.com/shihabal3amri/DiPlay/issues/new/choose)。請提供車型／車機、Android／DiLink／完整韌體版本、iPhone／iOS、連線方式、相關設定與重現步驟。不要公開熱點密碼或認證檔案。詳見[診斷回報步驟](docs/SETTINGS.zh-TW.md#匯出診斷報告與回報問題)。
-
-## 原始碼與授權
-
-專案基於 [xcertplay](https://github.com/shilapi/xcertplay)（GPL-3.0）。主畫面、設定介面及網站改編自 [DiAuto](https://github.com/shihabal3amri/DiAuto)（AGPL-3.0）；相關授權位於 `docs/licenses`。散布修改版本時請保留[第三方聲明與授權](docs/THIRD_PARTY_NOTICES.md)。CarPlay 與其圖示屬於 Apple Inc.；專案不代表 Apple 或比亞迪的認可。
-
-一般原始碼／CI 建置預設不包含執行時認證素材；獨立連線測試需要外部素材。Git 與公開原始碼壓縮檔排除認證私密金鑰、Android 簽章金鑰及本機設定；將認證素材打包進 APK 後，接收者仍可擷取。詳見[建置指南](docs/BUILD.zh-TW.md)。
+CarPlay 與其圖示屬於 Apple Inc.；此衍生專案不表示獲得 Apple 或領克官方認證。

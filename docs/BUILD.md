@@ -150,8 +150,8 @@ Different signing keys cannot update the same installed application.
 Prepare JDK 25, the Android SDK, the existing signing configuration and runtime authentication assets described below. Increment both values in `gradle.properties` before each update:
 
 ```properties
-lynkplayVersionCode=45
-lynkplayVersionName=0.1.7
+lynkplayVersionCode=46
+lynkplayVersionName=0.1.8
 ```
 
 Run from the repository root on macOS or Windows:
@@ -165,15 +165,15 @@ The script uses `.private/auth-assets` by default. Select another authentication
 It runs the complete Android CI task list from `AGENTS.md`, then `:mobile:lintRelease :mobile:assembleRelease`. It verifies the final APK's Android 9 signature, pinned signing certificate, application ID, version name/code and packaged authentication assets before generating:
 
 ```text
-mobile/build/outputs/publish/0.1.7/LynkPlay-0.1.7.apk
-mobile/build/outputs/publish/0.1.7/SHA256SUMS.txt
+mobile/build/outputs/publish/0.1.8/LynkPlay-0.1.8.apk
+mobile/build/outputs/publish/0.1.8/SHA256SUMS.txt
 ```
 
 The output directory and APK filename follow `lynkplayVersionName`. Keep the existing signing key for all updates; `carTest` and `release` share that key and application ID.
 
 ### Publish an update
 
-Create a Release in `leth0x01/LynkPlay` with tag `v0.1.7` pointing to the source commit used for the build. Upload the versioned APK and `SHA256SUMS.txt` before publishing. Each Release must contain exactly one main-app APK. The checksum file must refer to the uploaded APK's exact filename.
+Create a Release in `leth0x01/LynkPlay` with tag `v0.1.8` pointing to the source commit used for the build. Upload the versioned APK and `SHA256SUMS.txt` before publishing. Each Release must contain exactly one main-app APK. The checksum file must refer to the uploaded APK's exact filename.
 
 The app reads this repository's GitHub Releases API, compares the tag's three-part version with the installed version, downloads both attachments and verifies SHA256 before opening an installer. The current updater also considers prereleases. Downloading and installation are initiated by the user; background checks are enabled by default and limited to once per 24 hours.
 
