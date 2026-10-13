@@ -373,6 +373,7 @@
     <string name="token_optional">الرمز (اختياري)</string>
     <string name="transport_error_reconnecting">خطأ في النقل؛ إعادة الاتصال</string>
     <string name="turn_on_bluetooth">تشغيل البلوتوث</string>
+    <string name="turn_on_bluetooth_in_the_head_unit_s_settings_to_connect">شغّل البلوتوث في إعدادات وحدة القيادة للاتصال.</string>
     <string name="turn_on_wi_fi_in_the_head_unit_s_settings_to_connect">شغّل واي فاي في إعدادات وحدة القيادة للاتصال.</string>
     <string name="turn_the_car_s_wi_fi_switch_on_allow_location_nearby_devic">شغّل مفتاح واي فاي السيارة. اسمح بالموقع/«الأجهزة القريبة» عند الطلب وفعّل الموقع عندما يطلبه Android. إذا اتقطّع التشغيل، جرّب نقطة اتصال السيارة المدمجة على 5 GHz.</string>
     <string name="usage_access_enabled">الوصول للاستخدام: مُفعّل</string>
@@ -695,6 +696,8 @@
     <string name="backup_page_hint">امسح الرمز بكاميرا الهاتف لفتح هذه الصفحة في متصفحه. التصدير يحفظ ملف الإعدادات، والاستيراد يحمّله.</string>
     <string name="backup_other_addresses">إذا لم يفتح الرمز، جرّب تغيير عنوان IP في المتصفح إلى %1$s.</string>
     <string name="backup_no_network">لا توجد شبكة Wi-Fi متاحة. شغّل نقطة اتصال السيارة أو وصّل الهاتف بشبكة السيارة أولاً.</string>
+    <string name="backup_type_address">لا توجد كاميرا؟ افتح %1$s في متصفح وأدخل الرمز %2$s.</string>
+    <string name="backup_code_entry_closed">أُدخلت رموز غير صحيحة كثيرة، فلم يعد الرمز صالحًا. غادر هذه الصفحة وافتحها مجددًا للحصول على رمز جديد. رمز QR ما زال يعمل.</string>
     <string name="backup_summary">تم استيراد %1$d من الإعدادات، وتجاهل %2$d.</string>
     <string name="backup_import_invalid">هذا الملف ليس نسخة احتياطية لإعدادات LynkPlay.</string>
     <string name="settings_background_update_checks">التحقق من التحديثات في الخلفية</string>
@@ -857,4 +860,16 @@
     <string name="wireless_startup_retries_exhausted">توقفت المحاولات التلقائية. تحقّق من الاتصال وأعد المحاولة يدويًا.</string>
     <string name="retry_carplay_connection">إعادة محاولة الاتصال</string>
     <string name="auto_grant_incomplete">لم يتحقق الإعداد من جميع الأذونات المطلوبة. راجع حالة كل إذن أدناه؛ وفعّل ADB عبر الشبكة ثم أعد المحاولة، أو استخدم الإعداد اليدوي. تُحفظ الأذونات الحالية.</string>
+    <string name="connection_help_reset_wifi">قد تمنع مجموعة Wi-Fi Direct سابقة الاتصال. اضغط على إعادة ضبط Wi-Fi الخاص بـ CarPlay أدناه ثم حاول الاتصال مجددًا.</string>
+    <string name="connection_help_bluetooth_unusable">لا يستطيع بلوتوث هذه الوحدة إرسال البيانات إلى iPhone، لذا لن يعمل CarPlay اللاسلكي هنا. استخدم كابل USB لنقل البيانات.</string>
+    <string name="connection_help_hotspot">تأكد من تشغيل نقطة اتصال السيارة وأن اسمها وكلمة مرورها يطابقان إعدادات DiPlay. استخدم تردد 5 غيغاهرتز إن توفر ثم أعد المحاولة.</string>
+    <string name="connection_help_iphone_wifi">أبقِ Wi-Fi وبلوتوث قيد التشغيل. اتصل بنقطة اتصال السيارة من iPhone وفعّل الانضمام التلقائي ثم حاول مجددًا. احفظ تقرير تشخيص إذا استمر الفشل.</string>
+    <string name="connection_help_permissions">اسمح لـ DiPlay بأذونات USB أو الأجهزة القريبة أو الموقع المطلوبة على وحدة السيارة، ثم أعد المحاولة.</string>
+    <string name="connection_help_usb">استخدم منفذ USB وكابلًا يدعمان نقل البيانات. افتح قفل iPhone ووافق على طلبات الثقة وCarPlay ثم أعد المحاولة.</string>
+    <string name="connection_help_bluetooth">افتح قفل iPhone وشغّل بلوتوث وWi-Fi واقرنه بوحدة السيارة. أبقه قريبًا ثم أعد المحاولة.</string>
+    <string name="connection_help_general">أعد محاولة الاتصال. إذا فشل مجددًا، ارجع إلى DiPlay واحفظ تقريرًا من الإعدادات ← التشخيص.</string>
+    <string name="connection_help_wifi_direct">أبقِ واي فاي وبلوتوث وحدة السيارة قيد التشغيل وiPhone مفتوح القفل وقريبًا، ثم أعد المحاولة. إذا استمر الفشل، انسَ السيارة على iPhone من الإعدادات ← عام ← CarPlay ثم اتصل مجددًا.</string>
+    <string name="connection_help_existing_wifi">تأكد من اتصال وحدة السيارة وiPhone بشبكة Wi-Fi نفسها وأن اسمها وكلمة مرورها يطابقان إعدادات DiPlay، ثم أعد المحاولة.</string>
+    <string name="settings_report_on_phone">الحصول على التقرير عبر هاتف</string>
+    <string name="settings_report_on_phone_hint">امسح الرمز بكاميرا الهاتف لفتح هذه الصفحة في متصفحه، ثم اختر «تنزيل التقرير». أبقِ هذه الشاشة مفتوحة حتى يكتمل التنزيل.</string>
 </resources>

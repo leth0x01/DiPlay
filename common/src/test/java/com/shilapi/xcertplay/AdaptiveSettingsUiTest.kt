@@ -55,8 +55,28 @@ class AdaptiveSettingsUiTest {
     @Test
     @Config(sdk = [29], qualifiers = "ja-w320dp-h600dp")
     fun japaneseSettingsDoNotEllipsizeVisibleTextOnNarrowScreens() {
+        verifySettingsDoNotEllipsizeVisibleText("アプリの言語")
+    }
+
+    @Test
+    @Config(sdk = [29], qualifiers = "zh-rTW-w320dp-h600dp-xhdpi")
+    fun traditionalChineseSettingsFitNarrowScreensWithLargeFonts() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        AirPlayPersistence.saveAudioFocusEnabled(context, true)
+        verifySettingsDoNotEllipsizeVisibleText("應用程式語言")
+    }
+
+    @Test
+    @Config(sdk = [29], qualifiers = "zh-rTW-w1000dp-h700dp-xhdpi")
+    fun traditionalChineseSettingsFitExpandedScreensWithLargeFonts() {
+        RuntimeEnvironment.setFontScale(1.3f)
+        AirPlayPersistence.saveAudioFocusEnabled(context, true)
+        verifySettingsDoNotEllipsizeVisibleText("應用程式語言")
+    }
+
+    private fun verifySettingsDoNotEllipsizeVisibleText(languageLabel: String) {
         val screen = openSettings()
-        assertEquals("アプリの言語", screen.getString(R.string.language_app_language))
+        assertEquals(languageLabel, screen.getString(R.string.language_app_language))
 
         fun verifyVisibleText() {
             layoutRoot(screen)
@@ -64,7 +84,7 @@ class AdaptiveSettingsUiTest {
                 if (view.visibility != View.VISIBLE) continue
                 val lines = view.layout ?: continue
                 for (line in 0 until lines.lineCount) {
-                    assertEquals("Truncated Japanese label: ${view.text}", 0, lines.getEllipsisCount(line))
+                    assertEquals("Truncated localized label: ${view.text}", 0, lines.getEllipsisCount(line))
                 }
             }
         }
@@ -81,6 +101,7 @@ class AdaptiveSettingsUiTest {
 
     @After fun tearDown() {
         activity?.finish()
+        RuntimeEnvironment.setFontScale(1f)
         AppAppearanceRuntime.resetForTest()
         context.getSharedPreferences("diplay", 0).edit().clear().commit()
         context.getSharedPreferences("xcertplay_airplay", 0).edit().clear().commit()
@@ -1073,6 +1094,21 @@ class AdaptiveSettingsUiTest {
             val workers = CopyOnWriteArrayList<Thread>()
             var entered = CountDownLatch(1)
         }
+    }
+
+    // The report is troubleshooting evidence: its way onto a phone starts in Diagnostics and returns there.
+    @Test fun diagnosticsOpensThePhonePageAndBackReturnsToDiagnostics() {
+        val screen = openSettings()
+        descendants(screen.window.decorView).first { candidate ->
+            candidate.contentDescription == screen.getString(R.string.settings_open_category, screen.getString(R.string.diagnostics))
+        }.performClick()
+        texts(screen).first { it.text == screen.getString(R.string.settings_report_on_phone) }.performClick()
+        // The phone page, under the name the driver tapped.
+        assertTrue(texts(screen).any { it.text == screen.getString(R.string.settings_report_on_phone) })
+        assertFalse(texts(screen).any { it.text == screen.getString(R.string.backup_title) })
+        assertFalse(texts(screen).any { it.text == screen.getString(R.string.save_diagnostic_report) })
+        screen.onBackPressedDispatcher.onBackPressed()
+        assertTrue(texts(screen).any { it.text == screen.getString(R.string.save_diagnostic_report) })
     }
 
     private fun openSettings(): DiPlayActivity = Robolectric.buildActivity(

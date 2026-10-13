@@ -86,7 +86,7 @@ class CarPlayMenuUiTest {
                 val footer = views.single { it.tag == CarPlayMenuLayout.FOOTER_TAG }
                 val title = views.filterIsInstance<TextView>().single { it.text == activity.getString(R.string.carplay_settings) }
                 assertEquals(DiPlayPalette.of(night).primaryText, title.currentTextColor)
-                assertTrue(views.count { it.tag == CarPlayMenuLayout.CARD_TAG } >= 4)
+                assertTrue(views.count { it.tag == CarPlayMenuLayout.CATEGORY_TAG } >= 4)
                 assertFullyVisible(header); assertFullyVisible(footer)
                 val scroll = views.filterIsInstance<ScrollView>().single()
                 val headerTop = header.top
@@ -101,7 +101,7 @@ class CarPlayMenuUiTest {
                 assertTrue(input.background is android.graphics.drawable.RippleDrawable)
                 if (width == 360) assertEquals(LinearLayout.VERTICAL, (input.parent as LinearLayout).orientation)
                 input.setText("Unsaved hotspot")
-                val cancel = descendants(footer).filterIsInstance<Button>().single { it.text == activity.getString(R.string.cancel) }
+                val cancel = descendants(header).filterIsInstance<Button>().single { it.contentDescription == activity.getString(R.string.discard_changes_and_exit_settings) }
                 cancel.performClick()
                 assertFalse(ReflectionHelpers.getField<Boolean>(activity, "menuOpen"))
                 assertEquals("Lynk06", AirPlayPersistence.loadManualHotspotSsid(activity))

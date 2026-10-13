@@ -2,6 +2,8 @@ package com.shilapi.xcertplay
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Color
+import androidx.core.graphics.ColorUtils
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
@@ -30,7 +32,9 @@ internal object CarPlayMenuLayout {
     const val CATEGORY_TAG = "carplay_menu_category"
     const val HEADER_TAG = "carplay_menu_header"
     const val FOOTER_TAG = "carplay_menu_footer"
-    const val CARD_TAG = "carplay_menu_card"
+    const val PANEL_HEIGHT_PERCENT = 94
+    const val PANEL_ELEVATION_DP = 24
+    const val SCRIM_COLOR = 0xB3000000.toInt()
 
     private fun Context.dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
     fun width(context: Context, available: Int): Int {
@@ -58,102 +62,83 @@ internal object CarPlayMenuLayout {
             context.dp(CARD_PADDING_DP), context.dp(CONTROL_GAP_DP))
     }
 
-    /** 保留原控件及其监听器，按已有分类标题组合为卡片。 */
+    /** 上游玻璃面板布局沿用领克车机的窗口宽度、触控高度和安全边距。 */
     fun build(
         context: Context, panel: FrameLayout, content: LinearLayout, save: DiPlayButton,
         palette: DiPlayPalette, cancel: () -> Unit,
     ) {
+        fun chrome(topOnly: Boolean = false, bottomOnly: Boolean = false): GradientDrawable {
+            val night = palette == DiPlayPalette.DARK
+            val base = ColorUtils.blendARGB(palette.background, palette.surface, if (night) 0.48f else 0.38f)
+            val highlight = ColorUtils.blendARGB(base, Color.WHITE, if (night) 0.10f else 0.28f)
+            val radius = AppDialogLayout.radiusDp(CarWindowLayout.controlHeightDp(context, CONTROL_HEIGHT_DP).toFloat()) * context.resources.displayMetrics.density
+            val top = if (bottomOnly) 0f else radius
+            val bottom = if (topOnly) 0f else radius
+            return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(highlight, base)).apply {
+                cornerRadii = floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom)
+                setStroke(context.dp(OUTLINE_DP), ColorUtils.blendARGB(palette.outline, Color.WHITE, if (night) 0.12f else 0.30f))
+            }
+        }
+        panel.background = chrome()
+        panel.clipToOutline = true
+        panel.elevation = context.dp(PANEL_ELEVATION_DP).toFloat()
         val title = content.getChildAt(0) as TextView
         content.removeView(title)
         title.setPadding(0, 0, 0, 0)
         title.minHeight = context.controlHeight()
+        title.maxLines = 1
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        val close = DiPlayButton(context).apply {
+            text = context.getString(R.string.close)
+            textSize = 16f
+            minHeight = context.controlHeight()
+            contentDescription = context.getString(R.string.discard_changes_and_exit_settings)
+            style(DiPlayButtonKind.SECONDARY, palette, overlay = true)
+            setOnClickListener { cancel() }
+        }
         val header = LinearLayout(context).apply {
             tag = HEADER_TAG
             gravity = Gravity.CENTER_VERTICAL
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
+            background = chrome(topOnly = true)
             setPadding(context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP),
                 context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP))
-        }
-        val close = DiPlayButton(context).apply {
-            text = "X"
-            textSize = 22f
-            minWidth = 0
-            minHeight = context.controlHeight()
-            setPadding(0, 0, 0, 0)
-            contentDescription = context.getString(R.string.discard_changes_and_exit_settings)
-            style(DiPlayButtonKind.SECONDARY, palette, overlay = false)
-            setOnClickListener { cancel() }
-        }
-        header.addView(close, LinearLayout.LayoutParams(context.controlHeight(), context.controlHeight()))
-        header.addView(title, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = context.dp(SECTION_GAP_DP) })
-
-        val children = (0 until content.childCount).map { content.getChildAt(it) }
-        content.removeAllViews()
-        content.setPadding(context.dp(WINDOW_MARGIN_DP), 0, context.dp(WINDOW_MARGIN_DP), context.dp(SECTION_GAP_DP))
-        var card: LinearLayout? = null
-        for (child in children) {
-            val heading = child.tag == CATEGORY_TAG
-            if (card == null || heading) {
-                card = LinearLayout(context).apply {
-                    tag = CARD_TAG
-                    orientation = LinearLayout.VERTICAL
-                    setPadding(context.dp(CARD_PADDING_DP), context.dp(CARD_PADDING_DP),
-                        context.dp(CARD_PADDING_DP), context.dp(CARD_PADDING_DP))
-                    background = context.shape(palette.surface, palette.outline)
-                }
-                content.addView(card, LinearLayout.LayoutParams(-1, -2).apply {
-                    if (content.childCount > 1) topMargin = context.dp(SECTION_GAP_DP)
-                })
+            val titleParams = LinearLayout.LayoutParams(0, -2, 1f)
+            val closeParams = LinearLayout.LayoutParams(-2, -2)
+            if (context.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
+                closeParams.marginEnd = context.dp(CONTROL_GAP_DP)
+                addView(close, closeParams)
+                addView(title, titleParams)
+            } else {
+                closeParams.marginStart = context.dp(CONTROL_GAP_DP)
+                addView(title, titleParams)
+                addView(close, closeParams)
             }
-            val target = requireNotNull(card)
-            target.addView(child, LinearLayout.LayoutParams(-1, -2).apply {
-                if (target.childCount > 0) topMargin = context.dp(CONTROL_GAP_DP)
-            })
         }
-        val scroll = ScrollView(context).apply { isFillViewport = true; addView(content) }
-        val dismiss = DiPlayButton(context).apply {
-            text = context.getString(R.string.cancel)
-            textSize = 17f
-            minHeight = context.controlHeight()
-            style(DiPlayButtonKind.SECONDARY, palette, overlay = false)
-            setOnClickListener { cancel() }
+        content.setPadding(context.dp(CARD_PADDING_DP), context.dp(SECTION_GAP_DP),
+            context.dp(CARD_PADDING_DP), context.dp(SECTION_GAP_DP))
+        val scroll = ScrollView(context).apply {
+            isFillViewport = true
+            clipToPadding = false
+            addView(content)
         }
         save.minHeight = context.controlHeight()
-        val footer = object : LinearLayout(context) {
-            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-                val available = View.MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
-                val desired = listOf(save, dismiss).maxOf { it.paint.measureText(it.text.toString()) + it.paddingLeft + it.paddingRight }
-                val vertical = desired * 2 + context.dp(CONTROL_GAP_DP) > available
-                orientation = if (vertical) VERTICAL else HORIZONTAL
-                for (index in 0 until childCount) {
-                    val child = getChildAt(index)
-                    val params = LayoutParams(if (vertical) -1 else 0, -2, if (vertical) 0f else 1f).apply {
-                        if (index > 0) {
-                            if (vertical) topMargin = context.dp(CONTROL_GAP_DP) else marginStart = context.dp(CONTROL_GAP_DP)
-                        }
-                    }
-                    val old = child.layoutParams as LayoutParams
-                    if (old.width != params.width || old.weight != params.weight || old.topMargin != params.topMargin || old.marginStart != params.marginStart) {
-                        child.layoutParams = params
-                    }
-                }
-                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-            }
-        }.apply {
+        val footer = LinearLayout(context).apply {
             tag = FOOTER_TAG
+            orientation = LinearLayout.VERTICAL
+            background = chrome(bottomOnly = true)
             setPadding(context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP),
                 context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP))
-            addView(dismiss); addView(save)
+            addView(save, LinearLayout.LayoutParams(-1, -2))
         }
-        val chrome = LinearLayout(context).apply {
+        panel.addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             addView(header, LinearLayout.LayoutParams(-1, -2))
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
             addView(footer, LinearLayout.LayoutParams(-1, -2))
-        }
-        panel.addView(chrome, FrameLayout.LayoutParams(-1, -1))
+        }, FrameLayout.LayoutParams(-1, -1))
         styleChoices(content, palette)
-        if (CarWindowLayout.isWide(context)) enlargeText(chrome)
-
+        if (CarWindowLayout.isWide(context)) enlargeText(panel)
     }
 
     private fun enlargeText(view: View) {

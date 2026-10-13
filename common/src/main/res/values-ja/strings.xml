@@ -421,6 +421,7 @@
     <string name="token_optional">トークン（任意）</string>
     <string name="transport_error_reconnecting">通信エラー。再接続しています</string>
     <string name="turn_on_bluetooth">Bluetoothをオンにする</string>
+    <string name="turn_on_bluetooth_in_the_head_unit_s_settings_to_connect">接続するには車載端末の設定でBluetoothをオンにしてください。</string>
     <string name="turn_on_wi_fi_in_the_head_unit_s_settings_to_connect">接続するには車載端末の設定でWi-Fiをオンにしてください。</string>
     <string name="turn_the_car_s_wi_fi_switch_on_allow_location_nearby_devic">車載端末のWi-Fiをオンにします。求められたら位置情報や付近のデバイスへのアクセスを許可し、Androidから要求された場合は位置情報機能も有効にしてください。映像や音声が途切れる場合は、車載ホットスポットの5 GHz接続をお試しください。</string>
     <string name="usage_access_enabled">使用状況へのアクセス：有効</string>
@@ -830,6 +831,8 @@
     <string name="backup_page_hint">スマートフォンのカメラでQRコードを読み取って、ブラウザーでページを開いてください。「エクスポート」で設定を保存、「インポート」で取り込みます。</string>
     <string name="backup_other_addresses">QRコードで開けない場合は、ブラウザーのIPアドレスを%1$sに変更してください。</string>
     <string name="backup_no_network">利用できるWi-Fiネットワークがありません。車載ホットスポットをオンにするか、スマートフォンを車のWi-Fiに接続してください。</string>
+    <string name="backup_type_address">カメラがない場合は、ブラウザーで %1$s を開き、コード %2$s を入力してください。</string>
+    <string name="backup_code_entry_closed">間違ったコードが何度も入力されたため、このコードは使えなくなりました。このページを閉じてもう一度開くと、新しいコードが表示されます。QRコードは引き続き使えます。</string>
     <string name="backup_summary">%1$d件の設定を取り込み、%2$d件をスキップしました。</string>
     <string name="backup_import_invalid">DiPlayの設定バックアップファイルではありません。</string>
     <string name="settings_background_update_checks">バックグラウンドで更新を確認</string>
@@ -908,4 +911,16 @@
     <string name="settings_cluster_music_vertical">音楽カード · 上下位置</string>
     <string name="settings_cluster_music_size">音楽カード · サイズ</string>
     <string name="settings_cluster_music_unknown">不明なアーティスト</string>
+    <string name="connection_help_reset_wifi">以前のWi-Fi Direct接続が残っている可能性があります。下の「CarPlay Wi-Fiをリセット」を選び、再接続してください。</string>
+    <string name="connection_help_bluetooth_unusable">この車載端末のBluetoothはiPhoneとデータ通信できません。ワイヤレスCarPlayは利用できないため、データ通信対応のUSBケーブルで接続してください。</string>
+    <string name="connection_help_hotspot">車載端末のテザリングがオンで、名前とパスワードがDiPlayの設定と一致するか確認してください。可能なら5 GHzにして再試行してください。</string>
+    <string name="connection_help_iphone_wifi">Wi-FiとBluetoothをオンにしてください。iPhoneで車載端末のWi-Fiに接続し、「自動接続」を有効にして再試行してください。改善しない場合は診断レポートを保存してください。</string>
+    <string name="connection_help_permissions">車載端末でDiPlayにUSB、「付近のデバイス」、位置情報の権限を必要に応じて許可してから、再試行してください。</string>
+    <string name="connection_help_usb">データ通信対応のUSB端子とケーブルを使ってください。iPhoneのロックを解除し、「信頼」とCarPlayの確認を許可して再試行してください。</string>
+    <string name="connection_help_bluetooth">iPhoneのロックを解除し、BluetoothとWi-Fiをオンにして車載端末とペアリングしてください。iPhoneを近くに置いて再試行してください。</string>
+    <string name="connection_help_general">接続を再試行してください。再び失敗する場合はDiPlayに戻り、［設定］→［診断］からレポートを保存してください。</string>
+    <string name="connection_help_wifi_direct">車載端末のWi-FiとBluetoothをオンにし、iPhoneのロックを解除して近くに置いてから再試行してください。改善しない場合は、iPhoneの［設定］→［一般］→［CarPlay］でこの車の登録を削除してから再接続してください。</string>
+    <string name="connection_help_existing_wifi">車載端末とiPhoneが同じWi-Fiネットワークに接続され、その名前とパスワードがDiPlayの設定と一致しているか確認して、再試行してください。</string>
+    <string name="settings_report_on_phone">スマートフォンでレポートを取得</string>
+    <string name="settings_report_on_phone_hint">スマートフォンのカメラでQRコードを読み取って、ブラウザーでページを開き、「レポートをダウンロード」を選んでください。ダウンロードが終わるまでこの画面を開いたままにしてください。</string>
 </resources>

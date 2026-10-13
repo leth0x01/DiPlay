@@ -1,3 +1,22 @@
+## 2026-10-13：合并 DiPlay 0.2.19 与菜单布局迁移
+
+将远端 `main` 的 `9aa9c549` 合并到 `lynkplay`，保留 LynkPlay 包名、版本配置、领克仪表适配及诊断信息。手机诊断报告使用与本地导出相同的报告生成逻辑。上游 README 更新到 `docs/DIPLAY-README.md` 与 `docs/DIPLAY-README.zh-CN.md`。
+
+CarPlay 菜单迁移上游玻璃面板布局，顶部固定标题与关闭按钮，底部固定保存按钮，退出应用位于滚动列表末尾。尺寸继续使用领克窗口规则：宽屏菜单 1120dp、控件至少 72dp，窄窗按可用宽度收缩，并保留系统栏和刘海安全边距。DiLink 首次设置的导航音频默认值仅应用于启用 BYD 集成的车型。
+
+完整执行 AGENTS.md 要求的测试、lint 和 Debug 构建：shared 1417 项（跳过 1 项）、common 1272 项、home 6 项，0 失败／错误；三个模块 lint 与 Debug 构建通过。公开源码检查、8 项打包脚本测试与 8 种语言的静态页面生成通过。
+
+一次完整检查在上游 `SettingsBackupServerTest.stopDoesNotFailWhileConnectionsAreEnding` 中卡住，线程栈停在 JDK 25 的 `ServerSocket.close()` 原生调用；终止该测试 worker 后重跑完整命令通过。
+
+已检查 1.5 倍字体下的窄窗、完整窗口、阿拉伯语及领克 1920×720 布局截图，标题与固定操作区可见：
+
+- [窄窗](screenshots/lynkplay-swipe-compact-large-font.png)
+- [完整窗口](screenshots/lynkplay-swipe-full-large-font.png)
+- [阿拉伯语](screenshots/lynkplay-swipe-arabic-large-font.png)
+- [浅色](screenshots/lynkplay-swipe-light-large-font.png)
+- [领克菜单顶部](screenshots/lynkplay-swipe-lynk06-top-large-font.png)
+- [领克菜单底部](screenshots/lynkplay-swipe-lynk06-bottom-large-font.png)
+
 ## 2026-10-12：仪表 watcher 注册失败恢复与 root attempt 异常后备
 
 仪表链接新增明确的 `watcherRegistered` 状态，仅在注册调用成功返回后置为 true。注册前或注册中途失败时，尝试解除回调与断开接口，清空 DimInteraction 和连接类引用，让下一次重试重新创建对象、注册 watcher，再连接服务。旧注册代次的迟到回调不再参与连接状态处理。
