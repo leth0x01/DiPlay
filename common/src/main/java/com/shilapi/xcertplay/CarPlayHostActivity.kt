@@ -1512,6 +1512,12 @@ class CarPlayHostActivity : ComponentActivity() {
         // Steering-wheel next/previous, claimed by the CarPlay screen itself. BYD gives these keys to
         // whichever window is in front, and this is the only route that reaches CarPlay without the
         // wheel key service — which a head unit with no ADB cannot turn on at all.
+        if (downOrUp && activeAirPlaySession != null &&
+            CarPlayMediaButton.forKeyCode(event.keyCode) != null) {
+            appendLog("媒体：入口=窗口 keyCode=${event.keyCode} action=${event.action} " +
+                "repeat=${event.repeatCount} downTime=${event.downTime} eventTime=${event.eventTime} " +
+                "deviceId=${event.deviceId} bluetoothAudio=$sessionCarBluetoothAudio")
+        }
         val mediaPress = if (sessionCarBluetoothAudio) null
         else if (com.shilapi.xcertplay.vehicle.VehicleIntegration.isDetectedLynk06())
             Lynk06MediaKeyPolicy.press(event.keyCode, activeAirPlaySession != null, inCall(this))
@@ -4825,6 +4831,7 @@ class CarPlayHostActivity : ComponentActivity() {
                     }
                     activeAirPlaySession = session
                     CarPlayBackgroundSession.active = true
+                    CarPlayMediaKeys.onSessionActive(controller)
                     showConnectionHelp(null)
                     callPopupSessionReady = true
                     updateCallPopupGuard()
@@ -4868,6 +4875,7 @@ class CarPlayHostActivity : ComponentActivity() {
                     startupRetryBudget.disconnected()
                     activeAirPlaySession = null
                     CarPlayBackgroundSession.active = false
+                    CarPlayMediaKeys.onSessionEnded(controller)
                     callPopupSessionReady = false
                     updateCallPopupGuard()
                     if (menuOpen) {
@@ -5119,7 +5127,8 @@ class CarPlayHostActivity : ComponentActivity() {
         controller = next
         resetSidePanel() // a new session starts without the side panel
         updateClusterMapShown()
-        CarPlayMediaKeys.attach(this, next, bluetoothAudio = airPlayConfig.disableAudioOutput)
+        CarPlayMediaKeys.attach(this, next, bluetoothAudio = airPlayConfig.disableAudioOutput,
+            diagnosticLog = sessionLog)
         if (airPlayConfig.videoInCar) CarPlayVideo.attach(this, next)
         val display = CarPlaySessionDisplay(
             airPlayConfig.main.widthPixels, airPlayConfig.main.heightPixels,

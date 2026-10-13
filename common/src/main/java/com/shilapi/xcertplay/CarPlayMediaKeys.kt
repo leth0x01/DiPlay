@@ -64,6 +64,8 @@ internal object CarPlayMediaKeys {
     private var appContext: Context? = null
     private var mediaAudioActive = false
     private var carBluetoothAudio = false
+    private var diagnosticLog: SessionLogFile? = null
+    private var lynk06MediaCenter: Lynk06MediaCenter? = null
     private var nowPlaying = CarPlayNowPlaying()
     private var elapsedUpdatedAt = 0L
     private var artwork: Bitmap? = null
@@ -72,7 +74,8 @@ internal object CarPlayMediaKeys {
 
     @Synchronized
     fun attach(context: Context, next: CarPlayController,
-        bluetoothAudio: Boolean = AirPlayPersistence.loadCarBluetoothAudio(context)) {
+        bluetoothAudio: Boolean = AirPlayPersistence.loadCarBluetoothAudio(context),
+        diagnosticLog: SessionLogFile? = null) {
         if (controller !== next) {
             releaseLocked()
             artworkOwner = artworkQueue.newSession()
@@ -80,6 +83,8 @@ internal object CarPlayMediaKeys {
         appContext = context.applicationContext
         controller = next
         carBluetoothAudio = bluetoothAudio
+        this.diagnosticLog = diagnosticLog
+        logMediaEvent("媒体：绑定控制器 bluetoothAudio=$bluetoothAudio")
         GeelyWheelKeys.start(context)
         com.shilapi.xcertplay.media.AmbientMusicController.claimPlaybackOwner(next)
         next.playbackListener = { playing ->
@@ -111,6 +116,30 @@ internal object CarPlayMediaKeys {
         mainHandler.post { synchronized(this) { updateLocked(active) } }
     }
 
+    /** 连接建立后即注册原车媒体客户端，暂停状态下也能用方控开始播放。 */
+    @Synchronized
+    fun onSessionActive(expected: CarPlayController?) {
+        val context = appContext ?: return
+        if (expected == null || controller !== expected || carBluetoothAudio || lynk06MediaCenter != null ||
+            !com.shilapi.xcertplay.vehicle.VehicleIntegration.isDetectedLynk06()) return
+        val logTarget = diagnosticLog
+        lynk06MediaCenter = Lynk06MediaCenter(context, nowPlaying,
+            send = { index ->
+                val current = synchronized(this) { controller === expected && !carBluetoothAudio }
+                current && CarPlayBackgroundSession.active && !inCall(context) &&
+                    (CarPlayVideo.onMediaKey(index) || expected.sendMediaButton(index))
+            },
+            log = { message -> Log.i(TAG, message); AsyncDiagnosticLog.append(logTarget, message) },
+        ).also { it.start() }
+    }
+
+    @Synchronized
+    fun onSessionEnded(expected: CarPlayController?) {
+        if (controller !== expected) return
+        lynk06MediaCenter?.close()
+        lynk06MediaCenter = null
+    }
+
     /** The iPhone started or stopped playing; may run on any thread. */
     private fun onIphonePlaying(expected: CarPlayController, playing: Boolean) {
         if (playing) mainHandler.post {
@@ -127,6 +156,9 @@ internal object CarPlayMediaKeys {
                 if (controller !== expected) return@synchronized
                 // Resolve retained state at delivery: a queued callback cannot roll a replay back.
                 val update = expected.nowPlayingSnapshot()
+                if (nowPlaying.playing != update.playing) {
+                    logMediaEvent("媒体：iPhone 播放状态 playing=${update.playing} positionMs=${update.elapsedMillis}")
+                }
                 val previousArtwork = artwork
                 if (albumTrackChanged(nowPlaying, update)) {
                     val previousId = nowPlaying.artworkTransferId
@@ -145,6 +177,7 @@ internal object CarPlayMediaKeys {
                 if (nowPlaying.elapsedMillis != update.elapsedMillis) elapsedUpdatedAt = SystemClock.elapsedRealtime()
                 val metadataChanged = metadataChanged(nowPlaying, update) || artwork !== previousArtwork
                 nowPlaying = update
+                lynk06MediaCenter?.update(update)
                 if (metadataChanged) ClusterMusicState.publish(update, update.artworkTransferId?.let { artworkCache[it] })
                 updateInitialAlbumRecovery(expected)
                 // The iPhone repeats NowPlayingUpdate about twice a second for the position alone.
@@ -310,6 +343,7 @@ internal object CarPlayMediaKeys {
             isActive = true
         }
         Log.i(TAG, "media keys active focusDisabled=$focusDisabled focusGranted=$granted")
+        logMediaEvent("媒体：MediaSession 已启用 focusDisabled=$focusDisabled focusGranted=$granted")
     }
 
     private fun forwardGrantedFocusLocked() {
@@ -344,6 +378,9 @@ internal object CarPlayMediaKeys {
     }
 
     private fun releaseLocked() {
+        lynk06MediaCenter?.close()
+        lynk06MediaCenter = null
+        diagnosticLog = null
         focusOwner = null
         controller?.let(com.shilapi.xcertplay.media.AmbientMusicController::releasePlaybackOwner)
         artworkOwner = null
@@ -393,12 +430,23 @@ internal object CarPlayMediaKeys {
         // make the iPhone end the video session.
         if (CarPlayVideo.onMediaKey(index)) {
             Log.i(TAG, "media key $source -> car video player $index")
+            logMediaEvent("媒体：来源=$source 指令=$index 转发=车机视频")
             return
         }
         // 蓝牙音频由原车 AVRCP 控制，避免同时通过 CarPlay 再执行一次。
-        val active = synchronized(this) { if (carBluetoothAudio) null else controller } ?: return
+        val active = synchronized(this) { if (carBluetoothAudio) null else controller }
+        if (active == null) {
+            logMediaEvent("媒体：来源=$source 指令=$index 未转发 bluetoothAudio=$carBluetoothAudio")
+            return
+        }
         val sent = active.sendMediaButton(index)
         Log.i(TAG, "media key $source -> CarPlay $index sent=$sent")
+        logMediaEvent("媒体：来源=$source 指令=$index 转发=CarPlay sent=$sent")
+    }
+
+    private fun logMediaEvent(message: String) {
+        // 保留会话日志目标，后台方控事件也能进入导出的诊断报告。
+        AsyncDiagnosticLog.append(synchronized(this) { diagnosticLog }, message)
     }
 
     /** A steering-wheel media key captured outside the Android key stream (Geely/Lynk). */
@@ -412,6 +460,7 @@ internal object CarPlayMediaKeys {
 
     private val callback = CarPlayMediaCallback(
         experimentalDiLink3Keys = { appContext?.let(BydOutputSettings::carPlayCallControls) == true },
+        diagnostic = ::logMediaEvent,
         send = ::send,
     )
 
@@ -522,6 +571,7 @@ internal object CarPlayMediaKeys {
  */
 internal class CarPlayMediaCallback(
     private val experimentalDiLink3Keys: () -> Boolean = { false },
+    private val diagnostic: (String) -> Unit = {},
     private val send: (index: Int, source: String) -> Unit,
 ) : MediaSession.Callback() {
     override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
@@ -529,6 +579,8 @@ internal class CarPlayMediaCallback(
         val event = mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT) ?: return false
         val index = CarPlayMediaButton.forKeyCode(event.keyCode, experimentalDiLink3Keys())
             ?: return super.onMediaButtonEvent(mediaButtonIntent)
+        diagnostic("媒体：入口=MediaSession keyCode=${event.keyCode} action=${event.action} " +
+            "repeat=${event.repeatCount} downTime=${event.downTime} eventTime=${event.eventTime} deviceId=${event.deviceId}")
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             send(index, KeyEvent.keyCodeToString(event.keyCode))
         }

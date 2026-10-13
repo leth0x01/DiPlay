@@ -12,7 +12,7 @@
 | carTest | `com.leth0x01.lynkplay` | LynkPlay 长期签名 | 独立车测，必须提供有效配对的认证输入 |
 | release | `com.leth0x01.lynkplay` | 同一 LynkPlay 长期签名 | 后续正式版，同样要求认证输入 |
 
-当前 LynkPlay 版本为 `0.1.8-lynk06-test`，versionCode 46；DiPlay 基线为 0.2.19。与原版 DiPlay 共存。debug 与 carTest 是不同应用，设置不会自动迁移。
+当前 LynkPlay 版本为 `0.1.9-lynk06-test`，versionCode 47；DiPlay 基线为 0.2.19。与原版 DiPlay 共存。debug 与 carTest 是不同应用，设置不会自动迁移。
 
 ## 应用弹窗样式
 
@@ -105,7 +105,7 @@ mobile/build/outputs/apk/carTest/SHA256SUMS.txt
 
 ## 后续覆盖升级
 
-在 `gradle.properties` 同时递增 `lynkplayVersionCode` 和 `lynkplayVersionName`，当前为 46 和 `0.1.8`。更新检查按三段版本号比较，因此只改变 `-lynk06-test` 后缀不足以触发更新。
+在 `gradle.properties` 同时递增 `lynkplayVersionCode` 和 `lynkplayVersionName`，当前为 47 和 `0.1.9`。更新检查按三段版本号比较，因此只改变 `-lynk06-test` 后缀不足以触发更新。
 
 carTest 到 release 保持包名和签名不变，新版 versionCode 更高即可覆盖升级并保留数据。不要卸载旧版来绕过签名错误。正式发布流程见[构建与更新发布说明](BUILD.md#build-a-release-apk)。
 

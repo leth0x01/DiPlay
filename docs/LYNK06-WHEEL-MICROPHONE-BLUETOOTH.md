@@ -16,6 +16,8 @@
 
 语音键通过清单接收有序广播，优先级 999。CarPlay 会话活跃且未通话时，短按请求 Siri；成功后终止后续广播。未连接、连接建立中、通话中或 Siri 请求失败时继续原车处理。长按请求打开 LynkPlay 设置主界面，启动调用成功后终止后续广播。诊断报告包含最近一次事件及处理结果。
 
+本车媒体中心 `ecarx.xsf.mediacenter.MediaCenterService` 通过音乐客户端回调控制 CarPlay。会话建立时注册客户端、声明标准媒体键和 DIM 能力、请求原车媒体控制权；明确播放、暂停、下一首、上一首分别发送 CarPlay PLAY、PAUSE、NEXT、PREVIOUS。iPhone 歌曲、播放状态和进度同步到媒体中心；退出会话时关闭回调并注销。失去原车媒体控制权后停止转发，iPhone 再次开始播放时尝试重新取得控制权。Binder 描述符、transaction 编号和参数类型来自本车 XSFMediaCenter VDEX。
+
 CarPlay 窗口处理本车标准上一曲、下一曲、播放、暂停和播放/暂停事件：按下发送一次，重复与释放被消费。通话期间交给原车处理。原车蓝牙音频模式下，媒体操作交给 AVRCP，辅助 MediaSession 不申请媒体键焦点。音频模式随本次连接配置固定，修改设置后到重新连接才改变媒体控制路径。
 
 Siri 的 VOICE_RECOGNITION 在创建、初始化或启动失败时尝试 VOICE_COMMUNICATION。本车在两个源均失败时再尝试标准 MIC。切换前释放失败录音器；不修改全车 AudioManager 模式。诊断记录每次失败阶段和实际录音源，包含扬声器通话使用 MIC 的情况。
@@ -42,6 +44,16 @@ Siri 的 VOICE_RECOGNITION 在创建、初始化或启动失败时尝试 VOICE_C
 新增覆盖语音键短按 Siri 成功／失败、未连接与连接建立中放行、通话放行、长按打开 LynkPlay、错误车型／键码／动作放行；领克前台播放/暂停只发送一次；蓝牙音频不申请媒体键焦点、不重复控制、设置待重连时保持原会话路径；Siri 录音启动失败释放与回退、领克 MIC 末级回退，以及蓝牙 Profile 选择。
 
 最终复核曾在已有 `SettingsBackupServerTest.stopDoesNotFailWhileConnectionsAreEnding` 卡住，线程栈停在 JDK 25.0.3 的 `ServerSocket.close()` / `UnixDispatcher.preClose0`。保留线程栈并终止该测试 worker，完整命令重跑后通过。
+
+## 媒体方控实车证据（2026-10-13）
+
+用户在诊断版测试中断开 iPhone 与车机蓝牙后，方控无法控制音乐。`diplay-report 5.txt` 记录 MediaSession 已启用、音频焦点申请成功，但没有窗口或 MediaSession 媒体按键记录。
+
+专项采集记录了 DIM → MediaCtrlByDimCallback → 蓝牙播放器 → AVRCP 的完整链路：`10-wheel-pause/logcat.txt` 的 15:59:38 为暂停，`11-wheel-play/logcat.txt` 的 16:01:59 为播放，`08-wheel-next/logcat.txt` 的 16:00:00 为下一首，`09-wheel-previous/logcat.txt` 的 16:00:29 为上一首。
+
+## 媒体中心客户端自动化验证（2026-10-13）
+
+完整 CI 命令通过：shared 1427 项（跳过 1 项）、common 1309 项、home 6 项，0 失败／错误；mobile、home、maphost 的 Lint 与 Debug 构建通过。媒体中心专项 10 项覆盖四种操作的转发、Binder 参数与返回值、iPhone 播放状态、能力声明、即时取得控制权、失去控制权、迟到请求、同步状态查询和退出后的回调门控。
 
 ## 实车复核
 

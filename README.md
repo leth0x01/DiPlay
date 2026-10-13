@@ -2,11 +2,11 @@
 
 A [DiPlay](https://github.com/shihabal3amri/DiPlay) fork targeting the **2023 Lynk & Co 06 petrol model with an Android 9 head unit**. [中文说明](README.zh-CN.md).
 
-The current LynkPlay version is **0.1.8** (versionCode 46), incorporating DiPlay 0.2.19.
+The current LynkPlay version is **0.1.9** (versionCode 47), incorporating DiPlay 0.2.19.
 
-Vehicle feedback received on 2026-10-13 confirms that **both wireless and wired CarPlay connect on the target head unit**. **The cluster map cannot currently be used, and abnormal audio remains under investigation.** Successful connection does not establish correct audio or cluster operation. Upstream Geely/Lynk steering-wheel and microphone support was documented on an Android 11 head unit and still needs separate validation on this Android 9 vehicle.
+Vehicle feedback confirms that both wired and wireless CarPlay connect on the target head unit. In the previous build, steering-wheel music controls stopped working when car Bluetooth was disconnected. This version adds a client for the vehicle media center; the new media controls, audio behavior and cluster display changes still need vehicle validation.
 
-This update includes the redesigned CarPlay swipe-down menu, phone-based diagnostic report downloads, and upstream USB startup and audio fixes. See the [LynkPlay 0.1.8 release notes](docs/LYNKPLAY-RELEASE-NOTES-0.1.8.md), [vehicle testing guide](docs/LYNKPLAY-CAR-TEST.md), and [validation record](docs/LYNKPLAY-VALIDATION.md).
+This update adds a vehicle media-center client for steering-wheel playback and track controls, media-key diagnostics, and Lynk 06 voice-key, microphone and cluster adaptations. See the [LynkPlay 0.1.9 release notes](docs/LYNKPLAY-RELEASE-NOTES-0.1.9.md), [vehicle testing guide](docs/LYNKPLAY-CAR-TEST.md), and [validation record](docs/LYNKPLAY-VALIDATION.md).
 
 ## Build and install
 

@@ -68,6 +68,23 @@ class CarPlayMediaCallbackTest {
     }
 
     @Test
+    fun diagnosticsRecordTheWholeTapWhileForwardingOnlyTheInitialPress() {
+        val diagnostics = mutableListOf<String>()
+        val traced = CarPlayMediaCallback(diagnostic = { diagnostics += it }) { index, _ -> sent += index }
+        for ((action, repeat) in listOf(KeyEvent.ACTION_DOWN to 0,
+            KeyEvent.ACTION_DOWN to 1, KeyEvent.ACTION_UP to 0)) {
+            traced.onMediaButtonEvent(button(KeyEvent(100, 150, action,
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, repeat, 0, 7, 0)))
+        }
+
+        assertEquals(listOf(CarPlayMediaButton.PLAY_PAUSE), sent)
+        assertEquals(listOf(0 to 0, 0 to 1, 1 to 0).map { (action, repeat) ->
+            "媒体：入口=MediaSession keyCode=85 action=$action repeat=$repeat " +
+                "downTime=100 eventTime=150 deviceId=7"
+        }, diagnostics)
+    }
+
+    @Test
     fun nowPlayingFieldsBecomeAndroidMediaMetadata() {
         val artwork = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
         val metadata = CarPlayMediaKeys.androidMetadata(
