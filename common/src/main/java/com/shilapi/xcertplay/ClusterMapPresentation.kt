@@ -27,6 +27,7 @@ import android.widget.FrameLayout
 import android.widget.ProgressBar
 import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.host.R
+import com.shilapi.xcertplay.hud.CarPlayNavigationStatus
 import com.shilapi.xcertplay.hud.ClusterTurnGuidance
 
 /** 在已匹配的仪表投影显示上呈现独立 CarPlay 地图流。原车投影模式由车机管理。 */
@@ -41,10 +42,21 @@ internal class ClusterMapPresentation(
     private var turnCardView: ClusterTurnCardView? = null
     private var videoView: View? = null
     private var streamActive = false
+        private set
     var outputSurface: Surface? = null
         private set
     var mapVisible = true
         private set
+
+    override fun onStart() {
+        super.onStart()
+        activePresentation = this
+    }
+
+    override fun onStop() {
+        if (activePresentation === this) activePresentation = null
+        super.onStop()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -194,6 +206,20 @@ internal class ClusterMapPresentation(
     companion object {
         const val TAG = "DiPlay-Cluster"
 
+        /** 当前正在显示的实例，供诊断报告读取 Presentation 层状态。 */
+        @Volatile private var activePresentation: ClusterMapPresentation? = null
+
+        private fun activePresentationReport(): String {
+            val presentation = activePresentation ?: return "presentationShowing=false"
+            val clusterDisplay = presentation.display
+            return buildString {
+                appendLine("presentationShowing=true")
+                appendLine("presentationDisplay=${clusterDisplay?.displayId}:${clusterDisplay?.name}")
+                appendLine("mapVisible=${presentation.mapVisible} streamActive=${presentation.streamActive}")
+                append("outputSurfaceValid=${presentation.outputSurface?.isValid}")
+            }
+        }
+
         /** Keep the 5/5.1 selection order, then try the measured DiLink 4 projection display. */
         fun findDisplay(context: Context, theme: DiLink51ClusterLayout.Theme = DiLink51ClusterLayout.theme(context)): Display? {
             val displays = context.getSystemService(DisplayManager::class.java)
@@ -228,7 +254,14 @@ internal class ClusterMapPresentation(
 
         fun diagnosticReport(context: Context): String = buildString {
             appendLine("clusterEnabled=${AirPlayPersistence.loadClusterMapEnabled(context)}")
-            appendLine("navigationReceiverAvailable=${com.shilapi.xcertplay.hud.BydOutputSettings.navigationAvailable(context)}")
+            if (Lynk06ClusterDisplay.supported()) {
+                // 领克仪表排查看 FCE 导航状态、AdaptAPI 链路和 Presentation；BYD 接收器字段不适用。
+                appendLine(CarPlayNavigationStatus.diagnosticReport())
+                appendLine(Lynk06ClusterLink.diagnosticReport())
+                appendLine(activePresentationReport())
+            } else {
+                appendLine("navigationReceiverAvailable=${com.shilapi.xcertplay.hud.BydOutputSettings.navigationAvailable(context)}")
+            }
             appendLine("allDisplays=${describeDisplays(context)}")
             val presentations = context.getSystemService(DisplayManager::class.java)
                 ?.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).orEmpty()

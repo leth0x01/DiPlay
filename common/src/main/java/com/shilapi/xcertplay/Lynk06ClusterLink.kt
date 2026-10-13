@@ -8,9 +8,35 @@ import java.lang.reflect.Proxy
 
 /** 本车 AdapterAPI 1.1.18.9 的仪表模式；显示器始终存在，不能作为模式判断。 */
 internal data class Lynk06ClusterState(val available: Boolean = false, val navigating: Boolean = false, val mode: Int? = null) {
-    val showMap: Boolean get() = available && navigating && mode == FULL
+    // 显示跟随真实 CarPlay 导航状态与链路可用性。原车 naviMode 由 OEM 导航生态绑定（领克 06 只认
+    // 原厂导航包），第三方无法驱动，只作诊断依据，不再作为显示门控。
+    val showMap: Boolean get() = available && navigating
     companion object { const val FULL = 3 }
 }
+
+/** 仪表链路各环节的诊断快照；字段在 worker 线程更新，整体通过 @Volatile 发布。 */
+internal data class Lynk06ClusterDiagnostics(
+    val adapterCreated: Boolean = false,
+    val watcherRegistered: Boolean = false,
+    val connected: Boolean = false,
+    val menuAttached: Boolean = false,
+    val naviAttached: Boolean = false,
+    val navigationRequested: Boolean = false,
+    val navigationSent: Boolean = false,
+    val lastNotifySuccess: Boolean? = null,
+    val lastSwitchAccepted: Boolean? = null,
+    val presentationSwitchOn: Boolean = false,
+    val lastPresentationSwitchSuccess: Boolean? = null,
+    val naviCallbackRegistered: Boolean = false,
+    val interactionCallbackRegistered: Boolean = false,
+    val presentationOption: Int? = null,
+    val naviMode: Int? = null,
+    val showMap: Boolean = false,
+    val reconnectAttempts: Int = 0,
+    val consecutiveFailures: Int = 0,
+    val lastError: String? = null,
+    val closed: Boolean = false,
+)
 
 /** 厂商 Binder 调用独立于主线程和 iAP2；关闭后撤销本次发送的导航状态。 */
 internal class Lynk06ClusterLink(
@@ -35,6 +61,8 @@ internal class Lynk06ClusterLink(
     private var watcherRegistered = false
     private var watcherGeneration = 0L
     private var callback: Any? = null
+    private var naviCallback: Any? = null
+    private var interactionCallback: Any? = null
     private var connected = false
     private var connecting = false
     private var reconnectDelayMillis = RETRY_DELAY_MILLIS
@@ -42,9 +70,23 @@ internal class Lynk06ClusterLink(
     private var navigation = false
     private var sentNavigation = false
     private var republishNavigation = false
+    private var mapModeRequested = false
+    private var presentationSwitchOn = false
     private var state = Lynk06ClusterState()
+    @Volatile private var lastNotifySuccess: Boolean? = null
+    @Volatile private var lastSwitchAccepted: Boolean? = null
+    @Volatile private var lastPresentationSwitchSuccess: Boolean? = null
+    @Volatile private var naviCallbackRegistered = false
+    @Volatile private var interactionCallbackRegistered = false
+    @Volatile private var presentationOption: Int? = null
+    @Volatile private var lastError: String? = null
+    @Volatile private var reconnectAttempts = 0
+    @Volatile private var diagnostics = Lynk06ClusterDiagnostics()
 
-    fun start() { worker.post { initialize() } }
+    fun start() {
+        activeLink = this
+        worker.post { initialize() }
+    }
     fun setNavigation(active: Boolean) { worker.post { if (!stopped) { navigation = active; refresh() } } }
 
     private fun initialize() {
@@ -111,15 +153,25 @@ internal class Lynk06ClusterLink(
                 if (name == "onChangeNaviMode") worker.post { if (!stopped) refresh() }
             }
             menuClass!!.getMethod("registerDimMenuInteractionCallback", type).invoke(menu, callback)
+            // 原厂导航同时注册导航交互回调和顶层交互回调，DIM 据此认定导航源。
+            registerNaviInteractionCallback()
+            registerInteractionCallback()
             connected = true
             connecting = false
             worker.removeCallbacks(connectionTimeout)
             reconnectDelayMillis = RETRY_DELAY_MILLIS
             consecutiveFailures = 0
+            // 记录原车投屏选项；只读调用，拒绝时不影响仪表链路。
+            presentationOption = runCatching {
+                dimClass!!.getMethod("getShowPresentationOption").invoke(dim) as Int
+            }.getOrNull()
+            // 服务重连后需要重新声明投影源。
+            presentationSwitchOn = false
             // 服务重连后重新发布本次导航，停止时仍负责撤销。
             worker.removeCallbacks(reconnect)
             republishNavigation = navigation
             logOnMain("领克仪表：AdaptAPI 已连接")
+            captureDiagnostics()
             refresh()
         } catch (error: Throwable) { connectionFailed(error) }
     }
@@ -135,10 +187,27 @@ internal class Lynk06ClusterLink(
         if (stopped) return
         try {
             // 菜单读取失败也不能阻止导航结束通知，避免本次导航状态残留。
-            if (!navigation && sentNavigation) notifyNavigation(false)
+            if (!navigation && sentNavigation) {
+                notifyNavigation(false)
+                notifyTurnByTurn(false)
+                releasePresentationSwitch()
+            }
             if (!connected) return
-            if (navigation && (!sentNavigation || republishNavigation)) notifyNavigation(true)
-            val mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
+            if (navigation && (!sentNavigation || republishNavigation)) {
+                claimPresentationSwitch()
+                notifyNavigation(true)
+                notifyTurnByTurn(true)
+                // 每次导航允许请求一次地图模式；用户手动切回简洁后本次导航不再请求。
+                mapModeRequested = false
+            }
+            var mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
+            if (navigation && mode != Lynk06ClusterState.FULL && !mapModeRequested) {
+                mapModeRequested = true
+                if (switchNaviMode(Lynk06ClusterState.FULL)) {
+                    mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
+                    updateDimDisplayMode(Lynk06ClusterState.FULL)
+                }
+            }
             consecutiveFailures = 0
             publish(Lynk06ClusterState(true, navigation, mode))
         } catch (error: Throwable) {
@@ -156,18 +225,140 @@ internal class Lynk06ClusterLink(
         }
     }
 
+    /** 与实车 XSFNaviService 一致：1 为导航成功进行，0 为未导航。 */
     private fun notifyNavigation(active: Boolean) {
-        // 与实车 XSFNaviService 一致：1 为导航成功进行，0 为未导航。
-        naviClass!!.getMethod("notifyNavigationStatus", Int::class.javaPrimitiveType).invoke(navi, if (active) 1 else 0)
+        try {
+            naviClass!!.getMethod("notifyNavigationStatus", Int::class.javaPrimitiveType).invoke(navi, if (active) 1 else 0)
+            lastNotifySuccess = true
+        } catch (error: Throwable) {
+            lastNotifySuccess = false
+            throw error
+        }
         sentNavigation = active
         republishNavigation = false
         logOnMain("领克仪表：导航状态=${if (active) "进行中" else "结束"}")
     }
 
+    /** 请求仪表切到地图模式；车机可拒绝，失败只记录，不影响导航状态链路。 */
+    private fun switchNaviMode(mode: Int): Boolean {
+        return try {
+            val accepted = menuClass!!.getMethod("switchNaviMode", Int::class.javaPrimitiveType)
+                .invoke(menu, mode) as Boolean
+            lastSwitchAccepted = accepted
+            logOnMain("领克仪表：请求地图模式 ${if (accepted) "已接受" else "被拒绝"}")
+            accepted
+        } catch (error: Throwable) {
+            lastSwitchAccepted = null
+            logOnMain("领克仪表：请求地图模式失败 ${error.cause?.message ?: error.message}")
+            false
+        }
+    }
+
+    /** 原车导航用 setPresentationToDimSwitch 把仪表投影绑定到自己包名；导航期间用本应用包名做同样声明。 */
+    private fun claimPresentationSwitch() {
+        if (!presentationSwitchOn) setPresentationSwitch(true)
+    }
+
+    private fun releasePresentationSwitch() {
+        if (presentationSwitchOn) setPresentationSwitch(false)
+    }
+
+    private fun setPresentationSwitch(on: Boolean) {
+        try {
+            dimClass!!.getMethod("setPresentationToDimSwitch", Int::class.javaPrimitiveType,
+                String::class.java, String::class.java, Boolean::class.javaPrimitiveType)
+                .invoke(dim, 1, context.packageName, context.packageName, on)
+            presentationSwitchOn = on
+            lastPresentationSwitchSuccess = true
+            logOnMain("领克仪表：投影声明${if (on) "开启" else "关闭"}成功")
+            // 声明后重读投屏选项，观察原车状态是否随之变化。
+            presentationOption = runCatching {
+                dimClass!!.getMethod("getShowPresentationOption").invoke(dim) as Int
+            }.getOrElse { presentationOption }
+        } catch (error: Throwable) {
+            lastPresentationSwitchSuccess = false
+            logOnMain("领克仪表：投影声明失败 ${error.cause?.message ?: error.message}")
+        }
+    }
+
+    /** 原厂导航同时发送 TurnByTurn 开始/结束；失败不影响导航状态链路。 */
+    private fun notifyTurnByTurn(started: Boolean) {
+        runCatching {
+            naviClass!!.getMethod(if (started) "notifyTurnByTurnStarted" else "notifyTurnByTurnStopped").invoke(navi)
+        }.onFailure { logOnMain("领克仪表：TurnByTurn 通知失败 ${it.cause?.message ?: it.message}") }
+    }
+
+    /** 原厂导航注册导航交互回调；回调只记录，不执行任何厂商动作。 */
+    private fun registerNaviInteractionCallback() {
+        val interaction = navi ?: return
+        try {
+            val type = Class.forName("com.ecarx.xui.adaptapi.diminteraction.INaviInteraction\$INavigationInteractionCallback")
+            naviCallback = callbackProxy(type) { name, _ -> logOnMain("领克仪表：导航交互回调 $name") }
+            naviClass!!.getMethod("registerNavigationInteractionCallback", type).invoke(interaction, naviCallback)
+            naviCallbackRegistered = true
+            logOnMain("领克仪表：已注册导航交互回调")
+        } catch (error: Throwable) {
+            naviCallbackRegistered = false
+            logOnMain("领克仪表：注册导航交互回调失败 ${error.cause?.message ?: error.message}")
+        }
+    }
+
+    /** 原厂导航注册顶层交互回调；回调只记录，不执行任何厂商动作。 */
+    private fun registerInteractionCallback() {
+        val interaction = dim ?: return
+        try {
+            val type = Class.forName("com.ecarx.xui.adaptapi.diminteraction.DimInteraction\$IInteractionCallback")
+            interactionCallback = callbackProxy(type) { name, _ -> logOnMain("领克仪表：仪表交互回调 $name") }
+            dimClass!!.getMethod("registerInteractionCallback", type).invoke(interaction, interactionCallback)
+            interactionCallbackRegistered = true
+            logOnMain("领克仪表：已注册仪表交互回调")
+        } catch (error: Throwable) {
+            interactionCallbackRegistered = false
+            logOnMain("领克仪表：注册仪表交互回调失败 ${error.cause?.message ?: error.message}")
+        }
+    }
+
+    /** 原厂导航通过 updateExtensionInfo 声明期望的仪表显示模式；失败不影响导航状态链路。 */
+    private fun updateDimDisplayMode(mode: Int) {
+        runCatching {
+            val bundle = android.os.Bundle()
+            bundle.putInt("EXT_KEY_DIM_DISPLAY_MODE", mode)
+            naviClass!!.getMethod("updateExtensionInfo", android.os.Bundle::class.java).invoke(navi, bundle)
+        }.onFailure { logOnMain("领克仪表：updateExtensionInfo 失败 ${it.cause?.message ?: it.message}") }
+    }
+
     private fun publish(next: Lynk06ClusterState) {
-        if (state == next) return
-        state = next
-        main.post { if (!stopped) onState(next) }
+        if (state != next) {
+            state = next
+            main.post { if (!stopped) onState(next) }
+        }
+        captureDiagnostics()
+    }
+
+    /** 快照在状态变化点采集；诊断报告可能读取到已关闭链路的最后一次状态。 */
+    private fun captureDiagnostics() {
+        diagnostics = Lynk06ClusterDiagnostics(
+            adapterCreated = dim != null,
+            watcherRegistered = watcherRegistered,
+            connected = connected,
+            menuAttached = menu != null,
+            naviAttached = navi != null,
+            navigationRequested = navigation,
+            navigationSent = sentNavigation,
+            lastNotifySuccess = lastNotifySuccess,
+            lastSwitchAccepted = lastSwitchAccepted,
+            presentationSwitchOn = presentationSwitchOn,
+            lastPresentationSwitchSuccess = lastPresentationSwitchSuccess,
+            naviCallbackRegistered = naviCallbackRegistered,
+            interactionCallbackRegistered = interactionCallbackRegistered,
+            presentationOption = presentationOption,
+            naviMode = state.mode,
+            showMap = state.showMap,
+            reconnectAttempts = reconnectAttempts,
+            consecutiveFailures = consecutiveFailures,
+            lastError = lastError,
+            closed = stopped,
+        )
     }
 
     private fun connectionFailed(error: Throwable) {
@@ -181,6 +372,7 @@ internal class Lynk06ClusterLink(
     }
 
     private fun logFailure(error: Throwable) {
+        lastError = error.cause?.message ?: error.message ?: error.javaClass.simpleName
         logOnMain("领克仪表：接口调用失败 ${error.cause?.message ?: error.message}")
     }
 
@@ -216,6 +408,7 @@ internal class Lynk06ClusterLink(
 
     private val reconnect = Runnable {
         if (!stopped && !connected && !connecting) {
+            reconnectAttempts++
             reconnectDelayMillis = (reconnectDelayMillis * 2).coerceAtMost(MAX_RECONNECT_DELAY_MILLIS)
             try {
                 val connect = connectClass
@@ -223,14 +416,35 @@ internal class Lynk06ClusterLink(
                 else if (connect == null) attach()
                 else beginConnection(reset = true)
             } catch (error: Throwable) { connectionFailed(error) }
+            captureDiagnostics()
         }
     }
 
-    private companion object {
-        const val RETRY_DELAY_MILLIS = 1000L
-        const val MAX_CONSECUTIVE_FAILURES = 3
-        const val CONNECTION_TIMEOUT_MILLIS = 4000L
-        const val MAX_RECONNECT_DELAY_MILLIS = 8000L
+    internal companion object {
+        private const val RETRY_DELAY_MILLIS = 1000L
+        private const val MAX_CONSECUTIVE_FAILURES = 3
+        private const val CONNECTION_TIMEOUT_MILLIS = 4000L
+        private const val MAX_RECONNECT_DELAY_MILLIS = 8000L
+
+        /** 保留最近一次链路实例，关闭后仍能读取最后状态。 */
+        @Volatile private var activeLink: Lynk06ClusterLink? = null
+
+        /** 领克仪表诊断的 AdaptAPI 链路段；链路未创建时说明可能原因。 */
+        fun diagnosticReport(): String {
+            val d = activeLink?.diagnostics
+                ?: return "linkCreated=false（车型未匹配或仪表地图未开启）"
+            return buildString {
+                appendLine("linkCreated=true closed=${d.closed}")
+                appendLine("adapterCreated=${d.adapterCreated} watcherRegistered=${d.watcherRegistered}")
+                appendLine("adapterConnected=${d.connected} menuAttached=${d.menuAttached} naviAttached=${d.naviAttached}")
+                appendLine("navigationRequested=${d.navigationRequested} navigationSent=${d.navigationSent} lastNotifySuccess=${d.lastNotifySuccess}")
+                appendLine("naviMode=${d.naviMode} showMap=${d.showMap} switchFullModeAccepted=${d.lastSwitchAccepted}")
+                appendLine("presentationOption=${d.presentationOption} presentationSwitchOn=${d.presentationSwitchOn} lastPresentationSwitchSuccess=${d.lastPresentationSwitchSuccess}")
+                appendLine("naviCallbackRegistered=${d.naviCallbackRegistered} interactionCallbackRegistered=${d.interactionCallbackRegistered}")
+                appendLine("reconnectAttempts=${d.reconnectAttempts} consecutiveFailures=${d.consecutiveFailures}")
+                append("lastError=${d.lastError ?: "none"}")
+            }
+        }
     }
 
     private fun logOnMain(message: String) { main.post { if (!stopped) log(message) } }
@@ -249,11 +463,20 @@ internal class Lynk06ClusterLink(
         main.removeCallbacksAndMessages(null)
         worker.post {
             try {
-                if (sentNavigation) runCatching { notifyNavigation(false) }
+                if (sentNavigation) {
+                    runCatching { notifyNavigation(false) }
+                    notifyTurnByTurn(false)
+                }
+                releasePresentationSwitch()
                 detachMenu()
+                runCatching { naviCallback?.let { naviClass?.getMethod("unregisterNavigationInteractionCallback", it.javaClass.interfaces[0])?.invoke(navi, it) } }
+                runCatching { interactionCallback?.let { dimClass?.getMethod("unregisterInteractionCallback", it.javaClass.interfaces[0])?.invoke(dim, it) } }
                 runCatching { connectClass?.getMethod("unregisterConnectWatcher")?.invoke(dim) }
                 runCatching { connectClass?.getMethod("disconnect")?.invoke(dim) }
-            } finally { thread.quitSafely() }
+            } finally {
+                captureDiagnostics()
+                thread.quitSafely()
+            }
         }
     }
 
@@ -263,7 +486,21 @@ internal class Lynk06ClusterLink(
                 "equals" -> proxy === args?.firstOrNull()
                 "hashCode" -> System.identityHashCode(proxy)
                 "toString" -> "Lynk06ClusterCallback"
-                else -> { action(method.name, args); null }
+                else -> {
+                    action(method.name, args)
+                    // 为基本类型返回安全默认值，避免 DIM 侧拆箱失败。
+                    when (method.returnType) {
+                        java.lang.Boolean.TYPE -> false
+                        java.lang.Integer.TYPE -> 0
+                        java.lang.Long.TYPE -> 0L
+                        java.lang.Float.TYPE -> 0f
+                        java.lang.Double.TYPE -> 0.0
+                        java.lang.Byte.TYPE -> 0.toByte()
+                        java.lang.Short.TYPE -> 0.toShort()
+                        java.lang.Character.TYPE -> 0.toChar()
+                        else -> null
+                    }
+                }
             }
         }
 }

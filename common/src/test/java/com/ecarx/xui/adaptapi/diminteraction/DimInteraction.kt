@@ -28,7 +28,16 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var menuCallback: IDimMenuInteraction.IDimMenuInteractionCallback? = null
     @Volatile var watcher: IConnectable.IConnectWatcher? = null
     val notifications = CopyOnWriteArrayList<Int>()
+    val switchRequests = CopyOnWriteArrayList<Int>()
+    val presentationSwitches = CopyOnWriteArrayList<String>()
+    val extensionBundles = CopyOnWriteArrayList<android.os.Bundle>()
+    @Volatile var switchAccepted = true
+    @Volatile var failPresentationSwitch = false
+    @Volatile var tbtActive = false
+    @Volatile var presentationOption = 0
     @Volatile var disconnected = false
+    @Volatile var naviCallback: INaviInteraction.INavigationInteractionCallback? = null
+    @Volatile var interactionCallback: DimInteraction.IInteractionCallback? = null
     override fun registerConnectWatcher(watcher: IConnectable.IConnectWatcher) {
         watcherRegistrationCalls++
         if (watcherRegistrationFailuresRemaining > 0) {
@@ -81,16 +90,52 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         }
         notifications.add(status)
     }
+    override fun notifyTurnByTurnStarted() { tbtActive = true }
+    override fun notifyTurnByTurnStopped() { tbtActive = false }
+    fun setPresentationToDimSwitch(type: Int, pkg: String, cls: String, on: Boolean) {
+        if (failPresentationSwitch) error("模拟投影声明失败")
+        presentationSwitches.add("$type,$pkg,$cls,$on")
+    }
+    override fun updateExtensionInfo(bundle: android.os.Bundle) { extensionBundles.add(bundle) }
+    override fun registerNavigationInteractionCallback(callback: INaviInteraction.INavigationInteractionCallback) {
+        naviCallback = callback
+    }
+    override fun unregisterNavigationInteractionCallback(callback: INaviInteraction.INavigationInteractionCallback) {
+        naviCallback = null
+    }
+    fun registerInteractionCallback(callback: DimInteraction.IInteractionCallback) {
+        interactionCallback = callback
+    }
+    fun unregisterInteractionCallback(callback: DimInteraction.IInteractionCallback) {
+        interactionCallback = null
+    }
+    override fun switchNaviMode(mode: Int): Boolean {
+        switchRequests.add(mode)
+        // 拒绝时保持原车模式不变。
+        if (switchAccepted) this.mode = mode
+        return switchAccepted
+    }
+    fun getShowPresentationOption(): Int = presentationOption
+    interface IInteractionCallback
     companion object {
         @Volatile var instance = DimInteraction()
         @JvmStatic fun create(context: Context): DimInteraction = instance.also { it.createCalls++ }
     }
 }
 
-interface INaviInteraction { fun notifyNavigationStatus(status: Int) }
+interface INaviInteraction {
+    fun notifyNavigationStatus(status: Int)
+    fun notifyTurnByTurnStarted()
+    fun notifyTurnByTurnStopped()
+    fun updateExtensionInfo(bundle: android.os.Bundle)
+    fun registerNavigationInteractionCallback(callback: INavigationInteractionCallback)
+    fun unregisterNavigationInteractionCallback(callback: INavigationInteractionCallback)
+    interface INavigationInteractionCallback
+}
 interface IDimMenuInteraction {
     interface IDimMenuInteractionCallback { fun onChangeNaviMode(mode: Int) }
     fun getNaviMode(): Int
+    fun switchNaviMode(mode: Int): Boolean
     fun registerDimMenuInteractionCallback(callback: IDimMenuInteractionCallback)
     fun unregisterDimMenuInteractionCallback(callback: IDimMenuInteractionCallback)
 }

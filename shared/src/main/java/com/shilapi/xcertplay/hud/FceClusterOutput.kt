@@ -140,8 +140,9 @@ internal class FceNavigationState {
             else -> source != null
         }
 
-    fun accept(messageId: Int, payload: ByteArray) {
-        if (messageId != BydHudRouteState.ROUTE_GUIDANCE_UPDATE || !validTlvs(payload)) return
+    /** 返回 true 表示这是一帧有效的 RouteGuidanceUpdate，已计入诊断。 */
+    fun accept(messageId: Int, payload: ByteArray): Boolean {
+        if (messageId != BydHudRouteState.ROUTE_GUIDANCE_UPDATE || !validTlvs(payload)) return false
         var offset = 0
         while (offset < payload.size) {
             val length = u16(payload, offset)
@@ -154,6 +155,7 @@ internal class FceNavigationState {
             }
             offset += length
         }
+        return true
     }
 
     fun clear() {

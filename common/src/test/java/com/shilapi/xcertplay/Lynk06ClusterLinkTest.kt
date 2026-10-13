@@ -40,21 +40,55 @@ class Lynk06ClusterLinkTest {
         assertTrue("异步仪表状态未在时限内完成", condition())
     }
 
-    @Test fun `initialization does not clear OEM navigation and mode changes retain navigation`() {
+    @Test fun `initialization does not clear OEM navigation and navigation start requests map mode once`() {
         assertTrue(vendor.notifications.isEmpty())
+        assertTrue(vendor.switchRequests.isEmpty())
+        assertTrue(vendor.presentationSwitches.isEmpty())
         link.setNavigation(true)
-        await { states.lastOrNull()?.navigating == true }
-        assertFalse(states.last().showMap)
-        vendor.mode = 3
-        vendor.menuCallback!!.onChangeNaviMode(3)
+        // 原车默认简洁模式；导航开始后先声明投影源，再请求一次地图模式，车机接受即切换。
         await { states.lastOrNull()?.showMap == true }
+        assertEquals(listOf(3), vendor.switchRequests.toList())
+        assertEquals(1, vendor.presentationSwitches.size)
+        assertTrue(vendor.presentationSwitches.single().endsWith(",true"))
+        assertTrue(vendor.tbtActive)
         vendor.mode = 2
         vendor.menuCallback!!.onChangeNaviMode(2)
         await { states.lastOrNull()?.mode == 2 }
-        assertFalse(states.last().showMap)
+        // 显示门控不依赖原车模式：导航期间切回简洁模式，地图窗口仍保持显示。
+        assertTrue(states.last().showMap)
+        // 用户手动切回简洁后，本次导航不再请求地图模式。
+        assertEquals(listOf(3), vendor.switchRequests.toList())
         assertEquals(listOf(1), vendor.notifications.toList())
         link.setNavigation(false)
         await { vendor.notifications.lastOrNull() == 0 }
+        // 导航结束时撤销投影声明与 TurnByTurn，把仪表还给原车导航。
+        assertEquals(2, vendor.presentationSwitches.size)
+        assertTrue(vendor.presentationSwitches.last().endsWith(",false"))
+        assertFalse(vendor.tbtActive)
+    }
+
+    @Test fun `presentation switch failure still sends navigation and is diagnosed`() {
+        vendor.failPresentationSwitch = true
+        link.setNavigation(true)
+        await { states.lastOrNull()?.showMap == true }
+        // 投影声明失败不阻止导航状态与地图模式请求。
+        assertEquals(listOf(1), vendor.notifications.toList())
+        assertEquals(listOf(3), vendor.switchRequests.toList())
+        val report = Lynk06ClusterLink.diagnosticReport()
+        assertTrue(report.contains("lastPresentationSwitchSuccess=false"))
+        assertTrue(report.contains("presentationSwitchOn=false"))
+    }
+
+    @Test fun `rejected map mode request still shows the map and is diagnosed`() {
+        vendor.switchAccepted = false
+        link.setNavigation(true)
+        await { vendor.switchRequests.isNotEmpty() && states.lastOrNull()?.navigating == true }
+        // 模式请求被拒不阻止地图显示；拒绝结果保留在诊断中。
+        assertTrue(states.last().showMap)
+        assertEquals(2, states.last().mode)
+        val report = Lynk06ClusterLink.diagnosticReport()
+        assertTrue(report.contains("switchFullModeAccepted=false"))
+        assertTrue(report.contains("presentationOption=0"))
     }
 
     @Test fun `close restores only navigation owned by this connection and releases callbacks`() {
@@ -63,6 +97,7 @@ class Lynk06ClusterLinkTest {
         link.close()
         await { vendor.disconnected && vendor.watcher == null }
         assertEquals(listOf(1, 0), vendor.notifications.toList())
+        assertTrue(vendor.presentationSwitches.last().endsWith(",false"))
         assertNull(vendor.menuCallback)
         assertNull(vendor.watcher)
     }
@@ -109,6 +144,36 @@ class Lynk06ClusterLinkTest {
     @Test fun `service disconnect automatically reconnects`() {
         vendor.watcher!!.onDisConnected()
         await { vendor.connectCalls == 2 && states.lastOrNull()?.available == true }
+    }
+
+    @Test fun `diagnostic report reflects the attached link`() {
+        val report = Lynk06ClusterLink.diagnosticReport()
+        assertTrue(report.contains("linkCreated=true"))
+        assertTrue(report.contains("adapterCreated=true"))
+        assertTrue(report.contains("watcherRegistered=true"))
+        assertTrue(report.contains("adapterConnected=true"))
+        assertTrue(report.contains("menuAttached=true"))
+        assertTrue(report.contains("naviAttached=true"))
+        assertTrue(report.contains("lastError=none"))
+        assertTrue(report.contains("presentationOption=0"))
+        assertTrue(report.contains("naviCallbackRegistered=true"))
+        assertTrue(report.contains("interactionCallbackRegistered=true"))
+        assertNotNull(vendor.naviCallback)
+        assertNotNull(vendor.interactionCallback)
+    }
+
+    @Test fun `diagnostic report shows navigation notification and mode`() {
+        link.setNavigation(true)
+        await { states.lastOrNull()?.navigating == true }
+        vendor.mode = 3
+        vendor.menuCallback!!.onChangeNaviMode(3)
+        await { states.lastOrNull()?.showMap == true }
+        val report = Lynk06ClusterLink.diagnosticReport()
+        assertTrue(report.contains("navigationRequested=true"))
+        assertTrue(report.contains("navigationSent=true"))
+        assertTrue(report.contains("lastNotifySuccess=true"))
+        assertTrue(report.contains("naviMode=3"))
+        assertTrue(report.contains("showMap=true"))
     }
 
     @Test fun `missing connect callback retries until the service returns`() {

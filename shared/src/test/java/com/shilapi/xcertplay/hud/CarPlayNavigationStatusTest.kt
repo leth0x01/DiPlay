@@ -41,4 +41,26 @@ class CarPlayNavigationStatusTest {
         CarPlayNavigationStatus.onFrame(state(1))
         assertEquals(listOf(false, true), events)
     }
+
+    @Test fun `diagnostic counters track frames and transitions`() {
+        CarPlayNavigationStatus.resetDiagnostics()
+        CarPlayNavigationStatus.setListener(listener)
+        CarPlayNavigationStatus.onFrame(state(1))
+        // 非 RouteGuidanceUpdate 帧和损坏的 TLV 都不计入有效导航帧。
+        CarPlayNavigationStatus.onFrame(Iap2Frame(0x5202, byteArrayOf(0)))
+        CarPlayNavigationStatus.onFrame(Iap2Frame(0x5201, byteArrayOf(0, 9, 0, 1, 0)))
+        CarPlayNavigationStatus.onFrame(state(2))
+        val snapshot = CarPlayNavigationStatus.snapshot()
+        assertFalse(snapshot.active)
+        assertEquals(4, snapshot.routeGuidanceFrames)
+        assertEquals(2, snapshot.validNavigationFrames)
+        assertEquals(2, snapshot.activeTransitions)
+        assertTrue(snapshot.lastFrameElapsedNanos > 0)
+        val report = CarPlayNavigationStatus.diagnosticReport()
+        assertTrue(report.contains("navigationActive=false"))
+        assertTrue(report.contains("routeGuidanceFrames=4"))
+        assertTrue(report.contains("validNavigationFrames=2"))
+        assertTrue(report.contains("activeTransitions=2"))
+        assertTrue(report.contains("lastNavigationFrameAgo="))
+    }
 }
