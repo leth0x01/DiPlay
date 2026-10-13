@@ -3,6 +3,7 @@ package com.shilapi.xcertplay
 import android.content.Context
 import android.media.AudioManager
 import android.os.Handler
+import android.os.Build
 import android.view.KeyEvent
 import com.shilapi.xcertplay.airplay.AirPlaySession
 import com.shilapi.xcertplay.airplay.CarPlayMediaButton
@@ -21,6 +22,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
+import org.robolectric.util.ReflectionHelpers
 
 /**
  * The steering wheel's next/previous keys, claimed by the CarPlay window itself.
@@ -98,6 +100,27 @@ class WheelMediaKeyWindowTest {
         assertFalse(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, true)))
         assertFalse(host.dispatchKeyEvent(key(CarPlayMediaButton.KEYCODE_BYD_AUTO_MEDIA_PLAY_PAUSE, true)))
         verify(controller, never()).sendMediaButton(anyInt())
+    }
+
+    @Test @Config(sdk = [28]) fun lynk06PlayPauseReachesCarPlayOnce() {
+        setLynk06()
+        assertTrue(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, true)))
+        assertTrue(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, true, repeat = 1)))
+        assertTrue(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, false)))
+        verify(controller, times(1)).sendMediaButton(CarPlayMediaButton.PLAY_PAUSE)
+    }
+
+    @Test fun bluetoothAudioLeavesForegroundKeysToTheCar() {
+        field("sessionCarBluetoothAudio", true)
+        assertFalse(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_NEXT, true)))
+        verify(controller, never()).sendMediaButton(anyInt())
+    }
+
+    private fun setLynk06() {
+        for ((field, value) in mapOf("PRODUCT" to "IHU514G", "DEVICE" to "IHU514G",
+            "MODEL" to "IHU514G", "HARDWARE" to "xecarx")) {
+            ReflectionHelpers.setStaticField(Build::class.java, field, value)
+        }
     }
 
     private fun field(name: String, value: Any?) = host.javaClass.getDeclaredField(name)

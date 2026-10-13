@@ -5369,6 +5369,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         appendLine("Head unit: ${Build.MANUFACTURER} ${Build.MODEL}")
         appendLine(VehicleIntegration.diagnosticReport(appContext))
         appendLine(GeelyWheelKeys.diagnosticReport(appContext))
+        if (VehicleIntegration.isDetectedLynk06()) appendLine(Lynk06VoiceKeyReceiver.diagnosticReport())
         appendLine("Connection: ${if (AirPlayPersistence.loadWirelessEnabled(appContext)) "wireless" else "USB"}")
         AirPlayPersistence.loadUsbChargingCurrent(appContext).let {
             appendLine("USB charging offer: ${it.key} (${it.milliAmps} mA)")

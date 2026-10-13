@@ -63,6 +63,7 @@ internal object CarPlayMediaKeys {
     private var focusHeld = false
     private var appContext: Context? = null
     private var mediaAudioActive = false
+    private var carBluetoothAudio = false
     private var nowPlaying = CarPlayNowPlaying()
     private var elapsedUpdatedAt = 0L
     private var artwork: Bitmap? = null
@@ -70,13 +71,15 @@ internal object CarPlayMediaKeys {
     private var placeholder: Bitmap? = null
 
     @Synchronized
-    fun attach(context: Context, next: CarPlayController) {
+    fun attach(context: Context, next: CarPlayController,
+        bluetoothAudio: Boolean = AirPlayPersistence.loadCarBluetoothAudio(context)) {
         if (controller !== next) {
             releaseLocked()
             artworkOwner = artworkQueue.newSession()
         }
         appContext = context.applicationContext
         controller = next
+        carBluetoothAudio = bluetoothAudio
         GeelyWheelKeys.start(context)
         com.shilapi.xcertplay.media.AmbientMusicController.claimPlaybackOwner(next)
         next.playbackListener = { playing ->
@@ -274,7 +277,7 @@ internal object CarPlayMediaKeys {
 
     private fun start(context: Context) {
         val expectedController = controller ?: return
-        val focusDisabled = AirPlayPersistence.loadDisableMediaKeyAudioFocus(context)
+        val focusDisabled = AirPlayPersistence.loadDisableMediaKeyAudioFocus(context) || carBluetoothAudio
         val granted = if (focusDisabled) {
             // Some OEMs route physical volume buttons to the focus owner. Keep an active
             // MediaSession without permanent focus so those buttons remain vehicle-owned.
@@ -392,7 +395,9 @@ internal object CarPlayMediaKeys {
             Log.i(TAG, "media key $source -> car video player $index")
             return
         }
-        val sent = synchronized(this) { controller }?.sendMediaButton(index) ?: false
+        // 蓝牙音频由原车 AVRCP 控制，避免同时通过 CarPlay 再执行一次。
+        val active = synchronized(this) { if (carBluetoothAudio) null else controller } ?: return
+        val sent = active.sendMediaButton(index)
         Log.i(TAG, "media key $source -> CarPlay $index sent=$sent")
     }
 

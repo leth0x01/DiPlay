@@ -1,5 +1,13 @@
 # LynkPlay 验证记录
 
+## 2026-10-13：领克 06 方控、麦克风与蓝牙适配
+
+新增本车语音键有序广播接入：CarPlay 活跃且未通话时短按 Siri，长按请求打开 LynkPlay；成功处理后终止后续广播。补齐本车前台播放／暂停按键；蓝牙音频模式下媒体控制交给 AVRCP，并保持当前会话配置到重新连接。Siri 录音器启动失败后释放并尝试后备源，领克追加 MIC 末级回退；录音诊断记录实际来源。蓝牙诊断改为本车 A2DP Sink / HFP Client。
+
+最终完整 CI 通过：shared 1420 项（跳过 1 项）、common 1294 项、home 6 项，0 失败／错误；mobile、home、maphost 的 Lint 与 Debug 构建通过。`git diff --check` 通过。
+
+一次复核在已有 `SettingsBackupServerTest.stopDoesNotFailWhileConnectionsAreEnding` 卡住，线程栈停在 JDK 25.0.3 的 `ServerSocket.close()` 原生关闭路径；终止该测试 worker 后重跑完整命令通过。方控、拾音质量、原车蓝牙控制与长按对 HiCar 的优先级仍需实车复核，接口依据、参考源码和步骤见[专项适配记录](LYNK06-WHEEL-MICROPHONE-BLUETOOTH.md)。
+
 ## 2026-10-13：最新实车反馈
 
 用户确认已在 2023 款领克 06 燃油版、Android 9 真实车机上验证，无线、有线 CarPlay 均能连接。

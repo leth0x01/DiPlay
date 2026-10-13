@@ -16,6 +16,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.never
+import org.mockito.ArgumentMatchers.anyInt
+import com.shilapi.xcertplay.airplay.CarPlayMediaButton
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -39,6 +43,7 @@ class CarPlayMediaFocusDisabledTest {
         controllers.forEach(CarPlayMediaKeys::detach)
         CarPlayBackgroundSession.clear()
         AirPlayPersistence.saveDisableMediaKeyAudioFocus(app, false)
+        AirPlayPersistence.saveCarBluetoothAudio(app, false)
         shadowOf(Looper.getMainLooper()).idle()
     }
 
@@ -47,6 +52,31 @@ class CarPlayMediaFocusDisabledTest {
 
         assertTrue(session.isActive)
         assertFocusDisabled()
+    }
+
+    @Test fun bluetoothAudioSkipsFocusEvenWithoutOptOut() {
+        AirPlayPersistence.saveDisableMediaKeyAudioFocus(app, false)
+        AirPlayPersistence.saveCarBluetoothAudio(app, true)
+        start(mock(CarPlayController::class.java).also(controllers::add))
+        assertFocusDisabled()
+    }
+
+    @Test fun bluetoothAudioKeepsMediaControlWithAvrcpUntilReconnect() {
+        AirPlayPersistence.saveCarBluetoothAudio(app, true)
+        val controller = mock(CarPlayController::class.java).also(controllers::add)
+        start(controller)
+        CarPlayMediaKeys.onExternalMediaKey(CarPlayMediaButton.NEXT)
+        AirPlayPersistence.saveCarBluetoothAudio(app, false)
+        CarPlayMediaKeys.onExternalMediaKey(CarPlayMediaButton.NEXT)
+        verify(controller, never()).sendMediaButton(anyInt())
+    }
+
+    @Test fun pendingBluetoothSettingDoesNotDisableCurrentCarPlayControl() {
+        val controller = mock(CarPlayController::class.java).also(controllers::add)
+        start(controller)
+        AirPlayPersistence.saveCarBluetoothAudio(app, true)
+        CarPlayMediaKeys.onExternalMediaKey(CarPlayMediaButton.NEXT)
+        verify(controller).sendMediaButton(CarPlayMediaButton.NEXT)
     }
 
     @Test fun repeatedMediaActivityDoesNotRequestFocusOrReplaceSession() {

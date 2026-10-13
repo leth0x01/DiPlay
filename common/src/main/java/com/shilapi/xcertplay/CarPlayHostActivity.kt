@@ -447,6 +447,7 @@ class CarPlayHostActivity : ComponentActivity() {
     private var locationReportingEnabled = false
     private var locationPermissionAvailable = false
     private var microphoneAvailable = false
+    private var sessionCarBluetoothAudio = false
     private var microphonePermissionResolved = false
     private var wirelessEnabled = false
     private var mfiTarget = MfiTarget.LOCAL
@@ -1511,7 +1512,10 @@ class CarPlayHostActivity : ComponentActivity() {
         // Steering-wheel next/previous, claimed by the CarPlay screen itself. BYD gives these keys to
         // whichever window is in front, and this is the only route that reaches CarPlay without the
         // wheel key service — which a head unit with no ADB cannot turn on at all.
-        val mediaPress = CarPlayMediaButton.forCarPlayWindow(
+        val mediaPress = if (sessionCarBluetoothAudio) null
+        else if (com.shilapi.xcertplay.vehicle.VehicleIntegration.isDetectedLynk06())
+            Lynk06MediaKeyPolicy.press(event.keyCode, activeAirPlaySession != null, inCall(this))
+        else CarPlayMediaButton.forCarPlayWindow(
             event.keyCode,
             sessionActive = activeAirPlaySession != null,
             inCall = inCall(this),
@@ -4551,7 +4555,10 @@ class CarPlayHostActivity : ComponentActivity() {
         appendLog(support.details)
         appendLog(effectiveSummary)
         val carBluetoothAudio = AirPlayPersistence.loadCarBluetoothAudio(this)
-        if (carBluetoothAudio) logCarBluetoothAudio()
+        sessionCarBluetoothAudio = carBluetoothAudio
+        if (carBluetoothAudio || com.shilapi.xcertplay.vehicle.VehicleIntegration.isDetectedLynk06()) {
+            logCarBluetoothAudio(carBluetoothAudio)
+        }
         return AirPlayConfig(
             deviceName = getString(R.string.app_name),
             deviceId = DiPlayBootstrap.deviceId(airPlayIdentity),
@@ -4575,23 +4582,28 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     /** Car Bluetooth audio: shows whether the iPhone keeps A2DP/HFP with the car now and once CarPlay runs. */
-    private fun logCarBluetoothAudio() {
-        appendLog("Car Bluetooth audio: on; CarPlay audio not offered")
+    private fun logCarBluetoothAudio(usingCarAudio: Boolean) {
+        appendLog(if (usingCarAudio) "Car Bluetooth audio: on; CarPlay audio not offered"
+            else "Car Bluetooth audio: off; CarPlay audio offered")
         val adapter = runCatching { getSystemService(android.bluetooth.BluetoothManager::class.java)?.adapter ?: android.bluetooth.BluetoothAdapter.getDefaultAdapter() }.getOrNull()
             ?: return appendLog("Car Bluetooth audio: no Bluetooth adapter")
         fun probe(moment: String) {
-            for ((name, profile) in listOf("A2DP" to android.bluetooth.BluetoothProfile.A2DP,
-                    "HFP" to android.bluetooth.BluetoothProfile.HEADSET)) {
+            for ((name, profile) in DiPlayBluetooth.audioProfiles()) {
                 runCatching {
                     adapter.getProfileProxy(applicationContext, object : android.bluetooth.BluetoothProfile.ServiceListener {
                         override fun onServiceConnected(id: Int, proxy: android.bluetooth.BluetoothProfile) {
-                            val devices = runCatching { proxy.connectedDevices.map { it.name ?: "?" } }
-                                .getOrElse { listOf("unreadable:${it.javaClass.simpleName}") }
-                            appendLog("Car Bluetooth audio: $moment $name connected=$devices")
-                            adapter.closeProfileProxy(id, proxy)
+                            try {
+                                val count = runCatching { proxy.connectedDevices.size.toString() }
+                                    .getOrElse { "unreadable:${it.javaClass.simpleName}" }
+                                appendLog("Car Bluetooth audio: $moment $name connectedCount=$count")
+                            } finally {
+                                adapter.closeProfileProxy(id, proxy)
+                            }
                         }
                         override fun onServiceDisconnected(id: Int) = Unit
                     }, profile)
+                }.onSuccess { accepted ->
+                    if (!accepted) appendLog("Car Bluetooth audio: $moment $name profile request rejected")
                 }.onFailure { appendLog("Car Bluetooth audio: $moment $name unavailable ${it.javaClass.simpleName}") }
             }
         }
@@ -5107,7 +5119,7 @@ class CarPlayHostActivity : ComponentActivity() {
         controller = next
         resetSidePanel() // a new session starts without the side panel
         updateClusterMapShown()
-        CarPlayMediaKeys.attach(this, next)
+        CarPlayMediaKeys.attach(this, next, bluetoothAudio = airPlayConfig.disableAudioOutput)
         if (airPlayConfig.videoInCar) CarPlayVideo.attach(this, next)
         val display = CarPlaySessionDisplay(
             airPlayConfig.main.widthPixels, airPlayConfig.main.heightPixels,

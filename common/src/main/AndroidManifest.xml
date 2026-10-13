@@ -36,6 +36,14 @@
         </intent>
     </queries>
     <application>
+        <!-- 本车输入服务携带 INCLUDE_BACKGROUND，长按可在 App 未打开时接收。 -->
+        <receiver android:name="com.shilapi.xcertplay.Lynk06VoiceKeyReceiver"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="ecarx.intent.action.ECARX_KEY_RVOICEASSIST_EVENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
         <provider
             android:name="com.shilapi.xcertplay.DiagnosticReportProvider"
             android:authorities="${applicationId}.diagnostic-reports"

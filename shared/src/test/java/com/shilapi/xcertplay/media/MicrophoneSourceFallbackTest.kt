@@ -6,6 +6,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 import com.shilapi.xcertplay.airplay.AudioStreamId
 import com.shilapi.xcertplay.airplay.MicrophoneConfig
 import java.net.InetAddress
@@ -46,6 +47,7 @@ class MicrophoneSourceFallbackTest {
         RecorderBuilder.built.clear()
         RecorderBuilder.rejectSources = emptySet()
         RecorderBuilder.uninitializedSources = emptySet()
+        RecorderBuilder.failStartSources = emptySet()
         shadowOf(context).grantPermissions(Manifest.permission.RECORD_AUDIO, Manifest.permission.MODIFY_AUDIO_SETTINGS)
         context.getSystemService(AudioManager::class.java).mode = AudioManager.MODE_RINGTONE
         sink = AndroidMediaSink(context = context, onAudioDiagnostic = diagnostics::add)
@@ -110,6 +112,32 @@ class MicrophoneSourceFallbackTest {
         assertEquals(MediaRecorder.AudioSource.VOICE_RECOGNITION, requireNotNull(captured.get()).audioSource)
     }
 
+    @Test fun siriRecordingStartFailureReleasesRecorderAndRetriesCommunication() {
+        RecorderBuilder.failStartSources = setOf(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+        sink.onMicrophoneStarted(id, config("speechrecognition"))
+        assertTrue(captureStarted.await(5, TimeUnit.SECONDS))
+        assertEquals(listOf(MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION), RecorderBuilder.attempts)
+        assertTrue((RecorderBuilder.built.first() as StartRejectedRecorder).released)
+        assertEquals(MediaRecorder.AudioSource.VOICE_COMMUNICATION, requireNotNull(captured.get()).audioSource)
+        assertTrue(diagnostics.any { it.contains("source=VOICE_RECOGNITION") && it.contains("stage=RECORDING") })
+    }
+
+    @Test @Config(sdk = [28]) fun collectedLynk06CanUseMicAfterBothSpeechSourcesAreRejected() {
+        for ((field, value) in mapOf("PRODUCT" to "IHU514G", "DEVICE" to "IHU514G",
+            "MODEL" to "IHU514G", "HARDWARE" to "xecarx")) {
+            ReflectionHelpers.setStaticField(Build::class.java, field, value)
+        }
+        RecorderBuilder.rejectSources = setOf(MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+        sink.onMicrophoneStarted(id, config("speechrecognition"))
+        assertTrue(captureStarted.await(5, TimeUnit.SECONDS))
+        assertEquals(listOf(MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION, MediaRecorder.AudioSource.MIC), RecorderBuilder.attempts)
+        assertTrue(diagnostics.any { it.startsWith("Microphone: start type=speechrecognition source=MIC") })
+        assertEquals(AudioManager.MODE_RINGTONE, context.getSystemService(AudioManager::class.java).mode)
+    }
+
     @Test fun telephonyCreationFailureDoesNotRetryOrLeaveTheCallModeActive() {
         RecorderBuilder.rejectSources = setOf(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
         sink.onMicrophoneStarted(AudioStreamId(101, "telephony"), config("telephony"))
@@ -132,8 +160,11 @@ class MicrophoneSourceFallbackTest {
             val source = ReflectionHelpers.callInstanceMethod<Int>(attributes, "getCapturePreset")
             attempts += source
             if (source in rejectSources) throw UnsupportedOperationException("Unsupported test capture source")
-            return (if (source in uninitializedSources) RejectedRecorder(source)
-                else Shadow.directlyOn<AudioRecord, AudioRecord.Builder>(builder, AudioRecord.Builder::class.java, "build")).also {
+            return (when (source) {
+                in uninitializedSources -> RejectedRecorder(source)
+                in failStartSources -> StartRejectedRecorder(source)
+                else -> Shadow.directlyOn<AudioRecord, AudioRecord.Builder>(builder, AudioRecord.Builder::class.java, "build")
+            }).also {
                 built += it
             }
         }
@@ -143,7 +174,16 @@ class MicrophoneSourceFallbackTest {
             val built = CopyOnWriteArrayList<AudioRecord>()
             var rejectSources = emptySet<Int>()
             var uninitializedSources = emptySet<Int>()
+            var failStartSources = emptySet<Int>()
         }
+    }
+
+    class StartRejectedRecorder(source: Int) : AudioRecord(source, 16_000,
+        AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, 4096) {
+        var released = false
+            private set
+        override fun startRecording() { throw IllegalStateException("测试录音源启动失败") }
+        override fun release() { released = true; super.release() }
     }
 
     class RejectedRecorder(source: Int) : AudioRecord(source, 16_000,

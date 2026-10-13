@@ -18,6 +18,9 @@ object VehicleIntegration {
     private fun detectedProfile(): String? =
         detectedProfile(Build.PRODUCT, Build.DEVICE, Build.MODEL, Build.HARDWARE, Build.VERSION.SDK_INT)
 
+    /** 厂商事件和录音回退仅用于完整匹配的实车，构建目标不能启用它们。 */
+    fun isDetectedLynk06(): Boolean = detectedProfile() == LYNK_06_2023_PETROL
+
     fun profile(context: Context): String = detectedProfile() ?: context.getString(R.string.config_vehicle_profile)
 
     fun isLynk06(context: Context): Boolean = profile(context) == LYNK_06_2023_PETROL

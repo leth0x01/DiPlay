@@ -87,6 +87,7 @@ internal class MicrophoneUplink(
                 }
             else -> MediaRecorder.AudioSource.MIC
         }
+        stats.useSource(sourceName(source))
         val nextEncoder = if (config.codec == AudioCodecKind.OPUS) {
             opusEncoderFactory(config.bitrate ?: 48_000)
         } else {
@@ -105,14 +106,10 @@ internal class MicrophoneUplink(
             runCatching { onDiagnostic(message) }
         }
         val bufferSize = maxOf(minBuffer * 2, config.frameBytes * 4)
-        // Some head units throw on VOICE_RECOGNITION at build(); VOICE_COMMUNICATION works there.
-        val nextRecorder = createRecorder(source, channelMask, bufferSize)
-            ?: if (source == MediaRecorder.AudioSource.VOICE_RECOGNITION) {
-                stats.useVoiceCommunicationSource()
-                createRecorder(MediaRecorder.AudioSource.VOICE_COMMUNICATION, channelMask, bufferSize)
-            } else {
-                null
-            }
+        // Siri 的录音源可能创建成功却在启动时被固件拒绝，两个阶段都需要回退。
+        val speech = config.audioType == "speechrecognition"
+        val nextRecorder = if (speech) createSpeechRecorder(source, channelMask, bufferSize)
+            else createRecorder(source, channelMask, bufferSize)
         if (nextRecorder == null) {
             nextEncoder?.close()
             running.set(false)
@@ -144,7 +141,7 @@ internal class MicrophoneUplink(
                     Log.i(TAG, "microphone echo canceller enabled=${echoCanceller != null} tail=${ECHO_TAIL_MILLIS}ms")
                 }
             }
-            nextRecorder.startRecording()
+            if (!speech) nextRecorder.startRecording()
             stats.started(routeType(nextRecorder))
             thread = Thread({ capture(nextRecorder, nextSocket) }, "carplay-mic").apply {
                 isDaemon = true
@@ -157,6 +154,37 @@ internal class MicrophoneUplink(
             release()
             false
         }
+    }
+
+    private fun createSpeechRecorder(source: Int, channelMask: Int, bufferSize: Int): AudioRecord? {
+        val sources = mutableListOf(source)
+        if (source == MediaRecorder.AudioSource.VOICE_RECOGNITION) {
+            sources += MediaRecorder.AudioSource.VOICE_COMMUNICATION
+        }
+        // 原车 Android 9 只增加最后的标准 MIC 回退，不修改全车音频路由或语音服务。
+        if (com.shilapi.xcertplay.vehicle.VehicleIntegration.isDetectedLynk06()) {
+            sources += MediaRecorder.AudioSource.MIC
+        }
+        for (candidate in sources.distinct()) {
+            stats.useSource(sourceName(candidate))
+            val next = createRecorder(candidate, channelMask, bufferSize) ?: continue
+            try {
+                next.startRecording()
+                if (next.recordingState == AudioRecord.RECORDSTATE_RECORDING) return next
+                stats.failure(MicrophoneFailureStage.RECORDING, code = next.recordingState)
+            } catch (error: Exception) {
+                stats.failure(MicrophoneFailureStage.RECORDING, error)
+                Log.w(TAG, "Siri 麦克风启动失败，尝试下一个录音源 source=$candidate", error)
+            }
+            runCatching { next.release() }
+        }
+        return null
+    }
+
+    private fun sourceName(source: Int): String = when (source) {
+        MediaRecorder.AudioSource.VOICE_RECOGNITION -> "VOICE_RECOGNITION"
+        MediaRecorder.AudioSource.VOICE_COMMUNICATION -> "VOICE_COMMUNICATION"
+        else -> "MIC"
     }
 
     private fun createRecorder(source: Int, channelMask: Int, bufferSize: Int): AudioRecord? {
