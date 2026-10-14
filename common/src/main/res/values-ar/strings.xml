@@ -901,4 +901,5 @@
     <string name="settings_write_settings_granted">إذن «تعديل إعدادات النظام»: مسموح</string>
     <string name="settings_write_settings_missing">إذن «تعديل إعدادات النظام» غير مسموح بعد. اسمح به ليتمكن DiPlay من تشغيل نقطة الاتصال.</string>
     <string name="settings_write_settings_allow">السماح بالإذن</string>
+    <string name="settings_oem_siri_key_description">عند اتصال CarPlay، تفتح ضغطة قصيرة على زر الصوت الأصلي في المقود Siri، حتى عندما يكون CarPlay في الخلفية. عند إيقاف الخيار أو انقطاع الاتصال أو أثناء مكالمة أو تعذّر استخدام Siri، يحتفظ الزر بوظيفة الصوت الأصلية للسيارة. تسري التغييرات فورًا دون إعادة الاتصال. وتظل الضغطة الطويلة تفتح LynkPlay.</string>
 </resources>

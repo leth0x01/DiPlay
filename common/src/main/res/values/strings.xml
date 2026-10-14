@@ -955,4 +955,5 @@
     <string name="settings_write_settings_granted">“Modify system settings” access: allowed</string>
     <string name="settings_write_settings_missing">“Modify system settings” access is not allowed yet. Allow it so DiPlay can turn on the hotspot.</string>
     <string name="settings_write_settings_allow">Allow access</string>
+    <string name="settings_oem_siri_key_description">When CarPlay is connected, a short press of the original steering-wheel voice key opens Siri, including in the background. When off, disconnected, during a call, or if Siri is unavailable, the key keeps the original vehicle voice function. Changes take effect immediately without reconnecting. A long press still opens LynkPlay.</string>
 </resources>

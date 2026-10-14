@@ -3839,7 +3839,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         val zoomAvailable = wheelMapZoomAvailable()
         val vehicleKeysOn = WheelZoomSettings.joystick(this) ||
             (zoomAvailable && WheelZoomSettings.enabled(this))
-        if (WheelZoomSettings.siriKey(this) || vehicleKeysOn) wheelKeyServiceControls(card)
+        if (WheelZoomSettings.siriKeyNeedsService(this) || vehicleKeysOn) wheelKeyServiceControls(card)
         siriKeyControls(card)
         // Any head unit: a paired keyboard, remote or rotary controller works alongside touch.
         toggle(card, getString(R.string.settings_external_controller), getString(R.string.settings_external_controller_description),
@@ -3907,14 +3907,16 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         }
     }
 
-    /** A wheel key that opens Siri on any car whose key reaches the key service. */
+    /** 已验证车型使用原车语音键，其他车型沿用自定义 Siri 按键。 */
     private fun siriKeyControls(card: LinearLayout) {
-        toggle(card, getString(R.string.wheel_siri_key), getString(R.string.wheel_siri_key_description),
+        val nativeVoiceKey = VehicleIntegration.detectedCapabilities.voiceKeyReceiver
+        toggle(card, getString(R.string.wheel_siri_key), getString(if (nativeVoiceKey)
+            R.string.settings_oem_siri_key_description else R.string.wheel_siri_key_description),
             WheelZoomSettings.siriKey(this)) {
             WheelZoomSettings.setSiriKey(this, it)
             render()
         }
-        if (!WheelZoomSettings.siriKey(this)) return
+        if (nativeVoiceKey || !WheelZoomSettings.siriKey(this)) return
         wheelKeyAssignButton(card, WheelZoomSettings.Role.SIRI, getString(R.string.wheel_key_role_siri))
     }
 

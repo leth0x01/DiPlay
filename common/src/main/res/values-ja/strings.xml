@@ -954,4 +954,5 @@
     <string name="settings_write_settings_granted">「システム設定の変更」へのアクセス: 許可済み</string>
     <string name="settings_write_settings_missing">「システム設定の変更」へのアクセスがまだ許可されていません。DiPlay がホットスポットをオンにできるよう許可してください。</string>
     <string name="settings_write_settings_allow">アクセスを許可</string>
+    <string name="settings_oem_siri_key_description">CarPlay接続中は、純正ステアリングの音声ボタンを短押しするとSiriが起動します。CarPlayがバックグラウンドでも使用できます。オフ、未接続、通話中、またはSiriが利用できない場合は車両本来の音声機能を維持します。変更は再接続せず即座に反映されます。長押しは引き続きLynkPlayを開きます。</string>
 </resources>

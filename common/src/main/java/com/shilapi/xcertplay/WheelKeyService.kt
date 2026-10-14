@@ -24,6 +24,7 @@ import com.shilapi.xcertplay.host.R
 import com.shilapi.xcertplay.media.NavigationPlayback
 import com.shilapi.xcertplay.hud.BydNavigationOutputs
 import com.shilapi.xcertplay.hud.BydOutputSettings
+import com.shilapi.xcertplay.vehicle.VehicleIntegration
 
 /**
  * Optional: steering-wheel keys zoom CarPlay's dashboard map and work as a CarPlay joystick. BYD's window
@@ -816,7 +817,12 @@ object WheelZoomSettings {
         WheelKeyService.settingsChanged()
     }
 
-    fun siriKey(context: Context): Boolean = prefs(context).getBoolean(KEY_SIRI, false)
+    fun siriKey(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SIRI, VehicleIntegration.detectedCapabilities.voiceKeyReceiver)
+
+    /** 原车语音广播不需要按键服务，也不执行历史保存的自定义 Siri 按键。 */
+    fun siriKeyNeedsService(context: Context): Boolean =
+        siriKey(context) && !VehicleIntegration.detectedCapabilities.voiceKeyReceiver
 
     fun setSiriKey(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_SIRI, enabled).apply()
@@ -824,9 +830,9 @@ object WheelZoomSettings {
     }
 
     /** Whether any setting needs the key service. */
-    fun anyEnabled(context: Context): Boolean = enabled(context) || joystick(context) || siriKey(context)
+    fun anyEnabled(context: Context): Boolean = enabled(context) || joystick(context) || siriKeyNeedsService(context)
 
-    fun isSiriKey(context: Context, key: WheelKey): Boolean = siriKey(context) && key(context, Role.SIRI) == key
+    fun isSiriKey(context: Context, key: WheelKey): Boolean = siriKeyNeedsService(context) && key(context, Role.SIRI) == key
 
     /**
      * The active role that already has [key], when [role] would share it with the Siri key: [roleOf] gives a
@@ -837,7 +843,7 @@ object WheelZoomSettings {
         val joystick = joystick(context)
         val active = Role.entries.filter {
             when (it) {
-                Role.SIRI -> siriKey(context)
+                Role.SIRI -> siriKeyNeedsService(context)
                 Role.MODE, Role.ZOOM_IN, Role.ZOOM_OUT -> zoom || joystick
                 else -> joystick
             }

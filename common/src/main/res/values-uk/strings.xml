@@ -864,4 +864,5 @@
     <string name="settings_write_settings_granted">Доступ «Зміна системних налаштувань»: дозволено</string>
     <string name="settings_write_settings_missing">Доступ «Зміна системних налаштувань» ще не дозволено. Дозвольте його, щоб DiPlay міг вмикати точку доступу.</string>
     <string name="settings_write_settings_allow">Дозволити доступ</string>
+    <string name="settings_oem_siri_key_description">Коли CarPlay підключено, коротке натискання штатної голосової кнопки на кермі відкриває Siri, зокрема у фоновому режимі. Якщо перемикач вимкнено, немає підключення, триває дзвінок або Siri недоступна, зберігається штатна голосова функція автомобіля. Зміни діють одразу без повторного підключення. Довге натискання й далі відкриває LynkPlay.</string>
 </resources>

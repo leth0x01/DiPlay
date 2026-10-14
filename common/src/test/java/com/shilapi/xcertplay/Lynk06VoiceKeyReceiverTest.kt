@@ -36,6 +36,7 @@ class Lynk06VoiceKeyReceiverTest {
 
     @Before fun setup() {
         CarPlayBackgroundSession.active = false
+        WheelZoomSettings.setSiriKey(app, true)
         for ((field, value) in mapOf("PRODUCT" to "IHU514G", "DEVICE" to "IHU514G",
             "MODEL" to "IHU514G", "HARDWARE" to "xecarx")) {
             ReflectionHelpers.setStaticField(Build::class.java, field, value)
@@ -68,6 +69,28 @@ class Lynk06VoiceKeyReceiverTest {
         assertEquals(1, nativeReceived)
     }
 
+    @Test fun disabledSiriKeepsNativeVoiceEvenWhileConnected() {
+        connect()
+        `when`(controller.requestSiri()).thenReturn(true)
+        WheelZoomSettings.setSiriKey(app, false)
+        send(Lynk06VoiceKeyReceiver.SHORT_PRESS)
+        verify(controller, never()).requestSiri()
+        assertEquals(1, nativeReceived)
+    }
+
+    @Test fun siriSwitchAppliesImmediatelyWithoutReconnecting() {
+        connect()
+        `when`(controller.requestSiri()).thenReturn(true)
+        WheelZoomSettings.setSiriKey(app, false)
+        send(Lynk06VoiceKeyReceiver.SHORT_PRESS)
+        WheelZoomSettings.setSiriKey(app, true)
+        send(Lynk06VoiceKeyReceiver.SHORT_PRESS)
+        WheelZoomSettings.setSiriKey(app, false)
+        send(Lynk06VoiceKeyReceiver.SHORT_PRESS)
+        verify(controller, times(1)).requestSiri()
+        assertEquals(2, nativeReceived)
+    }
+
     @Test fun rejectedSiriKeepsNativeVoice() {
         connect()
         `when`(controller.requestSiri()).thenReturn(false)
@@ -84,6 +107,7 @@ class Lynk06VoiceKeyReceiverTest {
     }
 
     @Test fun longPressLaunchesLynkPlayAndStopsHiCarBroadcast() {
+        WheelZoomSettings.setSiriKey(app, false)
         send(Lynk06VoiceKeyReceiver.LONG_PRESS)
         val launch = shadowOf(app).nextStartedActivity
         assertEquals(DiPlayActivity::class.java.name, launch.component?.className)

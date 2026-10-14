@@ -852,4 +852,5 @@
     <string name="settings_write_settings_granted">Acceso «Modificar ajustes del sistema»: permitido</string>
     <string name="settings_write_settings_missing">El acceso «Modificar ajustes del sistema» aún no está permitido. Permítelo para que DiPlay pueda activar el punto de acceso.</string>
     <string name="settings_write_settings_allow">Permitir acceso</string>
+    <string name="settings_oem_siri_key_description">Con CarPlay conectado, una pulsación corta del botón de voz original del volante abre Siri, también en segundo plano. Si está desactivado, sin conexión, durante una llamada o si Siri no está disponible, se mantiene la función de voz del coche. Los cambios se aplican al instante sin reconectar. Una pulsación larga sigue abriendo LynkPlay.</string>
 </resources>

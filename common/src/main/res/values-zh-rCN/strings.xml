@@ -912,4 +912,5 @@
     <string name="settings_write_settings_granted">“修改系统设置”权限：已允许</string>
     <string name="settings_write_settings_missing">尚未允许“修改系统设置”权限。请允许，以便 DiPlay 开启热点。</string>
     <string name="settings_write_settings_allow">允许权限</string>
+    <string name="settings_oem_siri_key_description">连接 CarPlay 后，短按原车方向盘语音键唤起 Siri，CarPlay 在后台时也可使用。关闭开关、未连接、通话中或 Siri 不可用时，保留原车语音功能。更改立即生效，无需重连；长按仍打开 LynkPlay。</string>
 </resources>

@@ -13,7 +13,7 @@ class Lynk06VoiceKeyReceiver : BroadcastReceiver() {
             intent.action != ACTION || intent.getIntExtra(EXTRA_KEY, -1) != VOICE_KEY) return
         val action = intent.getIntExtra(EXTRA_ACTION, -1)
         val handled = when (action) {
-            SHORT_PRESS -> CarPlayBackgroundSession.active && !inCall(context) &&
+            SHORT_PRESS -> WheelZoomSettings.siriKey(context) && CarPlayBackgroundSession.active && !inCall(context) &&
                 CarPlayMediaKeys.onExternalSiriKey()
             LONG_PRESS -> runCatching {
                 context.startActivity(Intent(context, DiPlayActivity::class.java).apply {
