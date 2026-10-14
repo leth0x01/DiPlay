@@ -14,7 +14,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-/** 系统 UID 不能直接发放普通 Uri 授权；只读接口自行核对原车媒体中心 UID。 */
+/** 系统 UID 不能直接发放普通 Uri 授权；只读接口自行核对原车媒体与卡片组件 UID。 */
 class Lynk06MusicArtworkProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
@@ -22,10 +22,10 @@ class Lynk06MusicArtworkProvider : ContentProvider() {
         val app = checkNotNull(context)
         val caller = Binder.getCallingUid()
         if (caller == android.os.Process.myUid()) return
-        val mediaUid = runCatching {
-            app.packageManager.getApplicationInfo(Lynk06MusicArtwork.MEDIA_CENTER_PACKAGE, 0).uid
-        }.getOrNull()
-        if (caller != mediaUid) throw SecurityException("仅允许原车媒体中心读取仪表封面")
+        val allowed = Lynk06MusicArtwork.READER_PACKAGES.any { packageName ->
+            runCatching { app.packageManager.getApplicationInfo(packageName, 0).uid }.getOrNull() == caller
+        }
+        if (!allowed) throw SecurityException("仅允许原车媒体组件读取仪表封面")
     }
 
     private fun fileForUri(uri: Uri): File {
@@ -148,6 +148,9 @@ internal class Lynk06MusicArtwork(private val context: Context) {
 
     companion object {
         const val MEDIA_CENTER_PACKAGE = "ecarx.xsf.mediacenter"
+        // 实车日志中 UID 10050 为原车卡片组件；实际 UID 每次按安装包查询。
+        const val WIDGET_PACKAGE = "ecarx.xsf.widget"
+        val READER_PACKAGES = listOf(MEDIA_CENTER_PACKAGE, WIDGET_PACKAGE)
         private const val MAX_FILES = 3
         private const val MAX_EDGE = 512
     }

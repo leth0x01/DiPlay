@@ -15,9 +15,21 @@ class AlbumTrackIdentityTest {
     @Test fun realTrackChangesInvalidateOldCover() {
         assertTrue(albumTrackChanged(track, track.copy(artworkTransferId = null)))
         assertTrue(albumTrackChanged(track, track.copy(artworkTransferId = 2)))
-        assertTrue(albumTrackChanged(track, track.copy(artist = "other")))
-        assertTrue(albumTrackChanged(track, track.copy(durationMillis = 240_000)))
+        assertTrue(albumTrackChanged(track, track.copy(title = "next", artist = "other")))
+        assertTrue(albumTrackChanged(track, track.copy(title = "next", durationMillis = 240_000)))
         assertTrue(albumTrackChanged(track, track.copy(title = "next", elapsedMillis = 0)))
+    }
+    @Test fun incrementalMetadataCorrectionsDoNotInvalidateMatchingArtwork() {
+        assertFalse(albumTrackChanged(track, track.copy(artist = "corrected artist")))
+        assertFalse(albumTrackChanged(track, track.copy(album = "corrected album")))
+        assertFalse(albumTrackChanged(track, track.copy(durationMillis = 180_500)))
+        assertFalse(albumTrackChanged(track, track.copy(artist = null, album = null, title = null)))
+        assertFalse(albumTrackChanged(track.copy(durationMillis = 0), track))
+        assertFalse(albumTrackChanged(track, track.copy(title = "lyric", durationMillis = 0)))
+    }
+    @Test fun knownSourceSwitchInvalidatesArtworkButMissingSourceDoesNot() {
+        assertTrue(albumTrackChanged(track.copy(sourceApp = "Music"), track.copy(sourceApp = "Other")))
+        assertFalse(albumTrackChanged(track.copy(sourceApp = "Music"), track.copy(sourceApp = null)))
     }
     @Test fun delayedFirstReferenceAndSourceAreAccepted() {
         assertFalse(albumTrackChanged(CarPlayNowPlaying(), track.copy(artworkTransferId = null)))

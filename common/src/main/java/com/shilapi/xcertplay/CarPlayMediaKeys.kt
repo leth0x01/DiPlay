@@ -166,6 +166,11 @@ internal object CarPlayMediaKeys {
                 }
                 if (albumTrackChanged(nowPlaying, update)) {
                     val previousId = nowPlaying.artworkTransferId
+                    logMediaEvent("媒体：封面缓存失效 reference=$previousId -> ${update.artworkTransferId} " +
+                        "titleChanged=${nowPlaying.title != update.title} artistChanged=${nowPlaying.artist != update.artist} " +
+                        "albumChanged=${nowPlaying.album != update.album} sourceChanged=${nowPlaying.sourceApp != update.sourceApp} " +
+                        "durationMs=${nowPlaying.durationMillis} -> ${update.durationMillis} " +
+                        "positionMs=${nowPlaying.elapsedMillis} -> ${update.elapsedMillis}")
                     if (previousId != null) {
                         ambientColorCache.remove(previousId)
                         artworkCache.remove(previousId)

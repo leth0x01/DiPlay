@@ -53,6 +53,31 @@ class Lynk06ArtworkRoutingTest {
         } finally { cover.recycle() }
     }
 
+    @Test fun decodedCoverSurvivesDelayedDurationAndArtistCorrections() {
+        val initial = CarPlayNowPlaying(title = "歌曲", artist = "歌手", album = "专辑",
+            durationMillis = 0, artworkTransferId = 130, elapsedMillis = 1_000, playing = true)
+        val cover = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        ReflectionHelpers.setField(CarPlayMediaKeys, "controller", controller)
+        ReflectionHelpers.setField(CarPlayMediaKeys, "nowPlaying", initial)
+        ReflectionHelpers.setField(CarPlayMediaKeys, "artwork", cover)
+        ReflectionHelpers.setField(CarPlayMediaKeys, "lynk06MediaCenter", media)
+        cache[130] = cover
+        try {
+            val updates = listOf(
+                initial.copy(durationMillis = 180_000, elapsedMillis = 2_300),
+                initial.copy(durationMillis = 180_000, artist = "补正后的歌手", elapsedMillis = 2_800),
+                initial.copy(durationMillis = 180_000, artist = null, album = null, elapsedMillis = 3_300),
+            )
+            for (update in updates) {
+                `when`(controller.nowPlayingSnapshot()).thenReturn(update)
+                refresh()
+                verify(media).update(update, cover)
+                assertSame(cover, cache[130])
+                assertSame(cover, ReflectionHelpers.getField<ClusterMusicState.Snapshot>(ClusterMusicState, "state").artwork)
+            }
+        } finally { cover.recycle() }
+    }
+
     private fun assertTrackCoverRouting(nextReference: Int) {
         val previous = CarPlayNowPlaying(title = "上一首", artist = "歌手", album = "专辑", artworkTransferId = 1,
             durationMillis = 180_000, elapsedMillis = 60_000)

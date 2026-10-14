@@ -25,7 +25,7 @@ import com.shilapi.xcertplay.media.CarPlayNowPlaying
 @Config(sdk = [28])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class Lynk06MusicArtworkTest {
-    @Test fun onlyTheOemMediaUidCanReadAndNoCallerCanWriteOrEscapeTheCoverDirectory() {
+    @Test fun onlyTheOemMediaAndWidgetUidsCanReadAndNoCallerCanWriteOrEscapeTheCoverDirectory() {
         val context = RuntimeEnvironment.getApplication()
         val authority = "${context.packageName}.lynk06-music-artwork"
         val info = context.packageManager.resolveContentProvider(authority, PackageManager.GET_META_DATA)!!
@@ -33,6 +33,10 @@ class Lynk06MusicArtworkTest {
         org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(android.content.pm.PackageInfo().apply {
             packageName = Lynk06MusicArtwork.MEDIA_CENTER_PACKAGE
             applicationInfo = android.content.pm.ApplicationInfo().apply { uid = 10072; packageName = Lynk06MusicArtwork.MEDIA_CENTER_PACKAGE }
+        })
+        org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(android.content.pm.PackageInfo().apply {
+            packageName = Lynk06MusicArtwork.WIDGET_PACKAGE
+            applicationInfo = android.content.pm.ApplicationInfo().apply { uid = 10150; packageName = Lynk06MusicArtwork.WIDGET_PACKAGE }
         })
         val store = Lynk06MusicArtwork(context)
         val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
@@ -48,6 +52,17 @@ class Lynk06MusicArtworkTest {
             assertThrows(IllegalArgumentException::class.java) {
                 provider.openFile(uri.buildUpon().path("/covers/../unrelated.txt").build(), "r")
             }
+            // 故意不用现场 UID 10050，验证授权依据安装包查询而非固定数字。
+            org.robolectric.shadows.ShadowBinder.setCallingUid(10150)
+            assertEquals("image/jpeg", provider.getType(uri))
+            provider.openFile(uri, "r").use { assertTrue(it.statSize > 0) }
+            assertTrue(provider.query(uri, null, null, null, null).use { it.moveToFirst() })
+            assertThrows(SecurityException::class.java) { provider.openFile(uri, "rw") }
+            assertThrows(IllegalArgumentException::class.java) {
+                provider.openFile(uri.buildUpon().path("/covers/../unrelated.txt").build(), "r")
+            }
+            org.robolectric.shadows.ShadowBinder.setCallingUid(10050)
+            assertThrows(SecurityException::class.java) { provider.openFile(uri, "r") }
         } finally {
             org.robolectric.shadows.ShadowBinder.setCallingUid(android.os.Process.myUid())
             store.close()
