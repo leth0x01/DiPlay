@@ -130,6 +130,7 @@ internal object CarPlayMediaKeys {
                     (CarPlayVideo.onMediaKey(index) || expected.sendMediaButton(index))
             },
             log = { message -> Log.i(TAG, message); AsyncDiagnosticLog.append(logTarget, message) },
+            initialArtwork = artwork,
         ).also { it.start() }
     }
 
@@ -177,7 +178,7 @@ internal object CarPlayMediaKeys {
                 if (nowPlaying.elapsedMillis != update.elapsedMillis) elapsedUpdatedAt = SystemClock.elapsedRealtime()
                 val metadataChanged = metadataChanged(nowPlaying, update) || artwork !== previousArtwork
                 nowPlaying = update
-                lynk06MediaCenter?.update(update)
+                lynk06MediaCenter?.update(update, artwork)
                 if (metadataChanged) ClusterMusicState.publish(update, update.artworkTransferId?.let { artworkCache[it] })
                 updateInitialAlbumRecovery(expected)
                 // The iPhone repeats NowPlayingUpdate about twice a second for the position alone.
@@ -211,6 +212,7 @@ internal object CarPlayMediaKeys {
         while (artworkCache.size > MAX_CACHED_ARTWORK) artworkCache.remove(artworkCache.keys.first())
         if (nowPlaying.artworkTransferId == id) {
             artwork = decoded
+            lynk06MediaCenter?.update(nowPlaying, artwork)
             ClusterMusicState.publish(nowPlaying, artwork)
             controller?.let { com.shilapi.xcertplay.media.AmbientMusicController.albumColorChanged(it, result?.color) }
             controller?.let(::updateInitialAlbumRecovery)

@@ -16,6 +16,56 @@ import org.robolectric.util.ReflectionHelpers
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], manifest = Config.NONE)
 class Lynk06MediaCenterTest {
+    @Test fun instrumentMusicSourceMatchesOnlineMusicInTheVehicle() {
+        val info = CarPlayNowPlaying(title = "CarPlay 歌曲", playing = true)
+        val playback = Lynk06MusicPlayback("lynkplay", null) { info }
+        val client = Lynk06MusicClient(playback, { info }, { true }, {})
+        // 原车 DIM 来源列表将 ONLINE=6 编码为音乐；LOCAL=0 无对应项目。
+        assertEquals(6, call(playback, 9) { it.readInt() })
+        assertEquals(6, call(client, 12) { it.readInt() })
+        assertArrayEquals(intArrayOf(6), call(client, 11) { it.createIntArray() })
+    }
+
+    @Test fun selectingInstrumentMusicClaimsControlBeforePlaying() {
+        val app = RuntimeEnvironment.getApplication()
+        val events = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val played = java.util.concurrent.CountDownLatch(1)
+        val token = Binder()
+        val link = Lynk06MediaCenter(app, CarPlayNowPlaying(title = "歌曲"),
+            { events += "send:$it"; played.countDown(); true }, {})
+        val remote = object : Binder() {
+            init { attachInterface(null, Lynk06MediaCenterService.DESCRIPTOR) }
+            override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+                data.enforceInterface(Lynk06MediaCenterService.DESCRIPTOR)
+                assertSame(token, data.readStrongBinder())
+                when (code) {
+                    5 -> events += "claim"
+                    6 -> {
+                        val playback = data.readStrongBinder()!!
+                        assertEquals(6, call(playback, 9) { it.readInt() })
+                        events += "publish"
+                    }
+                    8 -> assertEquals(6, data.readInt())
+                    10 -> data.readLong()
+                    4 -> Unit
+                    else -> fail("未预期的服务调用：$code")
+                }
+                reply!!.writeNoException()
+                if (code == 4 || code == 5 || code == 6) reply.writeInt(1)
+                return true
+            }
+        }
+        try {
+            ReflectionHelpers.setField(link, "api", Lynk06MediaCenterService(remote))
+            ReflectionHelpers.setField(link, "token", token)
+            val client = ReflectionHelpers.getField<IBinder>(link, "client")
+            assertEquals(0, call(client, 8, { it.writeInt(1) }) { it.readInt() })
+            assertEquals(1, call(client, 8, { it.writeInt(6) }) { it.readInt() })
+            assertTrue("音乐选择未转发播放", played.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(listOf("claim", "publish", "send:${CarPlayMediaButton.PLAY}"), events)
+        } finally { link.close() }
+    }
+
     @Test fun lateRequestCannotUndoARealFocusLossOrShutdown() {
         val control = Lynk06MediaControl("lynkplay")
         val request = control.beginRequest()
@@ -58,6 +108,7 @@ class Lynk06MediaCenterTest {
                     assertEquals("歌曲", call(playback, 2) { it.readString() })
                     assertEquals(0, call(playback, 11) { it.readInt() })
                 } else if (code == 10) data.readLong()
+                else if (code == 8) assertEquals(6, data.readInt())
                 else assertTrue(code == 4 || code == 5)
                 reply!!.writeNoException()
                 if (code != 10) reply.writeInt(1)
@@ -71,11 +122,15 @@ class Lynk06MediaCenterTest {
             assertEquals(0, call(client, 3) { it.readInt() })
             ReflectionHelpers.callInstanceMethod<Unit>(link, "claimControl")
             for (code in 1..4) assertEquals(1, call(client, code) { it.readInt() })
+            call(client, 17, { it.writeInt(2); it.writeString("原车蓝牙") }) { }
+            assertEquals(0, call(client, 3) { it.readInt() })
+            call(client, 25, { it.writeString(app.packageName) }) { }
             call(client, 25, { it.writeString("原车播放器") }) { }
             assertEquals(0, call(client, 3) { it.readInt() })
             call(client, 25, { it.writeString(app.packageName) }) { }
             link.close()
             assertEquals(0, call(client, 4) { it.readInt() })
+            assertEquals(0, call(client, 8, { it.writeInt(6) }) { it.readInt() })
             assertEquals(listOf(CarPlayMediaButton.PLAY, CarPlayMediaButton.PAUSE,
                 CarPlayMediaButton.NEXT, CarPlayMediaButton.PREVIOUS), sent)
         } finally {
@@ -138,7 +193,10 @@ class Lynk06MediaCenterTest {
                 data.enforceInterface(Lynk06MediaCenterService.DESCRIPTOR)
                 transactions += code
                 when (code) {
-                    1 -> assertSame(client, data.readStrongBinder())
+                    19 -> {
+                        assertEquals("com.leth0x01.lynkplay.clustersystem", data.readString())
+                        assertSame(client, data.readStrongBinder())
+                    }
                     4, 5 -> assertSame(token, data.readStrongBinder())
                     6 -> {
                         assertSame(token, data.readStrongBinder())
@@ -151,18 +209,18 @@ class Lynk06MediaCenterTest {
                     else -> fail("未预期的服务调用：$code")
                 }
                 reply!!.writeNoException()
-                if (code == 1) reply.writeStrongBinder(token)
+                if (code == 19) reply.writeStrongBinder(token)
                 else if (code != 10) reply.writeInt(1)
                 return true
             }
         }
         val api = Lynk06MediaCenterService(service)
-        assertSame(token, api.register(client))
+        assertSame(token, api.register(client, "com.leth0x01.lynkplay.clustersystem"))
         assertTrue(api.requestControl(token))
         assertTrue(api.updatePlayback(token, playback))
         api.updateProgress(token, 8_000)
         assertTrue(api.unregister(token))
-        assertEquals(listOf(1, 5, 6, 10, 4), transactions)
+        assertEquals(listOf(19, 5, 6, 10, 4), transactions)
     }
 
     @Test fun mismatchedServiceIsRejectedBeforeSendingAnyTransaction() {
@@ -170,7 +228,7 @@ class Lynk06MediaCenterTest {
         assertThrows(IllegalArgumentException::class.java) { Lynk06MediaCenterService(wrong) }
     }
 
-    @Test fun onlyMediaKeysAndDimCapabilitiesAreDeclaredWithTheLocalSource() {
+    @Test fun onlyMediaKeysAndDimCapabilitiesAreDeclaredWithTheInstrumentMusicSource() {
         val token = Binder()
         val codes = mutableListOf<Int>()
         val remote = object : Binder() {
@@ -181,8 +239,8 @@ class Lynk06MediaCenterTest {
                 codes += code
                 when (code) {
                     30 -> assertArrayEquals(intArrayOf(0, 2), data.createIntArray())
-                    7 -> assertArrayEquals(intArrayOf(0), data.createIntArray())
-                    8 -> assertEquals(0, data.readInt())
+                    7 -> assertArrayEquals(intArrayOf(6), data.createIntArray())
+                    8 -> assertEquals(6, data.readInt())
                     else -> fail("未预期的调用：$code")
                 }
                 reply!!.writeNoException()
@@ -193,6 +251,77 @@ class Lynk06MediaCenterTest {
         api.declareWheelControl(token)
         api.updateSources(token)
         assertEquals(listOf(30, 7, 8), codes)
+    }
+
+    @Test fun sourceSelectionRejectsOtherSourcesAndUnrelatedTracks() {
+        var selections = 0
+        val info = CarPlayNowPlaying(title = "歌曲", artist = "歌手")
+        val client = Lynk06MusicClient(Binder(), { info }, { false }, {},
+            { selections++; true })
+        assertEquals(1, call(client, 8, { it.writeInt(6) }) { it.readInt() })
+        for (code in listOf(21)) {
+            assertEquals(0, call(client, code, { it.writeInt(1); it.writeString(null) }) { it.readInt() })
+            assertEquals(0, call(client, code, { it.writeInt(6); it.writeString("其他歌曲") }) { it.readInt() })
+            assertEquals(1, call(client, code, { it.writeInt(6); it.writeString("歌曲|歌手") }) { it.readInt() })
+            assertEquals(1, call(client, code, { it.writeInt(6); it.writeString("") }) { it.readInt() })
+        }
+        assertEquals(3, selections)
+    }
+
+    @Test fun sourceChangedNotificationNeverStartsPlaybackOrClaimsControl() {
+        val changes = mutableListOf<Pair<Int, String?>>()
+        val client = Lynk06MusicClient(Binder(), { CarPlayNowPlaying() },
+            { fail("来源通知不能发送媒体键"); false }, {},
+            { fail("来源通知不能取得控制权"); false },
+            { source, owner -> changes += source to owner })
+        assertEquals(1, call(client, 17, { it.writeInt(6); it.writeString("原车音乐") }) { it.readInt() })
+        assertEquals(1, call(client, 17, { it.writeInt(2); it.writeString(null) }) { it.readInt() })
+        assertEquals(listOf(6 to "原车音乐", 2 to null), changes)
+    }
+
+    @Test fun artworkGetterUsesOptionalUriParcelEncoding() {
+        var uri: android.net.Uri? = android.net.Uri.parse("content://lynkplay/covers/1.jpg")
+        val playback = Lynk06MusicPlayback("lynkplay", null, { uri }) { CarPlayNowPlaying() }
+        assertEquals(uri, call(playback, 16) {
+            assertEquals(1, it.readInt())
+            android.net.Uri.CREATOR.createFromParcel(it)
+        })
+        uri = null
+        assertEquals(0, call(playback, 16) { it.readInt() })
+    }
+
+    @Test fun unchangedPlaybackDoesNotUnregisterOrLoseControl() {
+        val app = RuntimeEnvironment.getApplication()
+        val token = Binder()
+        val codes = mutableListOf<Int>()
+        val link = Lynk06MediaCenter(app, CarPlayNowPlaying(playing = true), { true }, {})
+        val remote = object : Binder() {
+            init { attachInterface(null, Lynk06MediaCenterService.DESCRIPTOR) }
+            override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+                data.enforceInterface(Lynk06MediaCenterService.DESCRIPTOR)
+                assertSame(token, data.readStrongBinder())
+                codes += code
+                when (code) {
+                    6 -> data.readStrongBinder()
+                    10 -> data.readLong()
+                    4 -> Unit
+                    else -> fail("未预期的调用：$code")
+                }
+                reply!!.writeNoException()
+                if (code == 4 || code == 6) reply.writeInt(0)
+                return true
+            }
+        }
+        try {
+            ReflectionHelpers.setField(link, "api", Lynk06MediaCenterService(remote))
+            ReflectionHelpers.setField(link, "token", token)
+            val control = ReflectionHelpers.getField<Lynk06MediaControl>(link, "control")
+            control.focusChanged(app.packageName)
+            ReflectionHelpers.callInstanceMethod<Unit>(link, "publishState")
+            assertEquals(listOf(6, 10), codes)
+            assertSame(token, ReflectionHelpers.getField<IBinder>(link, "token"))
+            assertTrue(control.owned)
+        } finally { link.close() }
     }
 
     private fun <T> call(binder: IBinder, code: Int, write: (Parcel) -> Unit = {}, read: (Parcel) -> T): T {
