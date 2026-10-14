@@ -5470,7 +5470,6 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private fun diagnosticReportText(appContext: Context): String = buildString {
         appendLine("LynkPlay ${version()} · private beta diagnostic report")
         appendLine("Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
-        appendLine("Head unit: ${Build.MANUFACTURER} ${Build.MODEL}")
         appendLine(VehicleIntegration.diagnosticReport(appContext))
         appendLine(GeelyWheelKeys.diagnosticReport(appContext))
         if (VehicleIntegration.detectedCapabilities.voiceKeyReceiver) appendLine(Lynk06VoiceKeyReceiver.diagnosticReport())
@@ -5487,7 +5486,6 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         appendLine("Saved resolution preference (may differ from active session): ${AirPlayPersistence.loadDisplayScalePercent(appContext)}%")
         appendLine("Session: ${if (CarPlayBackgroundSession.active) "active" else if (CarPlayBackgroundSession.hasSession()) "connecting" else "stopped"}")
         appendLine(PhoneWakeDiagnostics.report(appContext))
-        appendLine("Head-unit board: ${Build.BOARD}; hardware: ${Build.HARDWARE}; build: ${Build.DISPLAY}")
         appendLine()
         appendLine("--- Current cluster display diagnostics (even when disabled) ---")
         appendLine(ClusterMapPresentation.diagnosticReport(appContext))
@@ -5495,6 +5493,12 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             appendLine(Lynk06MusicArtworkProvider.diagnosticReport())
             appendLine(Lynk06ArtworkServer.diagnosticReport())
         }
+        appendLine()
+        appendLine("--- Head-unit input devices ---")
+        appendLine(HeadUnitHardwareDiagnostics.inputDevicesReport())
+        appendLine()
+        appendLine("--- Head-unit media codecs ---")
+        appendLine(HeadUnitHardwareDiagnostics.codecReport())
         appendLine()
         appendLine("--- ADB cluster activity routing ---")
         appendLine("adbClusterActivityEnabled=${AirPlayPersistence.loadAdbClusterEnabled(appContext)}")

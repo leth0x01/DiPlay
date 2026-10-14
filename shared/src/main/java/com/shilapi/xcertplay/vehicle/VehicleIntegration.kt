@@ -1,9 +1,12 @@
 package com.shilapi.xcertplay.vehicle
 
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.os.Build
+import android.view.Display
 import com.shilapi.xcertplay.network.GeelyHeadUnit
 import com.shilapi.xcertplay.shared.R
+import java.util.Locale
 
 /**
  * 车型适配门面：把运行中的车机解析为 [VehicleAdapter]，并对外暴露能力与设置默认值。
@@ -43,25 +46,8 @@ object VehicleIntegration {
     val settingsDefaults: VehicleSettingsDefaults
         get() = detectedAdapter()?.settingsDefaults ?: VehicleSettingsDefaults()
 
-    /** 不同固件的 Build.MODEL 回报不同：旧固件为 IHU514G，BX11 固件直接回报车型代号 BX11。 */
-    fun isLynk06Model(model: String?): Boolean = LynkModelIdentifiers.isLynk06Model(model)
-
     /** 厂商事件和录音回退仅用于完整匹配的实车，构建目标不能启用它们。 */
     fun isDetectedLynk06(): Boolean = detectedAdapter()?.id == LYNK_06_2023_PETROL
-
-    /**
-     * BX11 是领克 06 的车型代号：BX11 固件的 Build.MODEL 直接为 BX11，
-     * 固件版本号（如 SW0BX110520H8EHH）也带有它。车型能力仍以完整设备组合匹配为准。
-     */
-    fun isBx11Model(model: String?): Boolean = LynkModelIdentifiers.isBx11Model(model)
-
-    fun isBx11(): Boolean = isBx11Model(Build.MODEL) || isBx11Firmware()
-
-    /** BX11 固件的版本号里带有车型代号（如 SW0BX110520H8EHH），作辅助诊断依据。 */
-    fun isBx11Firmware(versionName: String?, display: String?): Boolean =
-        LynkModelIdentifiers.isBx11Firmware(versionName, display)
-
-    fun isBx11Firmware(): Boolean = isBx11Firmware(firmwareVersionName(), Build.DISPLAY)
 
     /** ro.build.version.versionname；部分车机固件只在这个属性里带车型代号。 */
     fun firmwareVersionName(): String? = runCatching {
@@ -91,15 +77,41 @@ object VehicleIntegration {
 
     fun bydEnabled(context: Context): Boolean = effectiveAdapter(context).capabilities.bydIntegration
 
+    /**
+     * 车机屏幕的物理参数，适配显示比例与按键布局的依据。
+     *
+     * 用应用上下文的 resources，而不是界面的：界面可能被 InterfaceSize 改过密度。
+     */
+    private fun screenDescription(context: Context): String {
+        val metrics = context.resources.displayMetrics
+        val refresh = runCatching {
+            (context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager)
+                .getDisplay(Display.DEFAULT_DISPLAY)?.refreshRate
+        }.getOrNull()
+        val refreshText = refresh?.takeIf { it > 0f }?.let { " %.1fHz".format(Locale.US, it) } ?: ""
+        // 视频适配参考：GPU 支持的 GLES 版本，不需要创建 GL 上下文。
+        val glEs = runCatching {
+            (context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager)
+                .deviceConfigurationInfo.reqGlEsVersion
+        }.getOrNull()?.takeIf { it != 0 }?.let { "; glEs=${it shr 16}.${it and 0xFFFF}" } ?: ""
+        return "${metrics.widthPixels}x${metrics.heightPixels} ${metrics.densityDpi}dpi$refreshText$glEs"
+    }
+
     fun diagnosticReport(context: Context): String = buildString {
         appendLine("Vehicle build target: ${context.getString(R.string.config_vehicle_profile)}")
         appendLine("车机自动匹配：${detectedProfile() ?: "未匹配，使用构建目标"}")
         appendLine("有效车型适配器：${effectiveAdapter(context).id}")
         appendLine("BYD integration: ${bydEnabled(context)}")
-        appendLine("Device identifiers: product=${Build.PRODUCT}; device=${Build.DEVICE}; model=${Build.MODEL}; brand=${Build.BRAND}")
+        appendLine("Device identifiers: manufacturer=${Build.MANUFACTURER}; brand=${Build.BRAND}; model=${Build.MODEL}; product=${Build.PRODUCT}; device=${Build.DEVICE}; board=${Build.BOARD}; hardware=${Build.HARDWARE}")
         val versionName = firmwareVersionName()
         appendLine("Firmware: ${Build.DISPLAY}; ABI=${Build.SUPPORTED_ABIS.joinToString()}")
-        appendLine("BX11: model=${isBx11Model(Build.MODEL)} firmware=${isBx11Firmware(versionName, Build.DISPLAY)} (versionname=${versionName ?: "unknown"})")
+        // 适配新车的依据：fingerprint 是固件身份，incremental 常是车机固件的真实版本号。
+        appendLine("Firmware fingerprint: ${Build.FINGERPRINT}")
+        appendLine("Firmware build: id=${Build.ID}; incremental=${Build.VERSION.INCREMENTAL}; type=${Build.TYPE}; tags=${Build.TAGS}; bootloader=${Build.BOOTLOADER}")
+        appendLine("Firmware version name: ${versionName ?: "unknown"}")
+        // SoC 型号只在 Android 12+ 可查；解码器兼容问题（如 MTK 调优）按它归因。
+        if (Build.VERSION.SDK_INT >= 31) appendLine("SoC: ${Build.SOC_MANUFACTURER} ${Build.SOC_MODEL}")
+        appendLine("Screen: ${screenDescription(context)}")
         appendLine("Geely input contract verified: ${GeelyHeadUnit.wheelInputSupported}")
         appendLine("Siri source: ${if (GeelyHeadUnit.siriVoiceCommunication) "VOICE_COMMUNICATION" else "VOICE_RECOGNITION (standard fallback enabled)"}")
         appendLine("Audio focus policy: standard; display policy: standard")

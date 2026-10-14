@@ -30,8 +30,6 @@ class VehicleIntegrationTest {
         }
         val app = RuntimeEnvironment.getApplication()
         assertEquals(VehicleIntegration.LYNK_06_2023_PETROL, VehicleIntegration.profile(app))
-        assertTrue(VehicleIntegration.isBx11Model(Build.MODEL))
-        assertTrue(VehicleIntegration.diagnosticReport(app).contains("BX11: model=true"))
     }
 
     @Test fun collectedIdentifiersSelectPetrolProfileWithoutTrimSelection() {
@@ -45,6 +43,8 @@ class VehicleIntegrationTest {
             VehicleIntegration.detectedProfile("IHU514G", "IHU514G", "BX11", "xecarx", 28))
         assertEquals(VehicleIntegration.LYNK_06_2023_PETROL,
             VehicleIntegration.detectedProfile("IHU514G", "IHU514G", "bx11", "xecarx", 28))
+        assertEquals(VehicleIntegration.LYNK_06_2023_PETROL,
+            VehicleIntegration.detectedProfile("IHU514G", "IHU514G", " bx11 ", "xecarx", 28))
     }
 
     @Test fun bx11ModelDoesNotWidenTheRestOfTheDeviceCombination() {
@@ -87,23 +87,25 @@ class VehicleIntegrationTest {
         assertTrue(VehicleIntegration.diagnosticReport(app).contains("有效车型适配器：${VehicleAdapters.LYNK_06_2023_PETROL}"))
     }
 
-    @Test fun bx11FirmwareMarkerMatchesCollectedVersionName() {
-        assertTrue(VehicleIntegration.isBx11Firmware("SW0BX110520H8EHH.00762", null))
-        assertTrue(VehicleIntegration.isBx11Firmware(null, "sw0bx110520h8ehh.00762"))
-        assertFalse(VehicleIntegration.isBx11Firmware("SW0CX220520H8EHH.00762", null))
-        assertFalse(VehicleIntegration.isBx11Firmware(null, null))
+    @Test fun diagnosticReportCarriesFullFirmwareIdentityAndScreen() {
+        // 未适配车型（如领克 03）的报告也必须带齐适配所需的固件身份。
+        for ((field, value) in mapOf(
+            "FINGERPRINT" to "LynkCo/BX11/BX11:10/QQ3A.200805.001/eng.build:user/release-keys",
+            "ID" to "QQ3A.200805.001",
+            "TYPE" to "user",
+            "TAGS" to "release-keys",
+            "BOOTLOADER" to "unknown",
+        )) {
+            ReflectionHelpers.setStaticField(Build::class.java, field, value)
+        }
+        ReflectionHelpers.setStaticField(Build.VERSION::class.java, "INCREMENTAL", "eng.build.20240101")
+        val app = RuntimeEnvironment.getApplication()
+        val report = VehicleIntegration.diagnosticReport(app)
+        assertTrue(report, report.contains("Firmware fingerprint: LynkCo/BX11/BX11:10/QQ3A.200805.001/eng.build:user/release-keys"))
+        assertTrue(report, report.contains("Firmware build: id=QQ3A.200805.001; incremental=eng.build.20240101; type=user; tags=release-keys; bootloader=unknown"))
+        assertTrue(report, report.lines().any { it.startsWith("Firmware version name: ") })
+        val screen = report.lines().single { it.startsWith("Screen: ") }
+        assertTrue(screen, screen.matches(Regex("Screen: \\d+x\\d+ \\d+dpi.*")))
     }
 
-    @Test fun bx11ModelMarkerIsExact() {
-        assertTrue(VehicleIntegration.isBx11Model("BX11"))
-        assertTrue(VehicleIntegration.isBx11Model(" bx11 "))
-        assertFalse(VehicleIntegration.isBx11Model("BX110"))
-        assertFalse(VehicleIntegration.isBx11Model(null))
-    }
-
-    @Test fun bx11FirmwareAloneDoesNotSelectVehicleProfile() {
-        // BX11 只是固件代号，不能替代完整设备组合匹配。
-        assertTrue(VehicleIntegration.isBx11Firmware("SW0BX110520H8EHH.00762", null))
-        assertNull(VehicleIntegration.detectedProfile("other", "other", "other", "other", 28))
-    }
 }

@@ -12,10 +12,4 @@ internal object LynkModelIdentifiers {
         val normalized = model?.trim() ?: return false
         return normalized.equals("IHU514G", true) || normalized.equals("BX11", true)
     }
-
-    fun isBx11Model(model: String?): Boolean = model?.trim().equals("BX11", ignoreCase = true)
-
-    /** BX11 固件的版本号里带有车型代号（如 SW0BX110520H8EHH），作辅助诊断依据。 */
-    fun isBx11Firmware(versionName: String?, display: String?): Boolean =
-        listOfNotNull(versionName, display).any { it.contains("BX11", ignoreCase = true) }
 }

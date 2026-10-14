@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.graphics.Point
 import android.hardware.display.DisplayManager
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
 import android.view.Gravity
@@ -29,6 +30,7 @@ import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.host.R
 import com.shilapi.xcertplay.hud.CarPlayNavigationStatus
 import com.shilapi.xcertplay.hud.ClusterTurnGuidance
+import java.util.Locale
 
 /** 在已匹配的仪表投影显示上呈现独立 CarPlay 地图流。原车投影模式由车机管理。 */
 internal class ClusterMapPresentation(
@@ -253,9 +255,15 @@ internal class ClusterMapPresentation(
 
         fun describeDisplays(context: Context): String =
             context.getSystemService(DisplayManager::class.java)?.displays
-                ?.joinToString {
-                    val size = sizeOf(it)
-                    "${it.displayId}:${it.name} ${size.x}x${size.y} flags=${it.flags} valid=${it.isValid}"
+                ?.joinToString { display ->
+                    val size = sizeOf(display)
+                    val metrics = DisplayMetrics().also {
+                        @Suppress("DEPRECATION")
+                        display.getRealMetrics(it)
+                    }
+                    "${display.displayId}:${display.name} ${size.x}x${size.y} ${metrics.densityDpi}dpi " +
+                        "%.1fHz".format(Locale.US, display.refreshRate) +
+                        " flags=${display.flags} valid=${display.isValid}"
                 }.orEmpty()
 
         fun diagnosticReport(context: Context): String = buildString {

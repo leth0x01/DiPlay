@@ -1,3 +1,11 @@
+# LynkPlay 0.2.2
+
+- 改进仪表音乐封面的同步，减少歌词更新后封面消失或停留在旧图的情况。
+- 改进原车音乐卡片读取 CarPlay 封面的兼容性。
+- 完善车机硬件诊断信息，方便排查方控、屏幕和音视频适配问题。
+
+可覆盖安装旧版及 v49–v52 车测包，保留设置和配对记录。音乐封面实车效果仍需确认，上一首、下一首封面暂未接入。详见 [0.2.2 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.2.2.md)。
+
 # LynkPlay 0.2.1
 
 车测包与正式包合并为同一个 `release` 构建，包名统一为 `com.leth0x01.lynkplay`：使用 BX11 平台签名并声明 `android.uid.system`。2026-10-14 实车反馈：使用平台签名包后仪表盘 CarPlay 地图可以显示；此前不带系统 UID 的包不能显示。`carTest` 与 `clusterSystem` 构建已移除。构建方式见[车测说明](docs/LYNKPLAY-CAR-TEST.md)。
