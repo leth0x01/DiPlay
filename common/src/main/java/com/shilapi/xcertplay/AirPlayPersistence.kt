@@ -654,9 +654,10 @@ object AirPlayPersistence {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_SMOOTH_VIDEO, enabled).apply()
     }
 
-    /** MediaTek's legacy low-latency/no-reorder decoder path; opt-in and applied at reconnect. */
+    /** MTK 低延迟/无重排路径；已验证领克固件默认开启，用户可回退，下次连接生效。 */
     fun loadMtkDecoderTuning(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_MTK_DECODER_TUNING, false)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_MTK_DECODER_TUNING, VehicleSettingsPolicy.mtkDecoderTuningDefault)
 
     fun saveMtkDecoderTuning(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -664,7 +665,8 @@ object AirPlayPersistence {
     }
 
     fun loadDirectVideoOutput(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_DIRECT_VIDEO_OUTPUT, false)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DIRECT_VIDEO_OUTPUT, VehicleSettingsPolicy.directVideoOutputDefault)
 
     fun saveDirectVideoOutput(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_DIRECT_VIDEO_OUTPUT, enabled).apply()
@@ -678,7 +680,8 @@ object AirPlayPersistence {
     }
 
     fun loadLowLatencyDecoder(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_LOW_LATENCY_DECODER, false)
+        VehicleSettingsPolicy.showQualcommLowLatency &&
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_LOW_LATENCY_DECODER, false)
 
     fun saveLowLatencyDecoder(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_LOW_LATENCY_DECODER, enabled).apply()
@@ -1273,7 +1276,7 @@ object AirPlayPersistence {
     }
 
     fun loadHarmanFullscreen(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        VehicleSettingsPolicy.showHarmanFullscreen && context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(KEY_HARMAN_FULLSCREEN, false)
 
     fun saveHarmanFullscreen(context: Context, enabled: Boolean) {

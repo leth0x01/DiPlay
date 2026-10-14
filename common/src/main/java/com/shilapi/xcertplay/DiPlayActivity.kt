@@ -1873,7 +1873,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         }
         filteredSection(content, SettingsSection.EXPERIMENTAL_DISPLAY,
             getString(R.string.settings_experimental_display), R.drawable.ic_dp_display) { card ->
-            toggle(card, getString(R.string.settings_harman_fullscreen_experimental),
+            if (VehicleSettingsPolicy.showHarmanFullscreen) toggle(card, getString(R.string.settings_harman_fullscreen_experimental),
                 getString(R.string.settings_harman_fullscreen_experimental_description),
                 AirPlayPersistence.loadHarmanFullscreen(this)) { enabled ->
                 AirPlayPersistence.saveHarmanFullscreen(this, enabled)
@@ -1942,7 +1942,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 AirPlayPersistence.saveDirectVideoOutput(this, it)
                 reconnectIfRunning()
             }
-            toggle(card, getString(R.string.settings_low_latency_decoder),
+            if (VehicleSettingsPolicy.showQualcommLowLatency) toggle(card, getString(R.string.settings_low_latency_decoder),
                 getString(R.string.settings_low_latency_decoder_description),
                 AirPlayPersistence.loadLowLatencyDecoder(this)) {
                 AirPlayPersistence.saveLowLatencyDecoder(this, it)
