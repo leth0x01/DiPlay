@@ -2,11 +2,13 @@
 
 A [DiPlay](https://github.com/shihabal3amri/DiPlay) fork targeting the **2023 Lynk & Co 06 petrol model with an Android 9 head unit**. [中文说明](README.zh-CN.md).
 
-The current LynkPlay version is **0.1.9** (versionCode 47), incorporating DiPlay 0.2.19.
+The current LynkPlay version is **0.2.1** (versionCode 48), incorporating DiPlay 0.2.19.
 
 Vehicle feedback confirms that both wired and wireless CarPlay connect on the target head unit. In the previous build, steering-wheel music controls stopped working when car Bluetooth was disconnected. This version adds a client for the vehicle media center; the new media controls, audio behavior and cluster display changes still need vehicle validation.
 
-This update adds a vehicle media-center client for steering-wheel playback and track controls, media-key diagnostics, and Lynk 06 voice-key, microphone and cluster adaptations. See the [LynkPlay 0.1.9 release notes](docs/LYNKPLAY-RELEASE-NOTES-0.1.9.md), [vehicle testing guide](docs/LYNKPLAY-CAR-TEST.md), and [validation record](docs/LYNKPLAY-VALIDATION.md).
+The car-test package is platform-signed and declares `android.uid.system`. Vehicle feedback on 2026-10-14 confirms the Dashboard CarPlay map shows with this package; packages without the system UID do not.
+
+This update adds a vehicle media-center client for steering-wheel playback and track controls, media-key diagnostics, and Lynk 06 voice-key, microphone and cluster adaptations. This version also merges the car-test and release packages into one platform-signed build. See the [LynkPlay 0.2.1 release notes](docs/LYNKPLAY-RELEASE-NOTES-0.2.1.md), [vehicle testing guide](docs/LYNKPLAY-CAR-TEST.md), and [validation record](docs/LYNKPLAY-VALIDATION.md).
 
 ## Build and install
 
@@ -16,7 +18,7 @@ Build the main `mobile` module using JDK 25 and the SDK specified in [BUILD.md](
 .\gradlew.bat :mobile:assembleDebug
 ```
 
-- Release application ID: `com.leth0x01.lynkplay`.
+- Application ID: `com.leth0x01.lynkplay`; platform-signed and declared `android.uid.system`. The release and car-test packages are the same build.
 - Debug application ID: `com.leth0x01.lynkplay.hudtest`.
 - APK: `mobile/build/outputs/apk/debug/mobile-debug.apk`.
 - DiPlay and LynkPlay can coexist; app data and permissions are separate. Settings do not migrate automatically.
@@ -24,6 +26,8 @@ Build the main `mobile` module using JDK 25 and the SDK specified in [BUILD.md](
 - Internal namespaces and compatibility actions remain unchanged to simplify upstream merges.
 
 Ordinary source builds contain no runtime accessory identity. A successful build alone does not establish an iPhone connection. Follow the existing local standalone build instructions if you have provisioned runtime assets; never commit those assets or signing keys.
+
+Build the vehicle package with `uv run scripts/build_lynkplay_car_test.py`. It runs `:mobile:assembleRelease` and verifies the BX11 platform certificate, application ID and `android.uid.system` declaration. See the [vehicle testing guide](docs/LYNKPLAY-CAR-TEST.md).
 
 Continue vehicle testing for the audio anomaly, cluster map, connection stability, Siri, steering-wheel keys, display and startup. See [Android 9 Wi-Fi Direct limits](docs/ANDROID9_WIFI_DIRECT.md). Run one receiver app at a time during testing.
 

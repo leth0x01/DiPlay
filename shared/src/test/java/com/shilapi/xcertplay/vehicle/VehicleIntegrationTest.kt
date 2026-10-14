@@ -65,6 +65,28 @@ class VehicleIntegrationTest {
         assertNull(VehicleIntegration.detectedProfile(null, null, null, null, 28))
     }
 
+    @Test fun unmatchedDeviceFallsBackToTheBuildTargetAdapter() {
+        for ((field, value) in mapOf("PRODUCT" to "sdk_gphone", "DEVICE" to "generic",
+            "MODEL" to "sdk_gphone", "HARDWARE" to "ranchu")) {
+            ReflectionHelpers.setStaticField(Build::class.java, field, value)
+        }
+        val app = RuntimeEnvironment.getApplication()
+        // 库的默认构建资源选择 BYD；未匹配具体车型时由它接管。
+        assertNull(VehicleIntegration.detectedAdapter())
+        assertEquals(VehicleAdapters.BYD, VehicleIntegration.targetAdapter(app).id)
+        assertEquals(VehicleAdapters.BYD, VehicleIntegration.effectiveAdapter(app).id)
+        assertTrue(VehicleIntegration.bydEnabled(app))
+    }
+
+    @Test fun diagnosticReportsTheEffectiveAdapter() {
+        for ((field, value) in mapOf("PRODUCT" to "IHU514G", "DEVICE" to "IHU514G",
+            "MODEL" to "IHU514G", "HARDWARE" to "xecarx")) {
+            ReflectionHelpers.setStaticField(Build::class.java, field, value)
+        }
+        val app = RuntimeEnvironment.getApplication()
+        assertTrue(VehicleIntegration.diagnosticReport(app).contains("有效车型适配器：${VehicleAdapters.LYNK_06_2023_PETROL}"))
+    }
+
     @Test fun bx11FirmwareMarkerMatchesCollectedVersionName() {
         assertTrue(VehicleIntegration.isBx11Firmware("SW0BX110520H8EHH.00762", null))
         assertTrue(VehicleIntegration.isBx11Firmware(null, "sw0bx110520h8ehh.00762"))

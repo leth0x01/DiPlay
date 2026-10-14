@@ -6,7 +6,7 @@ import android.content.Context
 internal object CarWindowLayout {
     private const val WIDE_MIN_WIDTH_DP = 1400
     private const val WIDE_MIN_HEIGHT_DP = 600
-    const val WIDE_MENU_WIDTH_DP = 1120
+    const val WIDE_MENU_WIDTH_DP = 1600
     const val WIDE_DIALOG_WIDTH_DP = 960
     const val WIDE_CONTROL_HEIGHT_DP = 72
     const val WIDE_TEXT_SP = 20f

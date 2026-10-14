@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import shutil
 
-from build_lynkplay_car_test import verify_apk
+from build_lynkplay_car_test import PLATFORM_SIGNER_SHA256, SYSTEM_SHARED_UID, verify_apk
 from script_utils import (
     ROOT, ScriptError, configure_console, find_android_build_tools,
     gradle_wrapper, platform_executable, read_property, report_error,
@@ -72,7 +72,16 @@ def build_release(authentication_assets_directory: Path) -> None:
     apk = require_file(
         ROOT / "mobile/build/outputs/apk/release/mobile-release.apk", "正式 APK",
     )
-    verify_apk(apk, input_directory, apksigner, aapt2, version_name=version, version_code=code)
+    verify_apk(
+        apk,
+        input_directory,
+        apksigner,
+        aapt2,
+        version_name=version,
+        version_code=code,
+        signer_sha256=PLATFORM_SIGNER_SHA256,
+        system_uid=SYSTEM_SHARED_UID,
+    )
     published, checksums = package_release(
         apk, version, ROOT / "mobile/build/outputs/publish" / version,
     )

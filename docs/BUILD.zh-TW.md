@@ -109,10 +109,12 @@ DIPLAY_AUTH_ASSETS_DIR=/absolute/path/to/runtime-assets ./gradlew :mobile:assemb
 | 變數 | 內容 |
 | --- | --- |
 | `DIPLAY_AUTH_ASSETS_DIR` | 認證素材目錄的絕對路徑 |
-| `ANDROID_KEYSTORE_PATH` | Android 簽章 keystore 路徑 |
-| `ANDROID_KEYSTORE_PASSWORD` | keystore 密碼 |
-| `ANDROID_KEY_ALIAS` | 簽章金鑰別名 |
-| `ANDROID_KEY_PASSWORD` | 簽章金鑰密碼 |
+| `LYNKPLAY_PLATFORM_KEYSTORE` | 平台簽章 keystore 路徑 |
+| `LYNKPLAY_PLATFORM_STORE_PASSWORD` | keystore 密碼 |
+| `LYNKPLAY_PLATFORM_ALIAS` | 簽章金鑰別名 |
+| `LYNKPLAY_PLATFORM_KEY_PASSWORD` | 簽章金鑰密碼 |
+
+也可沿用專案根目錄被忽略的 `keystore.properties`（官方寫法），金鑰庫放在 `keystore/`。正式版使用 BX11 平台簽章並宣告 `android.uid.system`。
 
 將 keystore 與密碼留在 Git 之外。Windows 執行：
 

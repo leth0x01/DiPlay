@@ -37,14 +37,14 @@
     </queries>
     <application>
         <provider
+            android:name="com.shilapi.xcertplay.CrashRecordInstaller"
+            android:authorities="${applicationId}.crash-record"
+            android:exported="false" />
+        <provider
             android:name="com.shilapi.xcertplay.Lynk06MusicArtworkProvider"
             android:authorities="${applicationId}.lynk06-music-artwork"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/lynk06_music_artwork_paths" />
-        </provider>
+            android:exported="true"
+            android:grantUriPermissions="false" />
         <!-- 本车输入服务携带 INCLUDE_BACKGROUND，长按可在 App 未打开时接收。 -->
         <receiver android:name="com.shilapi.xcertplay.Lynk06VoiceKeyReceiver"
             android:exported="true">

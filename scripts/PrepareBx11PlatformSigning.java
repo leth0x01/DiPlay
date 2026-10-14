@@ -18,8 +18,8 @@ class PrepareBx11PlatformSigning {
         if (args.length != 2) throw new IllegalArgumentException(
             "Usage: java scripts/PrepareBx11PlatformSigning.java platform.pk8 platform.x509.pem");
         Path root = Path.of("").toAbsolutePath().normalize();
-        Path output = root.resolve(".private/signing/bx11-platform.p12");
-        Path config = root.resolve("platform-signing.properties");
+        Path output = root.resolve("keystore/bx11-platform.p12");
+        Path config = root.resolve("keystore.properties");
         if (Files.exists(output) || Files.exists(config)) throw new IllegalStateException(
             "Platform signing already exists; keep it, do not overwrite it");
         var certificate = CertificateFactory.getInstance("X.509").generateCertificate(

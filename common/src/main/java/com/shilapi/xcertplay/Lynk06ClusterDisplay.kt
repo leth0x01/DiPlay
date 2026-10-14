@@ -1,6 +1,5 @@
 package com.shilapi.xcertplay
 
-import android.os.Build
 import android.view.Display
 import com.shilapi.xcertplay.vehicle.VehicleIntegration
 
@@ -12,9 +11,7 @@ internal object Lynk06ClusterDisplay {
     const val DEFAULT_SCALE_PERCENT = 100
     const val DEFAULT_MARKER_Y_PERCENT = 50
 
-    fun supported(): Boolean = VehicleIntegration.detectedProfile(
-        Build.PRODUCT, Build.DEVICE, Build.MODEL, Build.HARDWARE, Build.VERSION.SDK_INT,
-    ) == VehicleIntegration.LYNK_06_2023_PETROL
+    fun supported(): Boolean = VehicleIntegration.detectedCapabilities.oemClusterMapDisplay
 
     fun accepts(display: Display): Boolean {
         if (!supported() || !display.isValid || display.displayId == Display.DEFAULT_DISPLAY ||

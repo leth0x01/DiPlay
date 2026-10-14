@@ -110,6 +110,19 @@ class WheelMediaKeyWindowTest {
         verify(controller, times(1)).sendMediaButton(CarPlayMediaButton.PLAY_PAUSE)
     }
 
+    @Test @Config(sdk = [28]) fun lynk06ExplicitPlayAndPauseKeepTheirMeaning() {
+        setLynk06()
+        for (code in listOf(KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE)) {
+            assertTrue(host.dispatchKeyEvent(key(code, true)))
+            assertTrue(host.dispatchKeyEvent(key(code, true, repeat = 1)))
+            assertTrue(host.dispatchKeyEvent(key(code, false)))
+        }
+        val ordered = org.mockito.Mockito.inOrder(controller)
+        ordered.verify(controller).sendMediaButton(CarPlayMediaButton.PLAY)
+        ordered.verify(controller).sendMediaButton(CarPlayMediaButton.PAUSE)
+        ordered.verifyNoMoreInteractions()
+    }
+
     @Test fun bluetoothAudioLeavesForegroundKeysToTheCar() {
         field("sessionCarBluetoothAudio", true)
         assertFalse(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_NEXT, true)))

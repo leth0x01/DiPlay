@@ -18,29 +18,19 @@ plugins {
 val localAuthenticationAssets = providers.environmentVariable("DIPLAY_AUTH_ASSETS_DIR")
     .orNull?.let { file(it).canonicalFile }
 
-// 本地密码与密钥不进入版本库；CI 仍可通过原有环境变量签名。
-val localSigning = Properties().apply {
-    rootProject.file("release-signing.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+// 官方写法：项目根目录的 keystore.properties 描述签名，密钥库放在仓库内的 keystore/。
+// 两者都不进入版本库；CI 可通过环境变量覆盖。
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.isFile) keystorePropertiesFile.inputStream().use { load(it) }
 }
-fun signingInput(environment: String, property: String): String =
-    providers.environmentVariable(environment).orNull ?: localSigning.getProperty(property, "")
-val signingPath = signingInput("ANDROID_KEYSTORE_PATH", "storeFile")
-val signingStore = rootProject.file(signingPath.ifEmpty { "missing-release-keystore.jks" })
-val signingPassword = signingInput("ANDROID_KEYSTORE_PASSWORD", "storePassword")
-val signingAlias = signingInput("ANDROID_KEY_ALIAS", "keyAlias")
-val signingKeyPassword = signingInput("ANDROID_KEY_PASSWORD", "keyPassword")
-val expectedSigner = signingInput("LYNKPLAY_SIGNER_SHA256", "signerSha256")
-
-val platformSigning = Properties().apply {
-    rootProject.file("platform-signing.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
-}
-fun platformInput(environment: String, property: String): String =
-    providers.environmentVariable(environment).orNull ?: platformSigning.getProperty(property, "")
-val platformStore = rootProject.file(platformInput("LYNKPLAY_PLATFORM_KEYSTORE", "storeFile")
-    .ifEmpty { "missing-platform-keystore.jks" })
-val platformStorePassword = platformInput("LYNKPLAY_PLATFORM_STORE_PASSWORD", "storePassword")
-val platformAlias = platformInput("LYNKPLAY_PLATFORM_ALIAS", "keyAlias")
-val platformKeyPassword = platformInput("LYNKPLAY_PLATFORM_KEY_PASSWORD", "keyPassword")
+fun keystoreInput(environment: String, property: String): String =
+    providers.environmentVariable(environment).orNull ?: keystoreProperties.getProperty(property, "")
+val platformStore = rootProject.file(keystoreInput("LYNKPLAY_PLATFORM_KEYSTORE", "storeFile")
+    .ifEmpty { "missing-keystore.p12" })
+val platformStorePassword = keystoreInput("LYNKPLAY_PLATFORM_STORE_PASSWORD", "storePassword")
+val platformAlias = keystoreInput("LYNKPLAY_PLATFORM_ALIAS", "keyAlias")
+val platformKeyPassword = keystoreInput("LYNKPLAY_PLATFORM_KEY_PASSWORD", "keyPassword")
 
 android {
     namespace = "com.shilapi.xcertplay"
@@ -61,17 +51,11 @@ android {
     localAuthenticationAssets?.let { sourceSets.getByName("main").assets.srcDir(it) }
 
     signingConfigs {
-        create("clusterPlatform") {
+        create("release") {
             storeFile = platformStore
             storePassword = platformStorePassword
             keyAlias = platformAlias
             keyPassword = platformKeyPassword
-        }
-        create("release") {
-            storeFile = signingStore
-            storePassword = signingPassword
-            keyAlias = signingAlias
-            keyPassword = signingKeyPassword
         }
     }
 
@@ -86,20 +70,13 @@ android {
             }
             signingConfig = signingConfigs.getByName("release")
         }
-        create("carTest") {
-            initWith(getByName("release"))
-            matchingFallbacks += "release"
-            versionNameSuffix = "-lynk06-test"
-        }
-        create("clusterSystem") {
-            initWith(getByName("release"))
-            isDebuggable = false
-            applicationIdSuffix = ".clustersystem"
-            versionNameSuffix = "-bx11-system-test"
-            matchingFallbacks += "release"
-            signingConfig = signingConfigs.getByName("clusterPlatform")
-        }
     }
+
+    // 正式版与车测包使用同一构建，仪器 CarPlay 地图依赖 UID 1000。
+    sourceSets {
+        getByName("release").manifest.srcFile("src/systemUid/AndroidManifest.xml")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -187,36 +164,6 @@ val verifyStandaloneAuthentication by tasks.registering {
     }
 }
 
-val verifyLynkPlaySigning by tasks.registering {
-    group = "verification"
-    description = "检查长期 APK 签名与本地固定证书指纹。"
-    val keyStoreFile = signingStore
-    val storePass = signingPassword
-    val alias = signingAlias
-    val keyPass = signingKeyPassword
-    val expected = expectedSigner.lowercase()
-    doLast {
-        check(keyStoreFile.isFile && expected.matches(Regex("[0-9a-f]{64}"))) {
-            "缺少签名配置；请先运行 uv run scripts/initialize_lynkplay_signing.py，或配置环境变量及 LYNKPLAY_SIGNER_SHA256"
-        }
-        val keyStore = KeyStore.getInstance(keyStoreFile, storePass.toCharArray())
-        check(keyStore.getKey(alias, keyPass.toCharArray()) is PrivateKey) {
-            "APK 签名别名没有私钥"
-        }
-        val certificate = checkNotNull(keyStore.getCertificate(alias)) { "APK 签名证书缺失" }
-        val actual = MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        check(actual == expected) { "APK 签名指纹不匹配；请恢复原签名，勿重新生成密钥" }
-    }
-}
-tasks.matching { it.name == "preCarTestBuild" }.configureEach {
-    dependsOn(verifyStandaloneAuthentication, verifyLynkPlaySigning)
-}
-tasks.matching { it.name == "preReleaseBuild" }.configureEach {
-    dependsOn(verifyStandaloneAuthentication, verifyLynkPlaySigning)
-}
-tasks.named("preBuild") { mustRunAfter(verifyStandaloneAuthentication) }
-
 val verifyBx11PlatformSigning by tasks.registering {
     group = "verification"
     description = "Verify the BX11/IHU514G platform certificate before building a system UID APK."
@@ -225,7 +172,7 @@ val verifyBx11PlatformSigning by tasks.registering {
     val alias = platformAlias
     val keyPass = platformKeyPassword
     doLast {
-        check(keyStoreFile.isFile) { "Missing platform-signing.properties or LYNKPLAY_PLATFORM_KEYSTORE" }
+        check(keyStoreFile.isFile) { "Missing keystore.properties or LYNKPLAY_PLATFORM_KEYSTORE" }
         val keyStore = KeyStore.getInstance(keyStoreFile, storePass.toCharArray())
         check(keyStore.getKey(alias, keyPass.toCharArray()) is PrivateKey) { "Platform signing alias has no private key" }
         val cert = checkNotNull(keyStore.getCertificate(alias))
@@ -236,9 +183,11 @@ val verifyBx11PlatformSigning by tasks.registering {
         }
     }
 }
-tasks.matching { it.name == "preClusterSystemBuild" }.configureEach {
-    dependsOn(verifyStandaloneAuthentication, verifyBx11PlatformSigning)
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyStandaloneAuthentication, "verifyBx11PlatformSigning")
 }
+tasks.named("preBuild") { mustRunAfter(verifyStandaloneAuthentication) }
+
 tasks.register("assembleStandaloneDebug") {
     group = "build"
     description = "Build a standalone car-test APK with explicitly provisioned authentication."

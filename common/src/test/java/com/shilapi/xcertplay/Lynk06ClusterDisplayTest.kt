@@ -101,10 +101,8 @@ class Lynk06ClusterDisplayTest {
         assertNull(ClusterMapPresentation.findDisplay(app))
     }
 
-    @Test fun clusterRemainsOptInAndUsesNativeCentredMapAtThirtyFps() {
+    @Test fun clusterDefaultsOnAndUsesNativeCentredMapAtThirtyFps() {
         display()
-        assertNull(config())
-        AirPlayPersistence.saveClusterMapEnabled(activity, true)
         val config = config()!!
         assertEquals(1920, config.widthPixels)
         assertEquals(720, config.heightPixels)
@@ -116,6 +114,20 @@ class Lynk06ClusterDisplayTest {
         assertEquals(100, AirPlayPersistence.loadClusterMapScalePercent(activity))
         assertEquals(50, AirPlayPersistence.loadClusterMarkerYPercent(activity))
         assertEquals(1920.0 / 720, MapMirrors.streamAspect, 0.00001)
+        AirPlayPersistence.saveClusterMapEnabled(activity, false)
+        assertNull(config())
+    }
+
+    @Test fun endingNavigationHidesTheSurfaceViewWindowAndCanShowItAgain() {
+        val id = display()
+        val presentation = ClusterMapPresentation(activity, manager.getDisplay(id)) { }
+        try {
+            presentation.create()
+            presentation.setMapVisible(false)
+            assertEquals(android.view.View.INVISIBLE, presentation.window!!.decorView.visibility)
+            presentation.setMapVisible(true)
+            assertEquals(android.view.View.VISIBLE, presentation.window!!.decorView.visibility)
+        } finally { presentation.dismiss() }
     }
 
     @Test fun savedContentScaleAndMarkerPositionRemainEffective() {

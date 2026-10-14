@@ -9,6 +9,26 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 /** 只用于验证反射调用、回调线程和资源释放；不作为固件实现打包。 */
 class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
+    private val navigation = NaviInteraction(this)
+    val powerOperation get() = navigation.mPowerOperation
+    // 实车字段属于 NaviInteractionImpl，不在 DimInteractionImpl 上。
+    class NaviInteraction(vendor: DimInteraction) : INaviInteraction by vendor {
+        @JvmField val mPowerOperation = vendor.PowerOperation()
+    }
+    inner class PowerOperation {
+        @Volatile var failuresRemaining = 0
+        @Volatile var attempts = 0
+        val calls = CopyOnWriteArrayList<Pair<Boolean, Int>>()
+        fun disableScreenProjection(disabled: Boolean, source: Int) {
+            check(navigationInfos.isNotEmpty()) { "完整导航卡片尚未发送" }
+            attempts++
+            if (failuresRemaining > 0) {
+                failuresRemaining--
+                error("模拟投屏门控失败")
+            }
+            calls.add(disabled to source)
+        }
+    }
     @Volatile var mode = 2
     @Volatile var failRead = false
     @Volatile var readFailuresRemaining = 0
@@ -32,6 +52,7 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     val notifications = CopyOnWriteArrayList<Int>()
     val navigationInfos = CopyOnWriteArrayList<INaviInteraction.INavigationInfo>()
     @Volatile var infoFailuresRemaining = 0
+    @Volatile var endInfoCalls = 0
     val switchRequests = CopyOnWriteArrayList<Int>()
     val presentationSwitches = CopyOnWriteArrayList<String>()
     val extensionBundles = CopyOnWriteArrayList<android.os.Bundle>()
@@ -74,7 +95,7 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     }
     override fun disconnect() { disconnected = true; watcher?.onDisConnected() }
     fun getDimMenuInteraction(): IDimMenuInteraction = this
-    fun getNaviInteraction(): INaviInteraction = this
+    fun getNaviInteraction(): INaviInteraction = navigation
     override fun getNaviMode(): Int {
         readCalls++
         if (readFailuresRemaining > 0) {
@@ -104,6 +125,7 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         notifications.add(status)
     }
     override fun updateNavigationInfo(info: INaviInteraction.INavigationInfo) {
+        if (info.getNavigationStatus() == 0) endInfoCalls++
         if (infoFailuresRemaining > 0) {
             infoFailuresRemaining--
             error("模拟完整卡片发送失败")

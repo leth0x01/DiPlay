@@ -1,6 +1,7 @@
 # Build LynkPlay
 
-For the stable Lynk 06 car-test package, signing setup and authentication provenance, see [LynkPlay car-test builds](LYNKPLAY-CAR-TEST.md).
+For the stable Lynk 06 car-test package, platform signing, authentication provenance and vehicle steps, see [LynkPlay car-test builds](LYNKPLAY-CAR-TEST.md).
+The car-test package is platform-signed and declares a system UID; the Dashboard CarPlay map needs that UID.
 
 Use this procedure to build the DiPlay app for an Android head unit.
 Run the commands from the repository root, where `gradlew` and `settings.gradle.kts` are located.
@@ -78,7 +79,7 @@ mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
 
 The debug application ID is `com.leth0x01.lynkplay.hudtest`.
-The carTest and release application ID is `com.leth0x01.lynkplay`.
+The release and car-test application ID is `com.leth0x01.lynkplay`.
 
 The source APK contains no accessory identity unless you supply runtime authentication assets.
 Standalone CarPlay needs these assets to connect to an iPhone.
@@ -110,9 +111,13 @@ Check that Gradle reports `BUILD SUCCESSFUL`.
 For the complete CI procedure, see [the Android workflow](../.github/workflows/android.yml).
 That workflow also checks and builds the `home` and `maphost` applications.
 
-## Build a standalone car-test APK
+## Build the car-test APK
 
-Prepare an external directory with these runtime authentication files:
+The car-test package is the `release` build with runtime authentication assets.
+It uses the BX11 / IHU514G platform certificate, application ID `com.leth0x01.lynkplay`, and declares `android.uid.system`.
+Prepare that platform signing configuration first, as described in [LynkPlay car-test builds](LYNKPLAY-CAR-TEST.md#平台签名准备).
+
+Then prepare an external directory with these runtime authentication files:
 
 ```text
 runtime-assets/
@@ -125,33 +130,34 @@ Use only the intended runtime files in this directory.
 Keep the directory and its private key outside Git.
 The build rejects unexpected credential containers in APK assets.
 
-1. Set `DIPLAY_AUTH_ASSETS_DIR` to the absolute directory path.
-2. Run the standalone debug task.
+Run the packaging script from the repository root:
 
 ```sh
-DIPLAY_AUTH_ASSETS_DIR=/absolute/path/to/runtime-assets ./gradlew :mobile:assembleStandaloneDebug
+uv run scripts/build_lynkplay_car_test.py
 ```
 
+It builds `:mobile:assembleRelease` and verifies the Android 9 signature, the pinned platform certificate, the application ID, the `android.uid.system` declaration and that both packaged assets match the selected local inputs.
+Output:
+
+```text
+mobile/build/outputs/apk/release/mobile-release.apk
+mobile/build/outputs/apk/release/SHA256SUMS.txt
+```
+
+A manual build sets `DIPLAY_AUTH_ASSETS_DIR` to the absolute assets directory and runs `:mobile:assembleRelease`.
 The task stops if either required file is absent, oversized, malformed or does not match its counterpart.
-Its APK output is `mobile/build/outputs/apk/debug/mobile-debug.apk`.
-Check both files in the APK against your selected local inputs:
 
-- `assets/offline-mfi/identity.pk8`.
-- `assets/offline-mfi/certificate.p7b`.
-
-Use this APK for a standalone connection test.
-Update the existing test app with the same signing key to keep its settings.
-Different signing keys cannot update the same installed application.
+Development-only builds with runtime assets use `:mobile:assembleStandaloneDebug`; that debug APK is a source build, not the car-test package.
 
 ## Build a release APK
 
 ### Build update attachments in one command
 
-Prepare JDK 25, the Android SDK, the existing signing configuration and runtime authentication assets described below. Increment both values in `gradle.properties` before each update:
+Prepare JDK 25, the Android SDK, the BX11 platform signing configuration and runtime authentication assets described below. Increment both values in `gradle.properties` before each update:
 
 ```properties
-lynkplayVersionCode=47
-lynkplayVersionName=0.1.9
+lynkplayVersionCode=48
+lynkplayVersionName=0.2.1
 ```
 
 Run from the repository root on macOS or Windows:
@@ -162,18 +168,18 @@ uv run --locked scripts/build_lynkplay_release.py
 
 The script uses `.private/auth-assets` by default. Select another authentication directory with `--authentication-assets-directory /absolute/path/to/runtime-assets`.
 
-It runs the complete Android CI task list from `AGENTS.md`, then `:mobile:lintRelease :mobile:assembleRelease`. It verifies the final APK's Android 9 signature, pinned signing certificate, application ID, version name/code and packaged authentication assets before generating:
+It runs the complete Android CI task list from `AGENTS.md`, then `:mobile:lintRelease :mobile:assembleRelease`. It verifies the final APK's Android 9 signature, the pinned BX11 platform certificate, the `com.leth0x01.lynkplay` application ID, the `android.uid.system` declaration, version name/code and packaged authentication assets before generating:
 
 ```text
-mobile/build/outputs/publish/0.1.9/LynkPlay-0.1.9.apk
-mobile/build/outputs/publish/0.1.9/SHA256SUMS.txt
+mobile/build/outputs/publish/0.2.1/LynkPlay-0.2.1.apk
+mobile/build/outputs/publish/0.2.1/SHA256SUMS.txt
 ```
 
-The output directory and APK filename follow `lynkplayVersionName`. Keep the existing signing key for all updates; `carTest` and `release` share that key and application ID.
+The output directory and APK filename follow `lynkplayVersionName`. The release package uses the BX11 platform certificate and declares `android.uid.system`, so that the Dashboard CarPlay map works; keep the `com.leth0x01.lynkplay` application ID for updates.
 
 ### Publish an update
 
-Create a Release in `leth0x01/LynkPlay` with tag `v0.1.9` pointing to the source commit used for the build. Upload the versioned APK and `SHA256SUMS.txt` before publishing. Each Release must contain exactly one main-app APK. The checksum file must refer to the uploaded APK's exact filename.
+Create a Release in `leth0x01/LynkPlay` with tag `v0.2.1` pointing to the source commit used for the build. Upload the versioned APK and `SHA256SUMS.txt` before publishing. Each Release must contain exactly one main-app APK. The checksum file must refer to the uploaded APK's exact filename.
 
 The app reads this repository's GitHub Releases API, compares the tag's three-part version with the installed version, downloads both attachments and verifies SHA256 before opening an installer. The current updater also considers prereleases. Downloading and installation are initiated by the user; background checks are enabled by default and limited to once per 24 hours.
 
@@ -181,19 +187,19 @@ Verify from an older installed version using **Settings → About → Check for 
 
 ### Manual release build
 
-Prepare the runtime assets as described in the car-test procedure.
+Prepare the runtime assets and the BX11 platform signing configuration as described in the car-test procedure.
 Set these environment variables locally:
 
 | Variable | Value |
 | --- | --- |
 | `DIPLAY_AUTH_ASSETS_DIR` | Absolute path to the runtime assets directory |
-| `ANDROID_KEYSTORE_PATH` | Path to your Android signing keystore |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_ALIAS` | Signing key alias |
-| `ANDROID_KEY_PASSWORD` | Signing key password |
-| `LYNKPLAY_SIGNER_SHA256` | Expected signing certificate SHA256 (64 hex digits) |
+| `LYNKPLAY_PLATFORM_KEYSTORE` | Path to the BX11 platform keystore |
+| `LYNKPLAY_PLATFORM_STORE_PASSWORD` | Platform keystore password |
+| `LYNKPLAY_PLATFORM_ALIAS` | Platform key alias |
+| `LYNKPLAY_PLATFORM_KEY_PASSWORD` | Platform key password |
 
-Alternatively, initialize the ignored `release-signing.properties` with `uv run scripts/initialize_lynkplay_signing.py`. The same command works on macOS and Windows. Environment variables take precedence over local properties. `carTest` and `release` use the same signing configuration and enforce its pinned certificate fingerprint.
+Alternatively, keep the ignored root `keystore.properties` created by `java scripts/PrepareBx11PlatformSigning.java`; the keystore itself lives in the ignored `keystore/` directory, following the standard Android layout. Environment variables take precedence over local properties.
+`release` uses the BX11 platform certificate and declares `android.uid.system`, so that the Dashboard CarPlay map works.
 
 Keep the keystore and passwords outside Git.
 Run the release checks and build:
@@ -220,6 +226,7 @@ The retired `build-beta.py` helper is no longer part of the build procedure.
 | Gradle cannot find the Android SDK | Set `ANDROID_HOME` or the `sdk.dir` value in `local.properties`. |
 | A required SDK or NDK package is absent | Install the listed package with SDK Manager. |
 | Java or Gradle JDK version is incorrect | Set the terminal JDK and Android Studio Gradle JDK to Java 25. |
-| Source APK cannot start standalone CarPlay | Supply runtime authentication assets. Use `:mobile:assembleStandaloneDebug`. |
+| Source APK cannot start standalone CarPlay | Supply runtime authentication assets. Use the car-test procedure above or `:mobile:assembleStandaloneDebug`. |
+| Car-test APK has no Dashboard map | Build with `:mobile:assembleRelease`; the map needs the platform-signed system UID. |
 | Standalone task reports missing authentication files | Check the external directory path and both required files. |
 | Android rejects an app update | Use the same application ID and signing key as the installed app. |

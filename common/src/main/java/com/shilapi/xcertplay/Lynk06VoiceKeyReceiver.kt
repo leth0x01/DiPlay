@@ -9,7 +9,7 @@ import com.shilapi.xcertplay.vehicle.VehicleIntegration
 /** XSFInputService 的语音键有序广播；参数来自本车 APK 的 ECarXRVoiceAssistAction。 */
 class Lynk06VoiceKeyReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (!VehicleIntegration.isDetectedLynk06() || !isOrderedBroadcast ||
+        if (!VehicleIntegration.detectedCapabilities.voiceKeyReceiver || !isOrderedBroadcast ||
             intent.action != ACTION || intent.getIntExtra(EXTRA_KEY, -1) != VOICE_KEY) return
         val action = intent.getIntExtra(EXTRA_ACTION, -1)
         val handled = when (action) {

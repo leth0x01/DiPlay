@@ -2,16 +2,16 @@
 
 基于 [DiPlay](https://github.com/shihabal3amri/DiPlay) 的 CarPlay 接收器，面向 **2023 款领克 06 燃油版、Android 9 车机**维护。
 
-当前 LynkPlay 版本为 **0.1.9**（versionCode 47），已同步 DiPlay 0.2.19。
+当前 LynkPlay 版本为 **0.2.1**（versionCode 48），已同步 DiPlay 0.2.19。
 
 已有实车反馈确认无线、有线 CarPlay 均能在目标车机上连接。旧版断开车机蓝牙后，方控无法控制音乐。本版已接入原车媒体中心，新的媒体方控、音频表现及仪表显示调整仍需实车复核。
 
-本次更新接入原车媒体中心的播放/暂停、上一首、下一首回调，补充媒体按键诊断，并包含领克 06 语音键、麦克风及仪表适配。详见 [LynkPlay 0.1.9 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.1.9.md)、[车测说明](docs/LYNKPLAY-CAR-TEST.md) 和 [验证记录](docs/LYNKPLAY-VALIDATION.md)。
+本次更新接入原车媒体中心的播放/暂停、上一首、下一首回调，补充媒体按键诊断，并包含领克 06 语音键、麦克风及仪表适配；本版同时把车测包与正式包合并为同一个平台签名包。详见 [LynkPlay 0.2.1 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.2.1.md)、[车测说明](docs/LYNKPLAY-CAR-TEST.md) 和 [验证记录](docs/LYNKPLAY-VALIDATION.md)。
 
 ## 安装与构建
 
 - 主应用模块：`mobile`。
-- Release 安装标识：`com.leth0x01.lynkplay`。
+- 安装标识：`com.leth0x01.lynkplay`，使用 BX11 平台签名并声明 `android.uid.system`；车测包与正式包是同一个包。2026-10-14 实车反馈，使用该包后仪表 CarPlay 地图可以显示。
 - Debug 安装标识：`com.leth0x01.lynkplay.hudtest`。
 - 可与 DiPlay 共存，私有数据与权限独立；原版设置不会自动迁移，可使用现有备份／恢复功能。
 - 保留上游内部 namespace、类型及资源键，方便后续合并更新。
@@ -25,13 +25,21 @@
 
 APK 位于 `mobile/build/outputs/apk/debug/mobile-debug.apk`。普通源码构建默认没有运行时配件身份；仅编译成功不足以连接 iPhone。本地 standalone 构建流程见构建说明，不应提交认证资源或签名密钥。
 
-后续实车验证重点为声音异常、仪表地图、连接稳定性，以及 Siri、方向盘按键、全屏和开机启动。Android 9 的 Wi-Fi Direct 限制见 [说明](docs/ANDROID9_WIFI_DIRECT.md)。测试时只运行一款接收器应用，避免同时占用连接和音频。
+车测包使用平台签名构建：
+
+```sh
+uv run scripts/build_lynkplay_car_test.py
+```
+
+脚本执行 `:mobile:assembleRelease`，核验平台证书指纹、`com.leth0x01.lynkplay` 包名、`android.uid.system` 声明及认证素材，输出 `mobile/build/outputs/apk/release/mobile-release.apk`。
+
+后续实车验证重点为声音异常、连接稳定性，以及 Siri、方向盘按键、全屏和开机启动；仪表地图已在平台签名的车测包上实车显示。Android 9 的 Wi-Fi Direct 限制见 [说明](docs/ANDROID9_WIFI_DIRECT.md)。测试时只运行一款接收器应用，避免同时占用连接和音频。
 
 ## 更新与上游同步
 
 LynkPlay 检查 [本 fork 的 Releases](https://github.com/leth0x01/LynkPlay/releases)。默认在后台检查更新，也可进入 **设置 → 关于 → 检查更新**，下载并校验 APK 后点击安装。
 
-正式更新包使用现有长期签名和认证素材，在仓库根目录执行：
+正式更新包使用平台签名和认证素材，在仓库根目录执行：
 
 ```sh
 uv run --locked scripts/build_lynkplay_release.py

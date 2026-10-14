@@ -121,7 +121,7 @@ internal object CarPlayMediaKeys {
     fun onSessionActive(expected: CarPlayController?) {
         val context = appContext ?: return
         if (expected == null || controller !== expected || carBluetoothAudio || lynk06MediaCenter != null ||
-            !com.shilapi.xcertplay.vehicle.VehicleIntegration.isDetectedLynk06()) return
+            !com.shilapi.xcertplay.vehicle.VehicleIntegration.detectedCapabilities.oemMediaCenter) return
         val logTarget = diagnosticLog
         lynk06MediaCenter = Lynk06MediaCenter(context, nowPlaying,
             send = { index ->
@@ -130,7 +130,7 @@ internal object CarPlayMediaKeys {
                     (CarPlayVideo.onMediaKey(index) || expected.sendMediaButton(index))
             },
             log = { message -> Log.i(TAG, message); AsyncDiagnosticLog.append(logTarget, message) },
-            initialArtwork = artwork,
+            initialArtwork = nowPlaying.artworkTransferId?.let { artworkCache[it] },
         ).also { it.start() }
     }
 
@@ -161,6 +161,9 @@ internal object CarPlayMediaKeys {
                     logMediaEvent("媒体：iPhone 播放状态 playing=${update.playing} positionMs=${update.elapsedMillis}")
                 }
                 val previousArtwork = artwork
+                if (nowPlaying.artworkTransferId != update.artworkTransferId) {
+                    logMediaEvent("媒体：封面引用 ${nowPlaying.artworkTransferId} -> ${update.artworkTransferId}")
+                }
                 if (albumTrackChanged(nowPlaying, update)) {
                     val previousId = nowPlaying.artworkTransferId
                     if (previousId != null) {
@@ -178,7 +181,8 @@ internal object CarPlayMediaKeys {
                 if (nowPlaying.elapsedMillis != update.elapsedMillis) elapsedUpdatedAt = SystemClock.elapsedRealtime()
                 val metadataChanged = metadataChanged(nowPlaying, update) || artwork !== previousArtwork
                 nowPlaying = update
-                lynk06MediaCenter?.update(update, artwork)
+                // 原车按歌曲信息缓存图片，不能把界面暂留的上一首封面缓存到新歌名下。
+                lynk06MediaCenter?.update(update, update.artworkTransferId?.let { artworkCache[it] })
                 if (metadataChanged) ClusterMusicState.publish(update, update.artworkTransferId?.let { artworkCache[it] })
                 updateInitialAlbumRecovery(expected)
                 // The iPhone repeats NowPlayingUpdate about twice a second for the position alone.
@@ -194,6 +198,7 @@ internal object CarPlayMediaKeys {
     @Synchronized
     private fun onArtworkChanged(expected: CarPlayController, id: Int, bytes: ByteArray) {
         if (controller !== expected) return
+        logMediaEvent("媒体：封面接收 reference=$id bytes=${bytes.size} current=${nowPlaying.artworkTransferId}")
         artworkOwner?.let { artworkQueue.submit(it, id, bytes) }
     }
 
@@ -204,6 +209,7 @@ internal object CarPlayMediaKeys {
             decoded?.recycle()
             return
         }
+        logMediaEvent("媒体：封面解码 reference=$id success=${decoded != null} current=${nowPlaying.artworkTransferId}")
         artworkCache.remove(id)
         artworkCache[id] = decoded
         ambientColorCache.remove(id)

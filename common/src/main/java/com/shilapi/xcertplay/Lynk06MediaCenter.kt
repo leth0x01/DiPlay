@@ -48,7 +48,8 @@ internal class Lynk06MediaCenter(
     @Volatile private var artworkPublication = ArtworkPublication()
     private val artworkStore = Lynk06MusicArtwork(this.context)
     @Volatile private var pendingArtwork: Bitmap? = initialArtwork
-    private var lastPublicationState: Pair<Boolean, Boolean>? = null
+    private data class PublicationState(val updated: Boolean, val playing: Boolean, val artwork: Uri?)
+    private var lastPublicationState: PublicationState? = null
     private val control = Lynk06MediaControl(this.context.packageName)
     private var bound = false
     @Volatile private var api: Lynk06MediaCenterService? = null
@@ -196,10 +197,10 @@ internal class Lynk06MediaCenter(
             if (!control.owned) return
             // 原车对相同信息也返回 false，不能据此注销客户端或丢失方控控制权。
             val updated = service.updatePlayback(registered, playback)
-            val publication = updated to nowPlaying.playing
+            val publication = PublicationState(updated, nowPlaying.playing, currentArtworkUri())
             if (publication != lastPublicationState) {
                 log("领克媒体中心：播放信息 updated=$updated source=${Lynk06MediaCenterService.SOURCE_MUSIC} " +
-                    "playing=${nowPlaying.playing} artwork=${currentArtworkUri() != null}")
+                    "playing=${publication.playing} artwork=${publication.artwork != null} artworkUri=${publication.artwork}")
                 lastPublicationState = publication
             }
             service.updateProgress(registered, nowPlaying.elapsedMillis ?: 0)

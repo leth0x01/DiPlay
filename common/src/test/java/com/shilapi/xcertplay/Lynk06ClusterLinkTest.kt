@@ -70,11 +70,42 @@ class Lynk06ClusterLinkTest {
         assertFalse(states.last().showMap)
     }
 
+    @Test fun `projection gate retries without resending a throttled navigation card`() {
+        vendor.powerOperation.failuresRemaining = 1
+        link.setNavigation(true)
+        link.setGuidance(realGuidance())
+        await { vendor.powerOperation.attempts == 1 }
+        val sentAt = android.os.SystemClock.elapsedRealtime()
+        link.setGuidance(realGuidance())
+        await { vendor.powerOperation.calls.isNotEmpty() }
+        assertTrue(android.os.SystemClock.elapsedRealtime() - sentAt < 10_000L)
+        assertEquals(1, vendor.navigationInfos.size)
+        assertEquals(listOf(false to 2), vendor.powerOperation.calls.toList())
+        // 用 worker 读菜单作为同步点，确认成功后不重复解除门控。
+        vendor.mode = 1
+        vendor.menuCallback!!.onChangeNaviMode(1)
+        await { states.lastOrNull()?.mode == 1 }
+        assertEquals(2, vendor.powerOperation.attempts)
+    }
+
+    @Test fun `projection gate waits until a real navigation card succeeds`() {
+        vendor.infoFailuresRemaining = 100
+        link.setNavigation(true)
+        link.setGuidance(realGuidance())
+        await { vendor.infoFailuresRemaining < 100 }
+        assertEquals(0, vendor.powerOperation.attempts)
+        vendor.infoFailuresRemaining = 0
+        link.setGuidance(realGuidance())
+        await { vendor.powerOperation.calls.isNotEmpty() }
+        assertEquals(listOf(false to 2), vendor.powerOperation.calls.toList())
+    }
+
     @Test fun `real navigation without complete guidance never sends a synthetic card`() {
         link.setNavigation(true)
         link.setGuidance(realGuidance().copy(remainingMeters = null))
         await { states.lastOrNull()?.showMap == true }
         assertTrue(vendor.navigationInfos.isEmpty())
+        assertEquals(0, vendor.powerOperation.attempts)
     }
 
     @Test fun `initialization does not clear OEM navigation and navigation start requests map mode once`() {
@@ -177,6 +208,39 @@ class Lynk06ClusterLinkTest {
             release.countDown()
         }
         await { vendor.notifications.lastOrNull() == 0 }
+    }
+
+    @Test fun `route end sends an inactive full card and retries it independently`() {
+        link.setNavigation(true)
+        link.setGuidance(realGuidance())
+        await { vendor.navigationInfos.isNotEmpty() }
+        vendor.infoFailuresRemaining = 1
+        link.setNavigation(false)
+        await { vendor.notifications.lastOrNull() == 0 && !vendor.tbtActive }
+        await { vendor.endInfoCalls >= 2 && vendor.navigationInfos.last().getNavigationStatus() == 0 }
+        val ended = vendor.navigationInfos.last()
+        assertEquals(0, ended.getNavigationStatus())
+        assertEquals(0, ended.getNavigationTurnId())
+        assertEquals("", ended.getNextGuidancePointName())
+        assertEquals(0L, ended.getDistanceToDestination())
+        assertEquals(0L, ended.getETA())
+        assertEquals(listOf(1, 0), vendor.notifications.toList())
+        assertEquals(1, vendor.tbtStopCalls)
+    }
+
+    @Test fun `failed close end card survives a new link and is cleared before reuse`() {
+        link.setNavigation(true)
+        link.setGuidance(realGuidance())
+        await { vendor.navigationInfos.isNotEmpty() }
+        vendor.infoFailuresRemaining = 3
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        assertTrue(Lynk06ClusterLink.diagnosticReport().contains("navigationInfoCleanupPending=true"))
+        link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, {})
+        link.start()
+        await { vendor.navigationInfos.last().getNavigationStatus() == 0 && states.lastOrNull()?.available == true }
+        assertEquals(4, vendor.endInfoCalls)
+        assertTrue(Lynk06ClusterLink.diagnosticReport().contains("navigationInfoCleanupPending=false"))
     }
 
     @Test fun `route end retries TBT stop after navigation status was cleared`() {

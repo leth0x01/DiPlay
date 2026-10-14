@@ -182,6 +182,11 @@ internal class ClusterMapPresentation(
     fun setMapVisible(visible: Boolean) {
         mapVisible = visible
         window?.let { window ->
+            // Android 9 的 SurfaceView 有独立图层；窗口透明度不能作为退出地图的唯一手段。
+            // 隐藏窗口会触发 Surface 解绑，下一次导航显示窗口时重新绑定。
+            if (Lynk06ClusterDisplay.supported()) {
+                window.decorView.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+            }
             val alpha = if (visible) 1f else 0f
             if (window.attributes.alpha != alpha) window.attributes = window.attributes.apply { this.alpha = alpha }
         }
@@ -216,6 +221,7 @@ internal class ClusterMapPresentation(
                 appendLine("presentationShowing=true")
                 appendLine("presentationDisplay=${clusterDisplay?.displayId}:${clusterDisplay?.name}")
                 appendLine("mapVisible=${presentation.mapVisible} streamActive=${presentation.streamActive}")
+                appendLine("windowVisibility=${presentation.window?.decorView?.visibility} videoView=${presentation.videoView?.javaClass?.simpleName}")
                 append("outputSurfaceValid=${presentation.outputSurface?.isValid}")
             }
         }

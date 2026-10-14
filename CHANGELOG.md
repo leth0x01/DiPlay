@@ -1,10 +1,20 @@
+# LynkPlay 0.2.1
+
+车测包与正式包合并为同一个 `release` 构建，包名统一为 `com.leth0x01.lynkplay`：使用 BX11 平台签名并声明 `android.uid.system`。2026-10-14 实车反馈：使用平台签名包后仪表盘 CarPlay 地图可以显示；此前不带系统 UID 的包不能显示。`carTest` 与 `clusterSystem` 构建已移除。构建方式见[车测说明](docs/LYNKPLAY-CAR-TEST.md)。
+
+# LynkPlay 0.1.9
+
+- 接入领克 06 原车媒体中心音乐客户端，转发方控播放/暂停、上一首、下一首。
+- 加入本车语音键 Siri 请求与麦克风回退，补充蓝牙接收端诊断。
+- carTest 版本为 `0.1.9-lynk06-test` / versionCode 47，沿用长期签名。详见 [0.1.9 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.1.9.md)。
+
 # LynkPlay 0.1.8
 
 - 同步 DiPlay 0.2.19，保留 LynkPlay 品牌、安装标识、领克车型门禁和仪表适配。
 - 迁移 CarPlay 三指下滑菜单玻璃面板布局，保留领克宽屏尺寸和安全边距。
 - 支持从手机端下载诊断报告，同步上游 USB 启动、音频和画面恢复修复。
 
-2026-10-13 实车反馈确认无线、有线 CarPlay 均能连接；仪表地图无法使用，声音异常待排查。反馈未指定安装包版本。详见 [LynkPlay 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.1.8.md)和[验证记录](docs/LYNKPLAY-VALIDATION.md)。
+2026-10-13 实车反馈确认无线、有线 CarPlay 均能连接；声音异常待排查。当时未记录安装包版本，随后确认仪表地图需要平台签名的车测包，该次仪表地图结论不再沿用。详见 [LynkPlay 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.1.8.md)和[验证记录](docs/LYNKPLAY-VALIDATION.md)。
 
 # DiPlay 0.2.19 — 2026-10-12
 

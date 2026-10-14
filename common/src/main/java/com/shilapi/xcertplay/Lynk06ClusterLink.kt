@@ -23,6 +23,7 @@ internal data class Lynk06ClusterDiagnostics(
     val navigationRequested: Boolean = false,
     val navigationSent: Boolean = false,
     val navigationCleanupPending: Boolean = false,
+    val navigationInfoCleanupPending: Boolean = false,
     val turnByTurnCleanupPending: Boolean = false,
     val projectionCleanupPending: Boolean = false,
     val lastNotifySuccess: Boolean? = null,
@@ -75,6 +76,8 @@ internal class Lynk06ClusterLink(
     private var navigation = false
     private var sentNavigation = false
     private var navigationCleanupPending = false
+    private var navigationInfoCleanupPending = false
+    @Volatile private var lastNavigationInfoStatus: Int? = null
     private var turnByTurnCleanupPending = false
     private var projectionCleanupPending = false
     private var recoveringCleanup = false
@@ -250,7 +253,10 @@ internal class Lynk06ClusterLink(
                 // 每次导航允许请求一次地图模式；用户手动切回简洁后本次导航不再请求。
                 mapModeRequested = false
             }
-            if (navigation) pushNavigationInfo()
+            if (navigation) {
+                pushNavigationInfo()
+                releaseProjectionGateIfNeeded()
+            }
             if (navigation && !mapModeRequested) {
                 mapModeRequested = true
                 if (switchNaviMode(Lynk06ClusterState.FULL)) {
@@ -277,24 +283,36 @@ internal class Lynk06ClusterLink(
         }
     }
 
-    /** Only real iPhone guidance is sent. Changes are throttled; unchanged cards renew every 10 s. */
+    /** 只发送真实 iPhone 导航卡片；变化时限流，未变化时每 10 秒续发。 */
     private fun pushNavigationInfo() {
         val info = guidance ?: return
         val now = android.os.SystemClock.elapsedRealtime()
         if (lastGuidance != null && now - lastGuidanceMillis < 500L) return
         if (info == lastGuidance && now - lastGuidanceMillis < 10_000L) return
+        // 完整导航卡片有独立状态；发送前记录退出时清空卡片的责任。
+        navigationInfoCleanupPending = true
+        saveCleanupState()
+        updateNavigationInfo(info)
+        lastGuidance = info
+        lastGuidanceMillis = now
+        guidanceSentCount++
+    }
+
+    private fun updateNavigationInfo(info: Lynk06NavigationInfo) {
         val type = Class.forName(
             "com.ecarx.xui.adaptapi.diminteraction.INaviInteraction\$INavigationInfo", false, naviClass!!.classLoader,
         )
         naviClass!!.getMethod("updateNavigationInfo", type).invoke(navi, info.proxy(type))
-        lastGuidance = info
-        lastGuidanceMillis = now
-        guidanceSentCount++
-        // The working BX11 controller releases this gate only after publishing an active TBT card.
-        if (!projectionGateReleased) {
+        lastNavigationInfoStatus = info.navigationStatus
+    }
+
+    private fun releaseProjectionGateIfNeeded() {
+        // 当前连接已成功发送真实卡片后才解除门控，失败重试不受卡片节流影响。
+        if (lastGuidance != null && !projectionGateReleased) {
             runCatching {
-                val field = dim!!.javaClass.getDeclaredField("mPowerOperation").apply { isAccessible = true }
-                val power = field.get(if (java.lang.reflect.Modifier.isStatic(field.modifiers)) null else dim)
+                // 本车字段属于 NaviInteractionImpl，而非顶层 DimInteractionImpl。
+                val field = navi!!.javaClass.getDeclaredField("mPowerOperation").apply { isAccessible = true }
+                val power = field.get(if (java.lang.reflect.Modifier.isStatic(field.modifiers)) null else navi)
                     ?: error("BX11 power service unavailable")
                 power.javaClass.getMethod("disableScreenProjection", Boolean::class.javaPrimitiveType,
                     Int::class.javaPrimitiveType).invoke(power, false, 2)
@@ -382,6 +400,12 @@ internal class Lynk06ClusterLink(
         fun attempt(action: () -> Unit) {
             runCatching(action).onFailure { if (failure == null) failure = it }
         }
+        if (navigationInfoCleanupPending) attempt {
+            // 原车 stopNavi 先更新结束卡片，再通知 TBT 停止和导航状态结束。
+            updateNavigationInfo(Lynk06NavigationInfo.stopped())
+            navigationInfoCleanupPending = false
+            logOnMain("领克仪表：结束导航卡片已发送（状态=0）")
+        }
         if (navigationCleanupPending) attempt {
             notifyNavigation(false)
             navigationCleanupPending = false
@@ -403,6 +427,7 @@ internal class Lynk06ClusterLink(
         if (cleanupLoaded) return
         val pending = cleanupJournal.getInt("pending", 0)
         navigationCleanupPending = pending and CLEANUP_NAVIGATION != 0
+        navigationInfoCleanupPending = pending and CLEANUP_NAVIGATION_INFO != 0
         turnByTurnCleanupPending = pending and CLEANUP_TBT != 0
         projectionCleanupPending = pending and CLEANUP_PROJECTION != 0
         recoveringCleanup = pending != 0
@@ -414,7 +439,8 @@ internal class Lynk06ClusterLink(
     private fun saveCleanupState() {
         val pending = (if (navigationCleanupPending) CLEANUP_NAVIGATION else 0) or
             (if (turnByTurnCleanupPending) CLEANUP_TBT else 0) or
-            (if (projectionCleanupPending) CLEANUP_PROJECTION else 0)
+            (if (projectionCleanupPending) CLEANUP_PROJECTION else 0) or
+            (if (navigationInfoCleanupPending) CLEANUP_NAVIGATION_INFO else 0)
         if (savedCleanup == pending) return
         check(cleanupJournal.edit().putInt("pending", pending).commit()) { "仪表清理记录保存失败" }
         savedCleanup = pending
@@ -478,6 +504,7 @@ internal class Lynk06ClusterLink(
             navigationRequested = navigationRequested,
             navigationSent = sentNavigation,
             navigationCleanupPending = navigationCleanupPending,
+            navigationInfoCleanupPending = navigationInfoCleanupPending,
             turnByTurnCleanupPending = turnByTurnCleanupPending,
             projectionCleanupPending = projectionCleanupPending,
             lastNotifySuccess = lastNotifySuccess,
@@ -561,6 +588,7 @@ internal class Lynk06ClusterLink(
         private const val CLEANUP_NAVIGATION = 1
         private const val CLEANUP_TBT = 2
         private const val CLEANUP_PROJECTION = 4
+        private const val CLEANUP_NAVIGATION_INFO = 8
         private const val MAX_CLOSE_CLEANUP_ATTEMPTS = 3
         private const val CLOSE_HANDOFF_DELAY_MILLIS = 100L
         private const val RETRY_DELAY_MILLIS = 1000L
@@ -581,6 +609,7 @@ internal class Lynk06ClusterLink(
                 appendLine("adapterConnected=${d.connected} menuAttached=${d.menuAttached} naviAttached=${d.naviAttached}")
                 appendLine("navigationRequested=${d.navigationRequested} navigationSent=${d.navigationSent} lastNotifySuccess=${d.lastNotifySuccess}")
                 appendLine("navigationCleanupPending=${d.navigationCleanupPending} turnByTurnCleanupPending=${d.turnByTurnCleanupPending} projectionCleanupPending=${d.projectionCleanupPending}")
+                appendLine("navigationInfoCleanupPending=${d.navigationInfoCleanupPending} lastNavigationInfoStatus=${activeLink?.lastNavigationInfoStatus}")
                 appendLine("naviMode=${d.naviMode} showMap=${d.showMap} switchFullModeAccepted=${d.lastSwitchAccepted}")
                 appendLine("presentationOption=${d.presentationOption} presentationSwitchOn=${d.presentationSwitchOn} lastPresentationSwitchSuccess=${d.lastPresentationSwitchSuccess}")
                 appendLine("naviCallbackRegistered=${d.naviCallbackRegistered} interactionCallbackRegistered=${d.interactionCallbackRegistered}")

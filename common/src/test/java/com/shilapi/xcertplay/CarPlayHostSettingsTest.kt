@@ -109,13 +109,13 @@ class CarPlayHostSettingsTest {
                     View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY))
                 overlay.layout(0, 0, width, height)
             }
-            val expected = CarPlayMenuLayout.width(activity, width)
+            val expected = (minOf(720, widthDp - 32) * density + 0.5f).toInt()
             assertEquals(expected, panel.width)
             assertTrue(kotlin.math.abs(panel.left - (width - panel.right)) <= 1)
             val title = views(panel).filterIsInstance<TextView>()
                 .first { it.text == activity.getString(R.string.carplay_settings) }
             val close = views(panel).filterIsInstance<Button>()
-                .first { it.contentDescription == activity.getString(R.string.discard_changes_and_exit_settings) }
+                .first { it.text == activity.getString(R.string.close) }
             val titleBounds = android.graphics.Rect(0, 0, title.width, title.height)
             val closeBounds = android.graphics.Rect(0, 0, close.width, close.height)
             (panel as ViewGroup).offsetDescendantRectToMyCoords(title, titleBounds)
@@ -123,7 +123,9 @@ class CarPlayHostSettingsTest {
             assertTrue(kotlin.math.abs(titleBounds.exactCenterY() - closeBounds.exactCenterY()) <= 1f)
             assertTrue(panel.top > 0)
             assertTrue(panel.bottom < height)
-            val scroll = views(panel).filterIsInstance<ScrollView>().first()
+            val scroll = views(panel).filterIsInstance<ScrollView>().first {
+                it.getChildAt(0) is android.widget.FrameLayout
+            }
             fun action(label: Int) = views(panel).filterIsInstance<Button>().first { it.text == activity.getString(label) }
             // Save stays pinned below the list while it scrolls.
             val save = action(R.string.save_and_reconnect)
@@ -132,11 +134,100 @@ class CarPlayHostSettingsTest {
             panel.offsetDescendantRectToMyCoords(save, bounds)
             assertTrue(bounds.top >= scroll.bottom)
             assertTrue(bounds.bottom <= panel.height)
-            // Exit ends CarPlay: it is the last item of the list, never pinned next to Save.
+            // Exit ends CarPlay: it stays at the end of the More page, never pinned next to Save.
             val exit = action(R.string.exit_application)
-            val list = scroll.getChildAt(0) as ViewGroup
-            assertTrue(views(list.getChildAt(list.childCount - 1)).any { it === exit })
+            val pageHost = scroll.getChildAt(0) as ViewGroup
+            val morePage = pageHost.getChildAt(pageHost.childCount - 1) as ViewGroup
+            assertTrue(morePage.getChildAt(morePage.childCount - 1) === exit)
+            assertTrue(views(scroll).any { it === exit })
         }
+    }
+
+    @Test fun categoryNavigationShowsOnePageAndKeepsSavePinned() {
+        invoke("openSettingsMenu")
+        val panel = (menu() as ViewGroup).getChildAt(0)
+        val scroll = views(panel).filterIsInstance<ScrollView>().first {
+            it.getChildAt(0) is android.widget.FrameLayout
+        }
+        val pages = scroll.getChildAt(0) as ViewGroup
+        assertEquals(1, (0 until pages.childCount).count { pages.getChildAt(it).visibility == View.VISIBLE })
+        val save = views(panel).filterIsInstance<Button>().first {
+            it.text == activity.getString(R.string.save_and_reconnect)
+        }
+        assertFalse(views(scroll).contains(save))
+
+        views(panel).filterIsInstance<Button>().first {
+            it.text == activity.getString(R.string.settings_display)
+        }.performClick()
+        assertEquals("display", field("settingsMenuCategoryKey"))
+        assertEquals(1, (0 until pages.childCount).count { pages.getChildAt(it).visibility == View.VISIBLE })
+        fun page(key: String) = (0 until pages.childCount).map(pages::getChildAt).single { it.tag == key }
+        assertTrue(views(page("display")).filterIsInstance<TextView>().any {
+            it.text == activity.getString(R.string.frame_rate)
+        })
+        assertTrue(views(page("display")).filterIsInstance<TextView>().any {
+            it.text == activity.getString(R.string.carplay_dock)
+        })
+        // 领克宽屏用卡片主题的大字号标签（efficient_video），HEVC 开关仍在高级页。
+        assertFalse(views(page("display")).filterIsInstance<TextView>().any {
+            it.text == activity.getString(R.string.efficient_video)
+        })
+        assertTrue(views(page("advanced")).filterIsInstance<TextView>().any {
+            it.text == activity.getString(R.string.efficient_video)
+        })
+        assertTrue(views(page("vehicle")).filterIsInstance<Button>().any {
+            it.text == activity.getString(R.string.settings_gesture_fingers, 3)
+        })
+    }
+
+    @Test
+    @Config(qualifiers = "en-w320dp-h480dp-xhdpi")
+    fun narrowHighDensityMenuKeepsCategoryAndActionsInThePanel() {
+        setField("settingsMenuCategoryKey", "more")
+        invoke("openSettingsMenu")
+        val overlay = menu() as ViewGroup
+        repeat(2) {
+            overlay.measure(View.MeasureSpec.makeMeasureSpec(640, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(960, View.MeasureSpec.EXACTLY))
+            overlay.layout(0, 0, 640, 960)
+        }
+        val panel = overlay.getChildAt(0) as ViewGroup
+        assertTrue(panel.left > 0 && panel.right < overlay.width)
+        val contentScroll = views(panel).filterIsInstance<ScrollView>().first {
+            it.getChildAt(0) is android.widget.FrameLayout
+        }
+        val save = views(panel).filterIsInstance<Button>().first {
+            it.text == activity.getString(R.string.save_and_reconnect)
+        }
+        val exit = views(contentScroll).filterIsInstance<Button>().first {
+            it.text == activity.getString(R.string.exit_application)
+        }
+        assertFalse(views(contentScroll).contains(save))
+        assertTrue(exit.width <= contentScroll.width)
+        assertEquals("more", field("settingsMenuCategoryKey"))
+    }
+
+    @Test
+    @Config(qualifiers = "en-w1920dp-h1080dp-mdpi")
+    fun appearanceChangeRestoresContentScrollRatherThanCategoryRail() {
+        setField("settingsMenuCategoryKey", "display")
+        invoke("openSettingsMenu")
+        fun layoutMenu() {
+            repeat(2) {
+                menu().measure(View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY))
+                menu().layout(0, 0, 1920, 1080)
+            }
+        }
+        layoutMenu()
+        (field("settingsMenuContentScroll") as ScrollView).scrollTo(0, 180)
+        assertEquals(180, (field("settingsMenuContentScroll") as ScrollView).scrollY)
+        AirPlayPersistence.saveAppAppearance(activity, AppAppearance.LIGHT)
+        invoke("refreshAppAppearance")
+        layoutMenu()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("display", field("settingsMenuCategoryKey"))
+        assertEquals(180, (field("settingsMenuContentScroll") as ScrollView).scrollY)
     }
 
     @Test
@@ -159,12 +250,27 @@ class CarPlayHostSettingsTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun arabicLargeFontSwipeMenuScreenshot() = checkSwipeMenuScreenshot("upstream-swipe-arabic-large-font.png", 600, 720)
 
+    @Test
+    @Config(qualifiers = "en-w600dp-h720dp-mdpi")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun compactGroupedMenuScreenshot() = checkSwipeMenuScreenshot("grouped-swipe-compact-large-font.png", 600, 720)
+
+    @Test
+    @Config(qualifiers = "en-w1920dp-h1080dp-mdpi")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun fullGroupedMenuScreenshot() = checkSwipeMenuScreenshot("grouped-swipe-full-large-font.png", 1920, 1080)
+
+    @Test
+    @Config(qualifiers = "ar-rSA-w600dp-h720dp-mdpi")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun arabicGroupedMenuScreenshot() = checkSwipeMenuScreenshot("grouped-swipe-arabic-large-font.png", 600, 720)
+
     @Test fun closeButtonDiscardsEditsWithoutRestartingCarPlay() {
         val controller = attachController()
         invoke("openSettingsMenu")
         resolutionSlider().progress = 0
         val close = views(menu()).filterIsInstance<Button>()
-            .first { it.contentDescription == activity.getString(R.string.discard_changes_and_exit_settings) }
+            .first { it.text == activity.getString(R.string.close) }
         close.performClick()
         assertFalse(field("menuOpen") as Boolean)
         assertSame(controller, field("controller"))
@@ -365,12 +471,12 @@ class CarPlayHostSettingsTest {
         assertEquals("Unsaved hotspot", field("manualHotspotSsid"))
         assertEquals(false, field("appNight"))
         assertEquals(
-            CarPlayMenuLayout.SCRIM_COLOR,
+            0xB3000000.toInt(),
             (menu().background as android.graphics.drawable.ColorDrawable).color,
         )
         val heading = views(menu()).filterIsInstance<TextView>()
             .first { it.text == activity.getString(R.string.carplay_settings) }
-        assertEquals(DiPlayPalette.LIGHT.primaryText, heading.currentTextColor)
+        assertEquals(DiPlayPalette.LIGHT.overlayPrimaryText, heading.currentTextColor)
     }
 
     @Test fun savingPersistsSettingsAndRestartsOnce() {
@@ -636,6 +742,7 @@ class CarPlayHostSettingsTest {
             AirPlayPersistence.saveAppAppearance(activity, AppAppearance.LIGHT)
             invoke("refreshAppAppearance")
         }
+        if (name.contains("grouped")) setField("settingsMenuCategoryKey", "display")
         invoke("openSettingsMenu")
         val root = menu()
         repeat(3) {
@@ -649,7 +756,7 @@ class CarPlayHostSettingsTest {
         assertTrue(panel.right < width)
         assertTrue(panel.bottom < height)
         val close = views(panel).filterIsInstance<Button>()
-            .first { it.contentDescription == activity.getString(R.string.discard_changes_and_exit_settings) }
+            .first { it.text == activity.getString(R.string.close) }
         assertTrue(close.width >= close.height)
         val destination = System.getenv("DIPLAY_SCREENSHOT_DIR") ?: return
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)

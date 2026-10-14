@@ -12,7 +12,6 @@ class CliEncodingTest(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         for name in (
             "import_diplay_authentication.py",
-            "initialize_lynkplay_signing.py",
             "build_lynkplay_car_test.py",
             "build_lynkplay_release.py",
         ):

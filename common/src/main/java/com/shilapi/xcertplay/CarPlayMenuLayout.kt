@@ -3,7 +3,6 @@ package com.shilapi.xcertplay
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import androidx.core.graphics.ColorUtils
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
@@ -30,6 +29,7 @@ internal object CarPlayMenuLayout {
     const val INPUT_MIN_WIDTH_DP = 180
     const val OUTLINE_DP = 1
     const val CATEGORY_TAG = "carplay_menu_category"
+    const val CONTENT_TAG = "carplay_menu_content"
     const val HEADER_TAG = "carplay_menu_header"
     const val FOOTER_TAG = "carplay_menu_footer"
     const val PANEL_HEIGHT_PERCENT = 94
@@ -62,24 +62,41 @@ internal object CarPlayMenuLayout {
             context.dp(CARD_PADDING_DP), context.dp(CONTROL_GAP_DP))
     }
 
+    /**
+     * 面板表面：与设置页面一致，使用背景色 + 描边的圆角面板，圆角随触控高度变化。
+     */
+    fun chrome(
+        context: Context, palette: DiPlayPalette,
+        topOnly: Boolean = false, bottomOnly: Boolean = false,
+    ): GradientDrawable {
+        val radius = AppDialogLayout.radiusDp(CarWindowLayout.controlHeightDp(context, CONTROL_HEIGHT_DP).toFloat()) * context.resources.displayMetrics.density
+        val top = if (bottomOnly) 0f else radius
+        val bottom = if (topOnly) 0f else radius
+        return GradientDrawable().apply {
+            setColor(palette.background)
+            cornerRadii = floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom)
+            setStroke(context.dp(OUTLINE_DP), palette.outline)
+        }
+    }
+
+    /**
+     * 分区卡片表面：与设置页面的卡片一致（surface 填充 + outline 描边 + 圆角）。
+     */
+    fun card(context: Context, palette: DiPlayPalette): GradientDrawable =
+        context.shape(palette.surface, palette.outline)
+
+    /** 领克宽屏放大文字与触控高度；分页菜单构建完成后调用。 */
+    fun adaptToScreen(panel: View, palette: DiPlayPalette) {
+        styleChoices(panel, palette)
+        if (CarWindowLayout.isWide(panel.context)) enlargeText(panel)
+    }
+
     /** 上游玻璃面板布局沿用领克车机的窗口宽度、触控高度和安全边距。 */
     fun build(
         context: Context, panel: FrameLayout, content: LinearLayout, save: DiPlayButton,
         palette: DiPlayPalette, cancel: () -> Unit,
     ) {
-        fun chrome(topOnly: Boolean = false, bottomOnly: Boolean = false): GradientDrawable {
-            val night = palette == DiPlayPalette.DARK
-            val base = ColorUtils.blendARGB(palette.background, palette.surface, if (night) 0.48f else 0.38f)
-            val highlight = ColorUtils.blendARGB(base, Color.WHITE, if (night) 0.10f else 0.28f)
-            val radius = AppDialogLayout.radiusDp(CarWindowLayout.controlHeightDp(context, CONTROL_HEIGHT_DP).toFloat()) * context.resources.displayMetrics.density
-            val top = if (bottomOnly) 0f else radius
-            val bottom = if (topOnly) 0f else radius
-            return GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(highlight, base)).apply {
-                cornerRadii = floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom)
-                setStroke(context.dp(OUTLINE_DP), ColorUtils.blendARGB(palette.outline, Color.WHITE, if (night) 0.12f else 0.30f))
-            }
-        }
-        panel.background = chrome()
+        panel.background = chrome(context, palette)
         panel.clipToOutline = true
         panel.elevation = context.dp(PANEL_ELEVATION_DP).toFloat()
         val title = content.getChildAt(0) as TextView
@@ -100,7 +117,7 @@ internal object CarPlayMenuLayout {
             tag = HEADER_TAG
             gravity = Gravity.CENTER_VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            background = chrome(topOnly = true)
+            background = chrome(context, palette, topOnly = true)
             setPadding(context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP),
                 context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP))
             val titleParams = LinearLayout.LayoutParams(0, -2, 1f)
@@ -126,7 +143,7 @@ internal object CarPlayMenuLayout {
         val footer = LinearLayout(context).apply {
             tag = FOOTER_TAG
             orientation = LinearLayout.VERTICAL
-            background = chrome(bottomOnly = true)
+            background = chrome(context, palette, bottomOnly = true)
             setPadding(context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP),
                 context.dp(WINDOW_MARGIN_DP), context.dp(CONTROL_GAP_DP))
             addView(save, LinearLayout.LayoutParams(-1, -2))
@@ -137,8 +154,7 @@ internal object CarPlayMenuLayout {
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
             addView(footer, LinearLayout.LayoutParams(-1, -2))
         }, FrameLayout.LayoutParams(-1, -1))
-        styleChoices(content, palette)
-        if (CarWindowLayout.isWide(context)) enlargeText(panel)
+        adaptToScreen(panel, palette)
     }
 
     private fun enlargeText(view: View) {

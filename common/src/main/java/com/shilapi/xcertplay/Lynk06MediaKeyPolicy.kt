@@ -10,7 +10,8 @@ internal object Lynk06MediaKeyPolicy {
         return when (keyCode) {
             KeyEvent.KEYCODE_MEDIA_NEXT -> CarPlayMediaButton.NEXT
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> CarPlayMediaButton.PREVIOUS
-            KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_PLAY -> CarPlayMediaButton.PLAY
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> CarPlayMediaButton.PAUSE
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> CarPlayMediaButton.PLAY_PAUSE
             else -> null
         }

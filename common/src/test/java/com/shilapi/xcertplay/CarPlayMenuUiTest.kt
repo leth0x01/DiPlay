@@ -76,7 +76,7 @@ class CarPlayMenuUiTest {
                 }
                 layout()
                 if (CarWindowLayout.isWide(width, height)) {
-                    assertEquals(1120, (menu as ViewGroup).getChildAt(0).width)
+                    assertEquals(1600, (menu as ViewGroup).getChildAt(0).width)
                     val inputs = descendants(menu).filterIsInstance<EditText>().filter { it.isShown }
                     assertTrue("宽屏输入框应保留触控高度：${inputs.map { it.height }}", inputs.all { it.height >= 72 })
                     assertTrue(inputs.all { it.textSize / it.resources.displayMetrics.scaledDensity >= 20f })
@@ -88,7 +88,8 @@ class CarPlayMenuUiTest {
                 assertEquals(DiPlayPalette.of(night).primaryText, title.currentTextColor)
                 assertTrue(views.count { it.tag == CarPlayMenuLayout.CATEGORY_TAG } >= 4)
                 assertFullyVisible(header); assertFullyVisible(footer)
-                val scroll = views.filterIsInstance<ScrollView>().single()
+                // 分页菜单在宽屏会额外出现分类侧栏滚动区，按标签定位内容滚动区。
+                val scroll = views.single { it.tag == CarPlayMenuLayout.CONTENT_TAG } as ScrollView
                 val headerTop = header.top
                 val footerTop = footer.top
                 capture(menu, "$name-top")

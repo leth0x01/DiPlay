@@ -16,6 +16,17 @@ Available modes are sound energy, beat, estimated BPM, bass priority and smart f
 
 With control enabled, paused or disconnected playback holds all zones at the lowest level. During playback, disabling music following uses a fixed color and brightness. Disabling ambient control attempts to restore the pre-control front/rear colors, brightness and area. Changing the configuration takes effect only after Save; Cancel does not apply the draft.
 
+## Settings dialog
+
+The dialog opens with a **What happens** summary that rewrites itself as the draft changes, so each setting's effect is visible before saving. It follows the controller rules above:
+
+- Control off: the car keeps its own lamp colors, brightness and area.
+- Music playing: the chosen area (Front, Rear or All) follows the music, or holds one fixed color, up to the chosen level. With Front or Rear selected, the other zone stays at the lowest level.
+- Paused, stopped or disconnected: every zone drops to the lowest level, whatever the area. The lamps never switch fully off.
+- Level 0: every zone stays at the lowest level at all times.
+
+Colors are picked from a grid of the car's 31 colors, drawn with the 31-color OEM preview reference described below; the lamp interface accepts color numbers, not arbitrary RGB, so there is no free color wheel. With **Follow music** on, any number of colors can be selected (at least one). With it off, the grid selects a single color, the first of any previous selection, as the lamps use it. With **Follow album cover** on, the grid is disabled because the cover decides the colors. Each color-change mode has a one-line description, and brightness is a 0 to 6 slider. The color-change mode and brightness-speed controls are hidden while Follow music is off, because fixed mode does not use them.
+
 The controller samples every 50 ms and limits lamp submissions to one per 200 ms. Lamp calls run outside audio writes through a token-bound, bounded stdin worker. The worker accepts only interior-lamp operations. It holds a process lock, reads back writes, keeps one original-state snapshot and restores on normal stop or EOF. A five-second heartbeat and fifteen-second lease attempt restoration after a lost connection. Recovery uses bounded retry delays and retains the original snapshot when a stop is unconfirmed.
 
 Restoration is best effort. Power loss, forced process death, a permanently blocked vehicle service or repeated failed readback can prevent restoration. The worker's final failed restore is reported before it exits. This patch does not guarantee recovery under those conditions.

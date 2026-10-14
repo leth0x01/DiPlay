@@ -12,15 +12,16 @@ internal data class Lynk06NavigationInfo(
     val road: String,
     /** The working BX11 APK supplies 0. Apple's driving side is not a compass direction. */
     val drivingDirection: Int = 0,
+    val navigationStatus: Int = 1,
 ) {
     fun proxy(type: Class<*>): Any = Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { self, method, args ->
         when (method.name) {
             "equals" -> self === args?.firstOrNull()
             "hashCode" -> System.identityHashCode(self)
             "toString" -> "Lynk06NavigationInfo"
-            "getNavigationStatus" -> 1
+            "getNavigationStatus" -> navigationStatus
             "getNavigationTurnId" -> turnId
-            "getNavigationTurnSVG" -> ""
+            "getNavigationTurnSVG" -> if (navigationStatus == 0) null else ""
             "getNextGuidancePointName" -> road
             "getDistanceToNextGuidancePoint" -> nextMeters
             "getDistanceToDestination" -> destinationMeters
@@ -35,6 +36,9 @@ internal data class Lynk06NavigationInfo(
     }
 
     companion object {
+        /** 与原车 stopNavi 一致：清空卡片内容，并明确告知仪表导航已经结束。 */
+        fun stopped(): Lynk06NavigationInfo = Lynk06NavigationInfo(0, 0, 0, 0, "", navigationStatus = 0)
+
         fun from(guidance: ClusterTurnGuidance?): Lynk06NavigationInfo? {
             guidance ?: return null
             val distance = guidance.remainingMeters ?: return null

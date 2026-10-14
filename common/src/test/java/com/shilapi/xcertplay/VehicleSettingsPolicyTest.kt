@@ -31,12 +31,15 @@ class VehicleSettingsPolicyTest {
     @Test fun verifiedDefaultsKeepUserRollbackChoices() {
         assertTrue(AirPlayPersistence.loadMtkDecoderTuning(app))
         assertTrue(AirPlayPersistence.loadDirectVideoOutput(app))
+        assertTrue(AirPlayPersistence.loadClusterMapEnabled(app))
         assertFalse(AirPlayPersistence.loadSmoothVideo(app))
         assertFalse(AirPlayPersistence.loadHevcEnabled(app))
         AirPlayPersistence.saveMtkDecoderTuning(app, false)
         AirPlayPersistence.saveDirectVideoOutput(app, false)
+        AirPlayPersistence.saveClusterMapEnabled(app, false)
         assertFalse(AirPlayPersistence.loadMtkDecoderTuning(app))
         assertFalse(AirPlayPersistence.loadDirectVideoOutput(app))
+        assertFalse(AirPlayPersistence.loadClusterMapEnabled(app))
     }
 
     @Test fun hiddenSettingsCannotActivateFromHistoricalValues() {
@@ -58,6 +61,7 @@ class VehicleSettingsPolicyTest {
             assertTrue(VehicleSettingsPolicy.showQualcommLowLatency)
             assertFalse(AirPlayPersistence.loadMtkDecoderTuning(app))
             assertFalse(AirPlayPersistence.loadDirectVideoOutput(app))
+            assertFalse(AirPlayPersistence.loadClusterMapEnabled(app))
             ReflectionHelpers.setStaticField(Build::class.java, field, original)
         }
     }

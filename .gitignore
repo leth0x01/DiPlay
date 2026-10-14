@@ -29,12 +29,12 @@ Thumbs.db
 *.log
 /.idea
 
-# Local beta credentials and release signing (never commit)
+# Local credentials and release signing (never commit)
 .private/
+/keystore/
+keystore.properties
 *.jks
 *.keystore
-release-signing.properties
-platform-signing.properties
 
 # Never commit credential containers or installable distribution artifacts.
 *.pk8

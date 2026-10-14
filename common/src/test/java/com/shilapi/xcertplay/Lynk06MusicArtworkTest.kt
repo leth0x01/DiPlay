@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Parcel
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.core.content.FileProvider
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,9 +22,39 @@ import org.robolectric.util.ReflectionHelpers
 import com.shilapi.xcertplay.media.CarPlayNowPlaying
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28], shadows = [FileProviderPathTestShadow::class])
+@Config(sdk = [28])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class Lynk06MusicArtworkTest {
+    @Test fun onlyTheOemMediaUidCanReadAndNoCallerCanWriteOrEscapeTheCoverDirectory() {
+        val context = RuntimeEnvironment.getApplication()
+        val authority = "${context.packageName}.lynk06-music-artwork"
+        val info = context.packageManager.resolveContentProvider(authority, PackageManager.GET_META_DATA)!!
+        val provider = Lynk06MusicArtworkProvider().apply { attachInfo(context, info) }
+        org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(android.content.pm.PackageInfo().apply {
+            packageName = Lynk06MusicArtwork.MEDIA_CENTER_PACKAGE
+            applicationInfo = android.content.pm.ApplicationInfo().apply { uid = 10072; packageName = Lynk06MusicArtwork.MEDIA_CENTER_PACKAGE }
+        })
+        val store = Lynk06MusicArtwork(context)
+        val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        try {
+            val uri = store.save(bitmap)!!
+            org.robolectric.shadows.ShadowBinder.setCallingUid(10073)
+            assertThrows(SecurityException::class.java) { provider.openFile(uri, "r") }
+            assertThrows(SecurityException::class.java) { provider.getType(uri) }
+            org.robolectric.shadows.ShadowBinder.setCallingUid(10072)
+            assertEquals("image/jpeg", provider.getType(uri))
+            provider.openFile(uri, "r")!!.use { assertTrue(it.statSize > 0) }
+            assertThrows(SecurityException::class.java) { provider.openFile(uri, "rw") }
+            assertThrows(IllegalArgumentException::class.java) {
+                provider.openFile(uri.buildUpon().path("/covers/../unrelated.txt").build(), "r")
+            }
+        } finally {
+            org.robolectric.shadows.ShadowBinder.setCallingUid(android.os.Process.myUid())
+            store.close()
+            bitmap.recycle()
+        }
+    }
+
     @Test fun returningToPublishedCoverBeforeQueuedUpdateKeepsItsUri() {
         val context = RuntimeEnvironment.getApplication()
         val authority = "${context.packageName}.lynk06-music-artwork"
@@ -92,8 +121,8 @@ class Lynk06MusicArtworkTest {
         val context = RuntimeEnvironment.getApplication()
         val authority = "${context.packageName}.lynk06-music-artwork"
         val info = context.packageManager.resolveContentProvider(authority, PackageManager.GET_META_DATA)!!
-        assertFalse(info.exported)
-        assertTrue(info.grantUriPermissions)
+        assertTrue(info.exported)
+        assertFalse(info.grantUriPermissions)
         ShadowContentResolver.registerProviderInternal(authority,
             Lynk06MusicArtworkProvider().apply { attachInfo(context, info) })
         val store = Lynk06MusicArtwork(context)
@@ -114,7 +143,7 @@ class Lynk06MusicArtworkTest {
             }
             val unrelated = File(context.cacheDir, "unrelated.txt").apply { writeText("资料") }
             assertThrows(IllegalArgumentException::class.java) {
-                FileProvider.getUriForFile(context, authority, unrelated)
+                Lynk06MusicArtworkProvider.uriForFile(context, unrelated)
             }
             unrelated.delete()
             store.close()
