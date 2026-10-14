@@ -3,9 +3,11 @@ package com.shilapi.xcertplay
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Handler
 import android.view.KeyEvent
+import android.view.Display
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -21,6 +23,8 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowDisplayManager
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.util.ReflectionHelpers
@@ -94,7 +98,7 @@ class LynkSiriSettingsTest {
         assertFalse(WheelZoomSettings.isSiriKey(app, key))
         assertFalse(WheelZoomSettings.anyEnabled(app))
         WheelZoomSettings.setJoystick(app, true)
-        assertTrue(WheelZoomSettings.anyEnabled(app))
+        assertFalse(WheelZoomSettings.anyEnabled(app))
         assertNull(WheelZoomSettings.conflict(app, WheelZoomSettings.Role.SELECT, key))
         WheelZoomSettings.setJoystick(app, false)
 
@@ -114,6 +118,9 @@ class LynkSiriSettingsTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun nativeVoiceControlsRenderWithLargeFontsInCompactFullAndArabicLayouts() {
         WheelZoomSettings.setSiriKey(app, true)
+        WheelZoomSettings.setJoystick(app, true)
+        WheelZoomSettings.setEnabled(app, true)
+        AirPlayPersistence.saveClusterMapEnabled(app, true)
         for ((widthDp, locale, density) in listOf(
             Triple(360, "zh-rCN", "mdpi"), Triple(1280, "zh-rCN", "xhdpi"),
             Triple(600, "ar-ldrtl", "xhdpi"),
@@ -122,8 +129,10 @@ class LynkSiriSettingsTest {
             app.resources.updateConfiguration(Configuration(app.resources.configuration).apply {
                 fontScale = 1.5f
             }, app.resources.displayMetrics)
+            val displayId = clusterDisplay()
             val activity = activity()
             val root = controls(activity)
+            assertNoBydControls(activity, root)
             root.layoutDirection = activity.resources.configuration.layoutDirection
             val width = (widthDp * activity.resources.displayMetrics.density).toInt()
             root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -143,7 +152,46 @@ class LynkSiriSettingsTest {
                 File(directory, "$locale-${widthDp}dp-$density-font-1.5.png").outputStream().use {
                     assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
                 }
-            } finally { bitmap.recycle() }
+            } finally {
+                bitmap.recycle()
+                ShadowDisplayManager.removeDisplay(displayId)
+            }
+        }
+    }
+
+    @Test fun lynkRejectsSavedBydWheelFeaturesEvenWithAClusterDisplay() {
+        WheelZoomSettings.setJoystick(app, true)
+        WheelZoomSettings.setEnabled(app, true)
+        AirPlayPersistence.saveClusterMapEnabled(app, true)
+        val displayId = clusterDisplay()
+        try {
+            assertNotNull(ClusterMapPresentation.findDisplay(app))
+            assertFalse(WheelZoomSettings.enabled(app))
+            assertFalse(WheelZoomSettings.joystick(app))
+            assertFalse(WheelZoomSettings.anyEnabled(app))
+            assertFalse(WheelKeyService.wanted(app))
+            val activity = activity()
+            assertNoBydControls(activity, controls(activity))
+            val saved = app.getSharedPreferences("diplay_wheel_map_zoom", 0)
+            assertTrue(saved.getBoolean("enabled", false))
+            assertTrue(saved.getBoolean("joystick", false))
+        } finally { ShadowDisplayManager.removeDisplay(displayId) }
+    }
+
+    private fun assertNoBydControls(activity: DiPlayActivity, root: View) {
+        val labels = labels(root)
+        for (id in listOf(R.string.wheel_map_zoom, R.string.wheel_joystick,
+            R.string.wheel_keys_open_settings, R.string.wheel_keys_enable_adb)) {
+            assertFalse(activity.getString(id) in labels)
+        }
+        assertTrue(activity.getString(R.string.wheel_siri_key) in labels)
+        assertTrue(activity.getString(R.string.settings_external_controller) in labels)
+    }
+
+    private fun clusterDisplay(): Int = ShadowDisplayManager.addDisplay("w1920dp-h720dp-mdpi", 5).also { id ->
+        shadowOf(app.getSystemService(DisplayManager::class.java).getDisplay(id)).apply {
+            setName(Lynk06ClusterDisplay.NAME)
+            setFlags(Display.FLAG_PRESENTATION)
         }
     }
 

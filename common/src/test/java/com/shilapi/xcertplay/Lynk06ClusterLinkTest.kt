@@ -238,7 +238,9 @@ class Lynk06ClusterLinkTest {
         assertTrue(Lynk06ClusterLink.diagnosticReport().contains("navigationInfoCleanupPending=true"))
         link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, {})
         link.start()
-        await { vendor.navigationInfos.last().getNavigationStatus() == 0 && states.lastOrNull()?.available == true }
+        // 原车调用记录先更新，旧链路状态仍可能是可用；等待新链路发布清理后的诊断快照。
+        await { vendor.navigationInfos.last().getNavigationStatus() == 0 && states.lastOrNull()?.available == true &&
+            Lynk06ClusterLink.diagnosticReport().contains("navigationInfoCleanupPending=false") }
         assertEquals(4, vendor.endInfoCalls)
         assertTrue(Lynk06ClusterLink.diagnosticReport().contains("navigationInfoCleanupPending=false"))
     }

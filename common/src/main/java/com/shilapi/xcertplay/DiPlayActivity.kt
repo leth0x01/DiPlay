@@ -3850,6 +3850,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     // Map zoom only works where the dashboard map card used to show these controls.
     private fun wheelMapZoomAvailable(): Boolean {
+        if (!VehicleIntegration.bydEnabled(this)) return false
         if (!AirPlayPersistence.loadClusterMapEnabled(this)) return false
         val adbCluster = AdbClusterRouter.enabled(this)
         if (DiLink51ClusterLayout.supported() && !adbCluster) return false
@@ -3857,6 +3858,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     }
 
     private fun wheelKeyControls(card: LinearLayout) {
+        if (!VehicleIntegration.bydEnabled(this)) return
         val zoomAvailable = wheelMapZoomAvailable()
         if (zoomAvailable) {
             toggle(card, getString(R.string.wheel_map_zoom), getString(R.string.wheel_map_zoom_description),
