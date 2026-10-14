@@ -110,6 +110,7 @@ class Lynk06MusicArtworkProvider : ContentProvider() {
 internal class Lynk06MusicArtwork(private val context: Context) {
     private val directory = Lynk06MusicArtworkProvider.directory(context)
     private val owned = linkedSetOf<File>()
+    private var server: Lynk06ArtworkServer? = null
 
     fun save(bitmap: Bitmap?): Uri? {
         if (bitmap == null || bitmap.isRecycled) return null
@@ -123,7 +124,8 @@ internal class Lynk06MusicArtwork(private val context: Context) {
             file.outputStream().use { check(scaled.compress(Bitmap.CompressFormat.JPEG, 90, it)) {
                 "无法编码仪表封面"
             } }
-            val uri = Lynk06MusicArtworkProvider.uriForFile(context, file)
+            val endpoint = server ?: Lynk06ArtworkServer(directory).also { server = it }
+            val uri = Uri.parse(endpoint.publish(file))
             owned.add(file)
             // 同时清理上次异常退出留下的图片，目录中最多保留三张供延迟读取。
             directory.listFiles()?.filter { it.extension == "jpg" && it != file }
@@ -138,10 +140,13 @@ internal class Lynk06MusicArtwork(private val context: Context) {
     }
 
     fun close() {
+        server?.close()
+        server = null
         owned.toList().forEach(::remove)
     }
 
     private fun remove(file: File) {
+        server?.forget(file)
         owned.remove(file)
         file.delete()
     }

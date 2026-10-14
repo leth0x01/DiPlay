@@ -15,7 +15,7 @@ class AlbumTrackIdentityTest {
     @Test fun realTrackChangesInvalidateOldCover() {
         assertTrue(albumTrackChanged(track, track.copy(artworkTransferId = null)))
         assertTrue(albumTrackChanged(track, track.copy(artworkTransferId = 2)))
-        assertTrue(albumTrackChanged(track, track.copy(title = "next", artist = "other")))
+        assertTrue(albumTrackChanged(track, track.copy(title = "next", artist = "other", elapsedMillis = 0)))
         assertTrue(albumTrackChanged(track, track.copy(title = "next", durationMillis = 240_000)))
         assertTrue(albumTrackChanged(track, track.copy(title = "next", elapsedMillis = 0)))
     }
@@ -35,5 +35,12 @@ class AlbumTrackIdentityTest {
         assertFalse(albumTrackChanged(CarPlayNowPlaying(), track.copy(artworkTransferId = null)))
         assertTrue(albumTrackChanged(track.copy(artworkTransferId = null), track))
         assertFalse(albumTrackChanged(track.copy(sourceApp = null), track.copy(sourceApp = "Music")))
+    }
+    @Test fun combinedLyricFieldsWithContinuousPlaybackKeepArtwork() {
+        val initial = track.copy(artworkTransferId = 134, durationMillis = 204_000, elapsedMillis = 1_571)
+        val lyric = initial.copy(title = "作曲：歌手", artist = "歌曲", album = "歌词")
+        assertFalse(albumTrackChanged(initial, lyric))
+        assertFalse(albumTrackChanged(lyric, lyric.copy(title = "下一句歌词", artist = "其他展示字段",
+            album = "其他展示专辑", elapsedMillis = 2_000)))
     }
 }

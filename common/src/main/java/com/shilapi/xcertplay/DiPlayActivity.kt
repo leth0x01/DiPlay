@@ -5491,7 +5491,10 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         appendLine()
         appendLine("--- Current cluster display diagnostics (even when disabled) ---")
         appendLine(ClusterMapPresentation.diagnosticReport(appContext))
-        if (VehicleIntegration.detectedCapabilities.oemMediaCenter) appendLine(Lynk06MusicArtworkProvider.diagnosticReport())
+        if (VehicleIntegration.detectedCapabilities.oemMediaCenter) {
+            appendLine(Lynk06MusicArtworkProvider.diagnosticReport())
+            appendLine(Lynk06ArtworkServer.diagnosticReport())
+        }
         appendLine()
         appendLine("--- ADB cluster activity routing ---")
         appendLine("adbClusterActivityEnabled=${AirPlayPersistence.loadAdbClusterEnabled(appContext)}")

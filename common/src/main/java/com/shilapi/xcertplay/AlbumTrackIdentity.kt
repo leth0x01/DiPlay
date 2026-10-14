@@ -9,9 +9,9 @@ internal fun albumTrackChanged(previous: CarPlayNowPlaying, next: CarPlayNowPlay
     if (changed(previous.sourceApp, next.sourceApp)) return true
     // 标题也可能是歌词，必须同时有其他换歌证据；时长 0 表示尚未取得时长。
     if (!changed(previous.title, next.title)) return false
-    if (changed(previous.artist, next.artist) || changed(previous.album, next.album) ||
-        (previous.durationMillis?.let { it > 0 } == true && next.durationMillis?.let { it > 0 } == true &&
-            previous.durationMillis != next.durationMillis)) return true
+    // 实车歌词会同时改写标题、歌手和专辑，组合文字变化也不是稳定歌曲身份。
+    if (previous.durationMillis?.let { it > 0 } == true && next.durationMillis?.let { it > 0 } == true &&
+        previous.durationMillis != next.durationMillis) return true
     return previous.elapsedMillis?.let { it > 15_000 } == true &&
         next.elapsedMillis?.let { it < 3_000 } == true
 }

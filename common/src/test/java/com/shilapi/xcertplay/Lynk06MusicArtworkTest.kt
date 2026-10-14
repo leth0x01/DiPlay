@@ -41,7 +41,9 @@ class Lynk06MusicArtworkTest {
         val store = Lynk06MusicArtwork(context)
         val bitmap = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
         try {
-            val uri = store.save(bitmap)!!
+            val endpoint = store.save(bitmap)!!
+            val uri = Lynk06MusicArtworkProvider.uriForFile(context,
+                File(Lynk06MusicArtworkProvider.directory(context), endpoint.lastPathSegment!!))
             org.robolectric.shadows.ShadowBinder.setCallingUid(10073)
             assertThrows(SecurityException::class.java) { provider.openFile(uri, "r") }
             assertThrows(SecurityException::class.java) { provider.getType(uri) }
@@ -145,8 +147,14 @@ class Lynk06MusicArtworkTest {
         try {
             assertNull(store.save(null))
             val first = store.save(bitmap)!!
-            assertEquals("image/jpeg", context.contentResolver.getType(first))
-            val decoded = context.contentResolver.openInputStream(first)!!.use(BitmapFactory::decodeStream)!!
+            assertEquals("http", first.scheme)
+            assertEquals("127.0.0.1", first.host)
+            val connection = java.net.URL(first.toString()).openConnection().apply {
+                connectTimeout = 1_000
+                readTimeout = 4_000
+            }
+            assertEquals("image/jpeg", connection.contentType)
+            val decoded = connection.getInputStream().use(BitmapFactory::decodeStream)!!
             assertEquals(512, decoded.width)
             assertEquals(384, decoded.height)
             decoded.recycle()
@@ -154,7 +162,7 @@ class Lynk06MusicArtworkTest {
             val covers = File(context.cacheDir, "lynk06-music-covers")
             assertEquals(3, covers.listFiles()!!.size)
             assertThrows(java.io.FileNotFoundException::class.java) {
-                context.contentResolver.openInputStream(first)
+                java.net.URL(first.toString()).openStream()
             }
             val unrelated = File(context.cacheDir, "unrelated.txt").apply { writeText("资料") }
             assertThrows(IllegalArgumentException::class.java) {

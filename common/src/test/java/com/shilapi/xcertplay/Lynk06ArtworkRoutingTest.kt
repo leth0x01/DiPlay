@@ -66,6 +66,8 @@ class Lynk06ArtworkRoutingTest {
             val updates = listOf(
                 initial.copy(durationMillis = 180_000, elapsedMillis = 2_300),
                 initial.copy(durationMillis = 180_000, artist = "补正后的歌手", elapsedMillis = 2_800),
+                initial.copy(title = "作曲：歌手", artist = "歌曲", album = "歌词",
+                    durationMillis = 180_000, elapsedMillis = 2_800),
                 initial.copy(durationMillis = 180_000, artist = null, album = null, elapsedMillis = 3_300),
             )
             for (update in updates) {
