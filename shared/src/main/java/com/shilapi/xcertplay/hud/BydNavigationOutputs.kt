@@ -25,6 +25,10 @@ object BydNavigationOutputs {
     @Volatile private var overlayListener: ((ClusterTurnGuidance?) -> Unit)? = null
     private val overlayLock = Any()
     private var publishedOverlay: ClusterTurnGuidance? = null
+    @Volatile private var navigationGuidanceListener: ((ClusterTurnGuidance?) -> Unit)? = null
+    private val navigationRouteLock = Any()
+    // OEM output must not reuse an overlay retained across NoRouteSet or a session drop.
+    private val navigationRoute = BydHudRouteState()
     private val overlayRoute = BydHudRouteState(
         staleRouteNs = 120_000_000_000L,
         emptyListHideNs = 8_000_000_000L,
@@ -98,6 +102,8 @@ object BydNavigationOutputs {
             frame.messageId != BydHudRouteState.ROUTE_GUIDANCE_MANEUVER_UPDATE) return
         val owned = frame // Iap2Frame is immutable and defensively copies its payload.
         CarPlayNavigationStatus.onFrame(owned)
+        synchronized(navigationRouteLock) { navigationRoute.accept(owned.messageId, owned.payload) }
+        navigationGuidanceListener?.invoke(currentNavigationGuidance())
         updateOverlay(owned)
         fceCluster.submit { FceClusterBridge.onFrame(owned) }
         if (useStandalone) standalone.submit { BydStandaloneNavigationBridge.onFrame(owned) }
@@ -115,13 +121,32 @@ object BydNavigationOutputs {
         listener?.invoke(next)
     }
 
+    /** Every real guidance packet is delivered, even if its visible overlay values are unchanged. */
+    fun setNavigationGuidanceListener(listener: (ClusterTurnGuidance?) -> Unit) {
+        navigationGuidanceListener = listener
+        listener(currentNavigationGuidance())
+    }
+
+    fun clearNavigationGuidanceListener(listener: (ClusterTurnGuidance?) -> Unit) {
+        if (navigationGuidanceListener === listener) navigationGuidanceListener = null
+    }
+
+    private fun currentNavigationGuidance(): ClusterTurnGuidance? = synchronized(navigationRouteLock) {
+        navigationRoute.currentApple()?.let(::guidanceFrom)
+    }
+
     private fun updateOverlay(frame: Iap2Frame) {
         val change = synchronized(overlayLock) { overlayRoute.accept(frame.messageId, frame.payload) }
-        if (change != BydHudRouteChange.NONE) refreshTurnOverlay()
+        if (change != BydHudRouteChange.NONE) refreshOverlay()
     }
 
     /** Called every second while the presentation owner lives, even without incoming frames. */
     fun refreshTurnOverlay() {
+        navigationGuidanceListener?.invoke(currentNavigationGuidance())
+        refreshOverlay()
+    }
+
+    private fun refreshOverlay() {
         val next = synchronized(overlayLock) {
             val current = currentOverlay()
             if (current == publishedOverlay) return
@@ -132,14 +157,17 @@ object BydNavigationOutputs {
     }
 
     private fun currentOverlay(): ClusterTurnGuidance? = synchronized(overlayLock) {
-        overlayRoute.currentApple()?.let { apple ->
-            ClusterTurnGuidance.from(BydClusterFrame.from(apple)).copy(
-                arrivalEpochSeconds = apple.arrivalEpochSeconds,
-                remainingSeconds = apple.remainingSeconds,
-                remainingMeters = apple.remainingMeters,
-            )
-        }
+        overlayRoute.currentApple()?.let(::guidanceFrom)
     }
+
+    private fun guidanceFrom(apple: BydAppleManeuver): ClusterTurnGuidance =
+        ClusterTurnGuidance.from(BydClusterFrame.from(apple)).copy(
+            arrivalEpochSeconds = apple.arrivalEpochSeconds,
+            remainingSeconds = apple.remainingSeconds,
+            remainingMeters = apple.remainingMeters,
+            appleManeuverType = apple.type,
+            drivingSide = apple.drivingSide,
+        )
 
     /** The dashboard song setting changed; applies at once. */
     fun clusterSongChanged(enabled: Boolean) = BydClusterSong.settingChanged(enabled)
@@ -162,6 +190,8 @@ object BydNavigationOutputs {
     /** Best effort while alive; Android does not guarantee callbacks before force-stop. */
     fun endNow(preserveTurnOverlay: Boolean = false) {
         CarPlayNavigationStatus.clear()
+        synchronized(navigationRouteLock) { navigationRoute.clear() }
+        navigationGuidanceListener?.invoke(null)
         standalone.clear(); hud.clear(); cluster.clear(); fceCluster.clear(); BydClusterSong.end(); BydCarPlayCall.end()
         // Only a wireless session replacement retains the card. Explicit controller close
         // and wired disconnect still clear it immediately.

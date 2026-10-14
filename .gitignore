@@ -34,6 +34,7 @@ Thumbs.db
 *.jks
 *.keystore
 release-signing.properties
+platform-signing.properties
 
 # Never commit credential containers or installable distribution artifacts.
 *.pk8

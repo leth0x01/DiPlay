@@ -10,6 +10,9 @@ data class ClusterTurnGuidance(
     val arrivalEpochSeconds: Long? = null,
     val remainingSeconds: Long? = null,
     val remainingMeters: Long? = null,
+    /** Preserve the phone's maneuver vocabulary for OEMs with a different turn-ID ABI. */
+    val appleManeuverType: Int? = null,
+    val drivingSide: Int? = null,
 ) {
     companion object {
         internal fun from(frame: BydClusterFrame): ClusterTurnGuidance {

@@ -31,6 +31,17 @@ val signingAlias = signingInput("ANDROID_KEY_ALIAS", "keyAlias")
 val signingKeyPassword = signingInput("ANDROID_KEY_PASSWORD", "keyPassword")
 val expectedSigner = signingInput("LYNKPLAY_SIGNER_SHA256", "signerSha256")
 
+val platformSigning = Properties().apply {
+    rootProject.file("platform-signing.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
+fun platformInput(environment: String, property: String): String =
+    providers.environmentVariable(environment).orNull ?: platformSigning.getProperty(property, "")
+val platformStore = rootProject.file(platformInput("LYNKPLAY_PLATFORM_KEYSTORE", "storeFile")
+    .ifEmpty { "missing-platform-keystore.jks" })
+val platformStorePassword = platformInput("LYNKPLAY_PLATFORM_STORE_PASSWORD", "storePassword")
+val platformAlias = platformInput("LYNKPLAY_PLATFORM_ALIAS", "keyAlias")
+val platformKeyPassword = platformInput("LYNKPLAY_PLATFORM_KEY_PASSWORD", "keyPassword")
+
 android {
     namespace = "com.shilapi.xcertplay"
     compileSdk {
@@ -50,6 +61,12 @@ android {
     localAuthenticationAssets?.let { sourceSets.getByName("main").assets.srcDir(it) }
 
     signingConfigs {
+        create("clusterPlatform") {
+            storeFile = platformStore
+            storePassword = platformStorePassword
+            keyAlias = platformAlias
+            keyPassword = platformKeyPassword
+        }
         create("release") {
             storeFile = signingStore
             storePassword = signingPassword
@@ -73,6 +90,13 @@ android {
             initWith(getByName("release"))
             matchingFallbacks += "release"
             versionNameSuffix = "-lynk06-test"
+        }
+        create("clusterSystem") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".clustersystem"
+            versionNameSuffix = "-bx11-system-test"
+            matchingFallbacks += "debug"
+            signingConfig = signingConfigs.getByName("clusterPlatform")
         }
     }
     compileOptions {
@@ -191,6 +215,29 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     dependsOn(verifyStandaloneAuthentication, verifyLynkPlaySigning)
 }
 tasks.named("preBuild") { mustRunAfter(verifyStandaloneAuthentication) }
+
+val verifyBx11PlatformSigning by tasks.registering {
+    group = "verification"
+    description = "Verify the BX11/IHU514G platform certificate before building a system UID APK."
+    val keyStoreFile = platformStore
+    val storePass = platformStorePassword
+    val alias = platformAlias
+    val keyPass = platformKeyPassword
+    doLast {
+        check(keyStoreFile.isFile) { "Missing platform-signing.properties or LYNKPLAY_PLATFORM_KEYSTORE" }
+        val keyStore = KeyStore.getInstance(keyStoreFile, storePass.toCharArray())
+        check(keyStore.getKey(alias, keyPass.toCharArray()) is PrivateKey) { "Platform signing alias has no private key" }
+        val cert = checkNotNull(keyStore.getCertificate(alias))
+        val actual = MessageDigest.getInstance("SHA-256").digest(cert.encoded)
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        check(actual == "c8a2e9bccf597c2fb6dc66bee293fc13f2fc47ec77bc6b2b0d52c11f51192ab8") {
+            "Platform certificate does not match the verified BX11 firmware"
+        }
+    }
+}
+tasks.matching { it.name == "preClusterSystemBuild" }.configureEach {
+    dependsOn(verifyStandaloneAuthentication, verifyBx11PlatformSigning)
+}
 tasks.register("assembleStandaloneDebug") {
     group = "build"
     description = "Build a standalone car-test APK with explicitly provisioned authentication."

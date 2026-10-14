@@ -28,6 +28,8 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var menuCallback: IDimMenuInteraction.IDimMenuInteractionCallback? = null
     @Volatile var watcher: IConnectable.IConnectWatcher? = null
     val notifications = CopyOnWriteArrayList<Int>()
+    val navigationInfos = CopyOnWriteArrayList<INaviInteraction.INavigationInfo>()
+    @Volatile var infoFailuresRemaining = 0
     val switchRequests = CopyOnWriteArrayList<Int>()
     val presentationSwitches = CopyOnWriteArrayList<String>()
     val extensionBundles = CopyOnWriteArrayList<android.os.Bundle>()
@@ -90,6 +92,13 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         }
         notifications.add(status)
     }
+    override fun updateNavigationInfo(info: INaviInteraction.INavigationInfo) {
+        if (infoFailuresRemaining > 0) {
+            infoFailuresRemaining--
+            error("模拟完整卡片发送失败")
+        }
+        navigationInfos.add(info)
+    }
     override fun notifyTurnByTurnStarted() { tbtActive = true }
     override fun notifyTurnByTurnStopped() { tbtActive = false }
     fun setPresentationToDimSwitch(type: Int, pkg: String, cls: String, on: Boolean) {
@@ -124,6 +133,24 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
 }
 
 interface INaviInteraction {
+    fun updateNavigationInfo(info: INavigationInfo)
+    interface INavigationInfo {
+        fun getNavigationStatus(): Int
+        fun getNavigationTurnId(): Int
+        fun getNavigationTurnSVG(): String
+        fun getNextGuidancePointName(): String
+        fun getDistanceToNextGuidancePoint(): Long
+        fun getDistanceToDestination(): Long
+        fun getETA(): Long
+        fun getDrivingDirection(): Int
+        fun getLaneInfo(): Array<ILaneInfo>
+        fun getDayNightMode(): Int
+        fun getMuteState(): Int
+        fun getHighwayExitInfo(): Any?
+        fun getRoadCameraInfo(): Any?
+        fun getServiceAreaInfo(): Any?
+    }
+    interface ILaneInfo
     fun notifyNavigationStatus(status: Int)
     fun notifyTurnByTurnStarted()
     fun notifyTurnByTurnStopped()

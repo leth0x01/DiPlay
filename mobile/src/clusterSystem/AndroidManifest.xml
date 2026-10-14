@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:sharedUserId="android.uid.system">
+    <!-- This variant verifies the firmware platform certificate before signing. -->
+    <uses-permission android:name="android.permission.CHANGE_COMPONENT_ENABLED_STATE"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="ecarx.oem.permission.OPENAPI_NAVI_PERMISSION" />
+    <application>
+        <meta-data android:name="lynkplay.clusterSystem" android:value="true" />
+    </application>
+</manifest>

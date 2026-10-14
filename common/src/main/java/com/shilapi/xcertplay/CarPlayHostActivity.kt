@@ -385,6 +385,9 @@ class CarPlayHostActivity : ComponentActivity() {
     private val lynk06NavigationListener: (Boolean) -> Unit = { active ->
         lynk06ClusterLink?.setNavigation(active)
     }
+    private val lynk06GuidanceListener: (com.shilapi.xcertplay.hud.ClusterTurnGuidance?) -> Unit = { guidance ->
+        lynk06ClusterLink?.setGuidance(guidance)
+    }
     private var clusterMonitor: DiLink51ClusterMonitor? = null
     private var detectedCluster = ClusterActivityState.Snapshot(null, false)
     // Keep one surface per layer alive, including while its map card is hidden.
@@ -694,6 +697,7 @@ class CarPlayHostActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Lynk06OemNavigationGuard.recoverOnAppOpened(applicationContext)
         NavigationWidgetUpdater.attach(applicationContext)
         CarPlayCallKeys.install(applicationContext)
         CenterMapOverlay.requestShow = ::showCenterMap
@@ -1148,6 +1152,7 @@ class CarPlayHostActivity : ComponentActivity() {
         lynk06ClusterLink = link
         link.start()
         com.shilapi.xcertplay.hud.CarPlayNavigationStatus.setListener(lynk06NavigationListener)
+        com.shilapi.xcertplay.hud.BydNavigationOutputs.setNavigationGuidanceListener(lynk06GuidanceListener)
     }
 
     private fun ensureClusterPresentation() {
@@ -1312,6 +1317,7 @@ class CarPlayHostActivity : ComponentActivity() {
     }
     private fun dismissClusterPresentation() {
         com.shilapi.xcertplay.hud.CarPlayNavigationStatus.clearListener(lynk06NavigationListener)
+        com.shilapi.xcertplay.hud.BydNavigationOutputs.clearNavigationGuidanceListener(lynk06GuidanceListener)
         lynk06ClusterLink?.close()
         lynk06ClusterLink = null
         lynk06ClusterState = Lynk06ClusterState()

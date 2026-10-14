@@ -8,8 +8,7 @@ import java.lang.reflect.Proxy
 
 /** 本车 AdapterAPI 1.1.18.9 的仪表模式；显示器始终存在，不能作为模式判断。 */
 internal data class Lynk06ClusterState(val available: Boolean = false, val navigating: Boolean = false, val mode: Int? = null) {
-    // 显示跟随真实 CarPlay 导航状态与链路可用性。原车 naviMode 由 OEM 导航生态绑定（领克 06 只认
-    // 原厂导航包），第三方无法驱动，只作诊断依据，不再作为显示门控。
+    // naviMode getter 在物理仪表显示和消失时均可为 1，仅作为诊断依据。
     val showMap: Boolean get() = available && navigating
     companion object { const val FULL = 3 }
 }
@@ -72,6 +71,12 @@ internal class Lynk06ClusterLink(
     private var republishNavigation = false
     private var mapModeRequested = false
     private var presentationSwitchOn = false
+    private var guidance: Lynk06NavigationInfo? = null
+    private var lastGuidance: Lynk06NavigationInfo? = null
+    private var lastGuidanceMillis = 0L
+    @Volatile private var guidanceSentCount = 0
+    @Volatile private var projectionGateReleased = false
+    private val oemGuard = Lynk06OemNavigationGuard(this.context, ::logOnMain)
     private var state = Lynk06ClusterState()
     @Volatile private var lastNotifySuccess: Boolean? = null
     @Volatile private var lastSwitchAccepted: Boolean? = null
@@ -88,6 +93,9 @@ internal class Lynk06ClusterLink(
         worker.post { initialize() }
     }
     fun setNavigation(active: Boolean) { worker.post { if (!stopped) { navigation = active; refresh() } } }
+    fun setGuidance(next: com.shilapi.xcertplay.hud.ClusterTurnGuidance?) {
+        worker.post { if (!stopped) { guidance = Lynk06NavigationInfo.from(next); refresh() } }
+    }
 
     private fun initialize() {
         if (stopped) return
@@ -115,6 +123,7 @@ internal class Lynk06ClusterLink(
                             // 主动重连产生的断线回调不缩短当前连接的等待窗口。
                             if (name == "onDisConnected" && !connecting) {
                                 connected = false
+                                runCatching { oemGuard.restore() }.onFailure(::logFailure)
                                 worker.removeCallbacks(poll)
                                 publish(Lynk06ClusterState())
                                 scheduleReconnect()
@@ -170,6 +179,9 @@ internal class Lynk06ClusterLink(
             // 服务重连后重新发布本次导航，停止时仍负责撤销。
             worker.removeCallbacks(reconnect)
             republishNavigation = navigation
+            lastGuidance = null
+            lastGuidanceMillis = 0L
+            projectionGateReleased = false
             logOnMain("领克仪表：AdaptAPI 已连接")
             captureDiagnostics()
             refresh()
@@ -187,12 +199,23 @@ internal class Lynk06ClusterLink(
         if (stopped) return
         try {
             // 菜单读取失败也不能阻止导航结束通知，避免本次导航状态残留。
-            if (!navigation && sentNavigation) {
-                notifyNavigation(false)
-                notifyTurnByTurn(false)
-                releasePresentationSwitch()
+            if (!navigation) {
+                try {
+                    if (sentNavigation) {
+                        notifyNavigation(false)
+                        notifyTurnByTurn(false)
+                        releasePresentationSwitch()
+                    }
+                } finally {
+                    oemGuard.restore()
+                    lastGuidance = null
+                    lastGuidanceMillis = 0L
+                    guidance = null
+                    projectionGateReleased = false
+                }
             }
             if (!connected) return
+            if (navigation && guidance != null) oemGuard.pause()
             if (navigation && (!sentNavigation || republishNavigation)) {
                 claimPresentationSwitch()
                 notifyNavigation(true)
@@ -200,6 +223,7 @@ internal class Lynk06ClusterLink(
                 // 每次导航允许请求一次地图模式；用户手动切回简洁后本次导航不再请求。
                 mapModeRequested = false
             }
+            if (navigation) pushNavigationInfo()
             var mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
             if (navigation && mode != Lynk06ClusterState.FULL && !mapModeRequested) {
                 mapModeRequested = true
@@ -217,11 +241,38 @@ internal class Lynk06ClusterLink(
             consecutiveFailures++
             if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                 connected = false
+                runCatching { oemGuard.restore() }.onFailure(::logFailure)
                 scheduleReconnect()
             }
         } finally {
             worker.removeCallbacks(poll)
             if (!stopped && connected) worker.postDelayed(poll, RETRY_DELAY_MILLIS)
+        }
+    }
+
+    /** Only real iPhone guidance is sent. Changes are throttled; unchanged cards renew every 10 s. */
+    private fun pushNavigationInfo() {
+        val info = guidance ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (lastGuidance != null && now - lastGuidanceMillis < 500L) return
+        if (info == lastGuidance && now - lastGuidanceMillis < 10_000L) return
+        val type = Class.forName(
+            "com.ecarx.xui.adaptapi.diminteraction.INaviInteraction\$INavigationInfo", false, naviClass!!.classLoader,
+        )
+        naviClass!!.getMethod("updateNavigationInfo", type).invoke(navi, info.proxy(type))
+        lastGuidance = info
+        lastGuidanceMillis = now
+        guidanceSentCount++
+        // The working BX11 controller releases this gate only after publishing an active TBT card.
+        if (!projectionGateReleased) {
+            runCatching {
+                val field = dim!!.javaClass.getDeclaredField("mPowerOperation").apply { isAccessible = true }
+                val power = field.get(if (java.lang.reflect.Modifier.isStatic(field.modifiers)) null else dim)
+                    ?: error("BX11 power service unavailable")
+                power.javaClass.getMethod("disableScreenProjection", Boolean::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType).invoke(power, false, 2)
+                projectionGateReleased = true
+            }.onFailure { logOnMain("领克仪表：解除投屏门控失败 ${it.cause?.message ?: it.message}") }
         }
     }
 
@@ -364,6 +415,7 @@ internal class Lynk06ClusterLink(
     private fun connectionFailed(error: Throwable) {
         connected = false
         connecting = false
+        runCatching { oemGuard.restore() }.onFailure(::logFailure)
         worker.removeCallbacks(connectionTimeout)
         worker.removeCallbacks(poll)
         publish(Lynk06ClusterState())
@@ -401,6 +453,7 @@ internal class Lynk06ClusterLink(
     private val connectionTimeout = Runnable {
         if (!stopped && connecting && !connected) {
             connecting = false
+            runCatching { oemGuard.restore() }.onFailure(::logFailure)
             logOnMain("领克仪表：连接等待超时，稍后重试")
             scheduleReconnect()
         }
@@ -442,6 +495,7 @@ internal class Lynk06ClusterLink(
                 appendLine("presentationOption=${d.presentationOption} presentationSwitchOn=${d.presentationSwitchOn} lastPresentationSwitchSuccess=${d.lastPresentationSwitchSuccess}")
                 appendLine("naviCallbackRegistered=${d.naviCallbackRegistered} interactionCallbackRegistered=${d.interactionCallbackRegistered}")
                 appendLine("reconnectAttempts=${d.reconnectAttempts} consecutiveFailures=${d.consecutiveFailures}")
+                appendLine("fullNavigationInfoSent=${activeLink?.guidanceSentCount ?: 0} projectionGateReleased=${activeLink?.projectionGateReleased}")
                 append("lastError=${d.lastError ?: "none"}")
             }
         }
@@ -474,6 +528,9 @@ internal class Lynk06ClusterLink(
                 runCatching { connectClass?.getMethod("unregisterConnectWatcher")?.invoke(dim) }
                 runCatching { connectClass?.getMethod("disconnect")?.invoke(dim) }
             } finally {
+                runCatching { oemGuard.restore() }.onFailure {
+                    android.util.Log.e("Lynk06ClusterLink", "OEM navigation restore failed; journal retained", it)
+                }
                 captureDiagnostics()
                 thread.quitSafely()
             }

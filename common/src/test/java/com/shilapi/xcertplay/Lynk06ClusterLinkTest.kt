@@ -40,6 +40,43 @@ class Lynk06ClusterLinkTest {
         assertTrue("异步仪表状态未在时限内完成", condition())
     }
 
+    private fun realGuidance(meters: Int = 123) = com.shilapi.xcertplay.hud.ClusterTurnGuidance(
+        5, 0, meters, "测试道路", remainingSeconds = 11280, remainingMeters = 281800,
+        appleManeuverType = 14, drivingSide = 0,
+    )
+
+    @Test fun `full card retries a rejected transaction and stops publishing when real navigation ends`() {
+        vendor.infoFailuresRemaining = 1
+        link.setNavigation(true)
+        link.setGuidance(realGuidance())
+        await { vendor.navigationInfos.isNotEmpty() }
+        assertEquals(105, vendor.navigationInfos.last().getNavigationTurnId())
+        assertEquals(11280L, vendor.navigationInfos.last().getETA())
+        link.setGuidance(realGuidance(77))
+        await { vendor.navigationInfos.last().getDistanceToNextGuidancePoint() == 77L }
+        link.setNavigation(false)
+        await {
+            vendor.notifications.lastOrNull() == 0 &&
+                vendor.presentationSwitches.lastOrNull()?.endsWith(",false") == true &&
+                !vendor.tbtActive
+        }
+        val count = vendor.navigationInfos.size
+        link.setGuidance(realGuidance(50))
+        // Synchronize through a menu callback rather than an arbitrary sleep.
+        vendor.mode = 1
+        vendor.menuCallback!!.onChangeNaviMode(1)
+        await { states.lastOrNull()?.mode == 1 }
+        assertEquals(count, vendor.navigationInfos.size)
+        assertFalse(states.last().showMap)
+    }
+
+    @Test fun `real navigation without complete guidance never sends a synthetic card`() {
+        link.setNavigation(true)
+        link.setGuidance(realGuidance().copy(remainingMeters = null))
+        await { states.lastOrNull()?.showMap == true }
+        assertTrue(vendor.navigationInfos.isEmpty())
+    }
+
     @Test fun `initialization does not clear OEM navigation and navigation start requests map mode once`() {
         assertTrue(vendor.notifications.isEmpty())
         assertTrue(vendor.switchRequests.isEmpty())

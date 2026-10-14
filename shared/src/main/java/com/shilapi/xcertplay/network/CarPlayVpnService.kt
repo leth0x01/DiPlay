@@ -98,7 +98,7 @@ class CarPlayVpnService : VpnService() {
             }
             require(hostMac.size == 6) { "hostMac must be 6 bytes" }
 
-            val tunFd = Builder()
+            val builder = Builder()
                 .addAddress(linkLocal, LINK_PREFIX)
                 .addRoute(LINK_LOCAL_ROUTE, LINK_PREFIX)
                 .setSession(SESSION_NAME)
@@ -107,7 +107,8 @@ class CarPlayVpnService : VpnService() {
                 // An empty app list routes every UID through this VPN. Scope it before establish;
                 // rejection must reach the existing attachment cleanup, never an unscoped retry.
                 .addAllowedApplication(packageName)
-                .establish()
+            val tunFd = builder.establish()
+                ?: (if (SystemUidVpnPreparation.repair(this)) builder.establish() else null)
                 ?: throw IOException("VpnService.establish returned null")
             tun = tunFd
 
