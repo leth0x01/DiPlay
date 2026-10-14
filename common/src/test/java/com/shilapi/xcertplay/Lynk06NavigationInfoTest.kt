@@ -31,7 +31,11 @@ class Lynk06NavigationInfoTest {
         assertNull(Lynk06NavigationInfo.from(real.copy(remainingSeconds = null)))
         assertNull(Lynk06NavigationInfo.from(real.copy(remainingMeters = -1)))
         assertNull(Lynk06NavigationInfo.from(real.copy(appleManeuverType = 0)))
-        assertNull(Lynk06NavigationInfo.from(real.copy(drivingSide = null)))
+
+    }
+
+    @Test fun `missing driving side preserves real route information`() {
+        assertEquals(Lynk06NavigationInfo.from(real), Lynk06NavigationInfo.from(real.copy(drivingSide = null)))
     }
 
     @Test fun `turn vocabulary preserves straight turns and roundabout exits`() {

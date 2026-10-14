@@ -22,6 +22,9 @@ internal data class Lynk06ClusterDiagnostics(
     val naviAttached: Boolean = false,
     val navigationRequested: Boolean = false,
     val navigationSent: Boolean = false,
+    val navigationCleanupPending: Boolean = false,
+    val turnByTurnCleanupPending: Boolean = false,
+    val projectionCleanupPending: Boolean = false,
     val lastNotifySuccess: Boolean? = null,
     val lastSwitchAccepted: Boolean? = null,
     val presentationSwitchOn: Boolean = false,
@@ -49,6 +52,9 @@ internal class Lynk06ClusterLink(
     private val worker = Handler(thread.looper)
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var stopped = false
+    @Volatile private var closeFinished = false
+    @Volatile private var navigationRequested = false
+    private var predecessor: Lynk06ClusterLink? = null
     private var abiLogged = false
     private var dim: Any? = null
     private var dimClass: Class<*>? = null
@@ -68,6 +74,13 @@ internal class Lynk06ClusterLink(
     private var consecutiveFailures = 0
     private var navigation = false
     private var sentNavigation = false
+    private var navigationCleanupPending = false
+    private var turnByTurnCleanupPending = false
+    private var projectionCleanupPending = false
+    private var recoveringCleanup = false
+    private var cleanupLoaded = false
+    private var savedCleanup = -1
+    private val cleanupJournal = this.context.getSharedPreferences("lynk06-cluster-cleanup", Context.MODE_PRIVATE)
     private var republishNavigation = false
     private var mapModeRequested = false
     private var presentationSwitchOn = false
@@ -89,16 +102,29 @@ internal class Lynk06ClusterLink(
     @Volatile private var diagnostics = Lynk06ClusterDiagnostics()
 
     fun start() {
+        predecessor = activeLink?.takeIf { it !== this && it.stopped && !it.closeFinished }
         activeLink = this
         worker.post { initialize() }
     }
-    fun setNavigation(active: Boolean) { worker.post { if (!stopped) { navigation = active; refresh() } } }
+    fun setNavigation(active: Boolean) {
+        navigationRequested = active
+        // 画面关闭不等待厂商 Binder；旧的导航进行回调也不能重新打开已结束的地图。
+        if (!active) main.post { if (!stopped && !navigationRequested) onState(Lynk06ClusterState()) }
+        worker.post { if (!stopped) { navigation = active; refresh() } }
+    }
     fun setGuidance(next: com.shilapi.xcertplay.hud.ClusterTurnGuidance?) {
         worker.post { if (!stopped) { guidance = Lynk06NavigationInfo.from(next); refresh() } }
     }
 
     private fun initialize() {
         if (stopped) return
+        if (predecessor?.closeFinished == false) {
+            // 旧链路结束前不建立新接管，避免旧链路的关闭重试撤销新导航。
+            worker.postDelayed({ initialize() }, CLOSE_HANDOFF_DELAY_MILLIS)
+            return
+        }
+        predecessor = null
+        loadCleanupState()
         if (!abiLogged) {
             // 诊断只尝试一次，失败不能阻止仪表业务初始化或重连。
             abiLogged = true
@@ -152,7 +178,7 @@ internal class Lynk06ClusterLink(
     private fun attach() {
         try {
             // 断线重连后重新取得接口与回调，不保留旧 Binder 对象。
-            detachMenu()
+            detachCallbacks()
             menuClass = Class.forName("com.ecarx.xui.adaptapi.diminteraction.IDimMenuInteraction")
             naviClass = Class.forName("com.ecarx.xui.adaptapi.diminteraction.INaviInteraction")
             menu = dimClass!!.getMethod("getDimMenuInteraction").invoke(dim) ?: error("仪表菜单接口为空")
@@ -196,16 +222,12 @@ internal class Lynk06ClusterLink(
     }
 
     private fun refresh() {
-        if (stopped) return
+        if (stopped || dim == null) return
         try {
             // 菜单读取失败也不能阻止导航结束通知，避免本次导航状态残留。
             if (!navigation) {
                 try {
-                    if (sentNavigation) {
-                        notifyNavigation(false)
-                        notifyTurnByTurn(false)
-                        releasePresentationSwitch()
-                    }
+                    cleanupNavigation()
                 } finally {
                     oemGuard.restore()
                     lastGuidance = null
@@ -215,6 +237,11 @@ internal class Lynk06ClusterLink(
                 }
             }
             if (!connected) return
+            // 先完成上次链路留下的清理，再声明新的导航源。
+            if (recoveringCleanup) {
+                cleanupNavigation()
+                recoveringCleanup = false
+            }
             if (navigation && guidance != null) oemGuard.pause()
             if (navigation && (!sentNavigation || republishNavigation)) {
                 claimPresentationSwitch()
@@ -224,14 +251,14 @@ internal class Lynk06ClusterLink(
                 mapModeRequested = false
             }
             if (navigation) pushNavigationInfo()
-            var mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
-            if (navigation && mode != Lynk06ClusterState.FULL && !mapModeRequested) {
+            if (navigation && !mapModeRequested) {
                 mapModeRequested = true
                 if (switchNaviMode(Lynk06ClusterState.FULL)) {
-                    mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
                     updateDimDisplayMode(Lynk06ClusterState.FULL)
                 }
             }
+            // getter 只记录诊断，不参与地图模式请求或显示判断。
+            val mode = menuClass!!.getMethod("getNaviMode").invoke(menu) as Int
             consecutiveFailures = 0
             publish(Lynk06ClusterState(true, navigation, mode))
         } catch (error: Throwable) {
@@ -278,6 +305,10 @@ internal class Lynk06ClusterLink(
 
     /** 与实车 XSFNaviService 一致：1 为导航成功进行，0 为未导航。 */
     private fun notifyNavigation(active: Boolean) {
+        if (active) {
+            navigationCleanupPending = true
+            saveCleanupState()
+        }
         try {
             naviClass!!.getMethod("notifyNavigationStatus", Int::class.javaPrimitiveType).invoke(navi, if (active) 1 else 0)
             lastNotifySuccess = true
@@ -307,14 +338,14 @@ internal class Lynk06ClusterLink(
 
     /** 原车导航用 setPresentationToDimSwitch 把仪表投影绑定到自己包名；导航期间用本应用包名做同样声明。 */
     private fun claimPresentationSwitch() {
-        if (!presentationSwitchOn) setPresentationSwitch(true)
+        if (!presentationSwitchOn) {
+            projectionCleanupPending = true
+            saveCleanupState()
+            setPresentationSwitch(true)
+        }
     }
 
-    private fun releasePresentationSwitch() {
-        if (presentationSwitchOn) setPresentationSwitch(false)
-    }
-
-    private fun setPresentationSwitch(on: Boolean) {
+    private fun setPresentationSwitch(on: Boolean): Boolean {
         try {
             dimClass!!.getMethod("setPresentationToDimSwitch", Int::class.javaPrimitiveType,
                 String::class.java, String::class.java, Boolean::class.javaPrimitiveType)
@@ -326,17 +357,67 @@ internal class Lynk06ClusterLink(
             presentationOption = runCatching {
                 dimClass!!.getMethod("getShowPresentationOption").invoke(dim) as Int
             }.getOrElse { presentationOption }
+            return true
         } catch (error: Throwable) {
             lastPresentationSwitchSuccess = false
             logOnMain("领克仪表：投影声明失败 ${error.cause?.message ?: error.message}")
+            return false
         }
     }
 
     /** 原厂导航同时发送 TurnByTurn 开始/结束；失败不影响导航状态链路。 */
-    private fun notifyTurnByTurn(started: Boolean) {
-        runCatching {
+    private fun notifyTurnByTurn(started: Boolean): Boolean {
+        if (started) {
+            turnByTurnCleanupPending = true
+            saveCleanupState()
+        }
+        return runCatching {
             naviClass!!.getMethod(if (started) "notifyTurnByTurnStarted" else "notifyTurnByTurnStopped").invoke(navi)
-        }.onFailure { logOnMain("领克仪表：TurnByTurn 通知失败 ${it.cause?.message ?: it.message}") }
+        }.onFailure { logOnMain("领克仪表：TurnByTurn 通知失败 ${it.cause?.message ?: it.message}") }.isSuccess
+    }
+
+    /** 各项独立完成；某项失败不能跳过其他清理，也不能丢失下次连接的补偿责任。 */
+    private fun cleanupNavigation() {
+        var failure: Throwable? = null
+        fun attempt(action: () -> Unit) {
+            runCatching(action).onFailure { if (failure == null) failure = it }
+        }
+        if (navigationCleanupPending) attempt {
+            notifyNavigation(false)
+            navigationCleanupPending = false
+        }
+        if (turnByTurnCleanupPending) attempt {
+            check(notifyTurnByTurn(false)) { "仪表 TBT 停止失败" }
+            turnByTurnCleanupPending = false
+        }
+        if (projectionCleanupPending) attempt {
+            // 重连会重置本地投影状态，但旧声明仍须显式撤销。
+            check(setPresentationSwitch(false)) { "仪表投影释放失败" }
+            projectionCleanupPending = false
+        }
+        saveCleanupState()
+        failure?.let { throw it }
+    }
+
+    private fun loadCleanupState() {
+        if (cleanupLoaded) return
+        val pending = cleanupJournal.getInt("pending", 0)
+        navigationCleanupPending = pending and CLEANUP_NAVIGATION != 0
+        turnByTurnCleanupPending = pending and CLEANUP_TBT != 0
+        projectionCleanupPending = pending and CLEANUP_PROJECTION != 0
+        recoveringCleanup = pending != 0
+        savedCleanup = pending
+        cleanupLoaded = true
+    }
+
+    /** 先写记录再调用厂商接口；崩溃或关闭重试耗尽后，下次连接继续清理。 */
+    private fun saveCleanupState() {
+        val pending = (if (navigationCleanupPending) CLEANUP_NAVIGATION else 0) or
+            (if (turnByTurnCleanupPending) CLEANUP_TBT else 0) or
+            (if (projectionCleanupPending) CLEANUP_PROJECTION else 0)
+        if (savedCleanup == pending) return
+        check(cleanupJournal.edit().putInt("pending", pending).commit()) { "仪表清理记录保存失败" }
+        savedCleanup = pending
     }
 
     /** 原厂导航注册导航交互回调；回调只记录，不执行任何厂商动作。 */
@@ -381,7 +462,7 @@ internal class Lynk06ClusterLink(
     private fun publish(next: Lynk06ClusterState) {
         if (state != next) {
             state = next
-            main.post { if (!stopped) onState(next) }
+            main.post { if (!stopped) onState(next.copy(navigating = next.navigating && navigationRequested)) }
         }
         captureDiagnostics()
     }
@@ -394,8 +475,11 @@ internal class Lynk06ClusterLink(
             connected = connected,
             menuAttached = menu != null,
             naviAttached = navi != null,
-            navigationRequested = navigation,
+            navigationRequested = navigationRequested,
             navigationSent = sentNavigation,
+            navigationCleanupPending = navigationCleanupPending,
+            turnByTurnCleanupPending = turnByTurnCleanupPending,
+            projectionCleanupPending = projectionCleanupPending,
             lastNotifySuccess = lastNotifySuccess,
             lastSwitchAccepted = lastSwitchAccepted,
             presentationSwitchOn = presentationSwitchOn,
@@ -443,7 +527,7 @@ internal class Lynk06ClusterLink(
         val connect = connectClass!!
         if (reset) {
             // 只重连仪表厂商接口；导航通知所有权保留到结束或关闭。
-            detachMenu()
+            detachCallbacks()
             runCatching { connect.getMethod("disconnect").invoke(dim) }
         }
         connect.getMethod("connect").invoke(dim)
@@ -474,6 +558,11 @@ internal class Lynk06ClusterLink(
     }
 
     internal companion object {
+        private const val CLEANUP_NAVIGATION = 1
+        private const val CLEANUP_TBT = 2
+        private const val CLEANUP_PROJECTION = 4
+        private const val MAX_CLOSE_CLEANUP_ATTEMPTS = 3
+        private const val CLOSE_HANDOFF_DELAY_MILLIS = 100L
         private const val RETRY_DELAY_MILLIS = 1000L
         private const val MAX_CONSECUTIVE_FAILURES = 3
         private const val CONNECTION_TIMEOUT_MILLIS = 4000L
@@ -491,6 +580,7 @@ internal class Lynk06ClusterLink(
                 appendLine("adapterCreated=${d.adapterCreated} watcherRegistered=${d.watcherRegistered}")
                 appendLine("adapterConnected=${d.connected} menuAttached=${d.menuAttached} naviAttached=${d.naviAttached}")
                 appendLine("navigationRequested=${d.navigationRequested} navigationSent=${d.navigationSent} lastNotifySuccess=${d.lastNotifySuccess}")
+                appendLine("navigationCleanupPending=${d.navigationCleanupPending} turnByTurnCleanupPending=${d.turnByTurnCleanupPending} projectionCleanupPending=${d.projectionCleanupPending}")
                 appendLine("naviMode=${d.naviMode} showMap=${d.showMap} switchFullModeAccepted=${d.lastSwitchAccepted}")
                 appendLine("presentationOption=${d.presentationOption} presentationSwitchOn=${d.presentationSwitchOn} lastPresentationSwitchSuccess=${d.lastPresentationSwitchSuccess}")
                 appendLine("naviCallbackRegistered=${d.naviCallbackRegistered} interactionCallbackRegistered=${d.interactionCallbackRegistered}")
@@ -510,30 +600,53 @@ internal class Lynk06ClusterLink(
         callback = null
     }
 
+    private fun detachCallbacks() {
+        detachMenu()
+        runCatching { naviCallback?.let { naviClass?.getMethod("unregisterNavigationInteractionCallback", it.javaClass.interfaces[0])?.invoke(navi, it) } }
+            .onFailure(::logFailure)
+        runCatching { interactionCallback?.let { dimClass?.getMethod("unregisterInteractionCallback", it.javaClass.interfaces[0])?.invoke(dim, it) } }
+            .onFailure(::logFailure)
+        naviCallback = null
+        interactionCallback = null
+        naviCallbackRegistered = false
+        interactionCallbackRegistered = false
+    }
+
     @Synchronized fun close() {
         if (stopped) return
         stopped = true
         worker.removeCallbacksAndMessages(null)
         main.removeCallbacksAndMessages(null)
-        worker.post {
-            try {
-                if (sentNavigation) {
-                    runCatching { notifyNavigation(false) }
-                    notifyTurnByTurn(false)
-                }
-                releasePresentationSwitch()
-                detachMenu()
-                runCatching { naviCallback?.let { naviClass?.getMethod("unregisterNavigationInteractionCallback", it.javaClass.interfaces[0])?.invoke(navi, it) } }
-                runCatching { interactionCallback?.let { dimClass?.getMethod("unregisterInteractionCallback", it.javaClass.interfaces[0])?.invoke(dim, it) } }
-                runCatching { connectClass?.getMethod("unregisterConnectWatcher")?.invoke(dim) }
-                runCatching { connectClass?.getMethod("disconnect")?.invoke(dim) }
-            } finally {
-                runCatching { oemGuard.restore() }.onFailure {
-                    android.util.Log.e("Lynk06ClusterLink", "OEM navigation restore failed; journal retained", it)
-                }
-                captureDiagnostics()
-                thread.quitSafely()
-            }
+        worker.post { finishClose(1) }
+    }
+
+    private fun finishClose(attempt: Int) {
+        if (predecessor?.closeFinished == false) {
+            worker.postDelayed({ finishClose(attempt) }, CLOSE_HANDOFF_DELAY_MILLIS)
+            return
+        }
+        val cleanup = runCatching { loadCleanupState(); cleanupNavigation() }
+        val restore = runCatching { oemGuard.restore() }
+        if ((cleanup.isFailure || restore.isFailure) && attempt < MAX_CLOSE_CLEANUP_ATTEMPTS) {
+            captureDiagnostics()
+            worker.postDelayed({ finishClose(attempt + 1) }, RETRY_DELAY_MILLIS)
+            return
+        }
+        cleanup.onFailure {
+            logFailure(it)
+            android.util.Log.e("Lynk06ClusterLink", "仪表清理失败，保留记录供下次连接重试", it)
+        }
+        restore.onFailure {
+            android.util.Log.e("Lynk06ClusterLink", "原车导航恢复失败，保留记录供下次打开重试", it)
+        }
+        try {
+            detachCallbacks()
+            runCatching { connectClass?.getMethod("unregisterConnectWatcher")?.invoke(dim) }
+            runCatching { connectClass?.getMethod("disconnect")?.invoke(dim) }
+        } finally {
+            captureDiagnostics()
+            closeFinished = true
+            thread.quitSafely()
         }
     }
 

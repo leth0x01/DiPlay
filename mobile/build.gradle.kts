@@ -92,10 +92,11 @@ android {
             versionNameSuffix = "-lynk06-test"
         }
         create("clusterSystem") {
-            initWith(getByName("debug"))
+            initWith(getByName("release"))
+            isDebuggable = false
             applicationIdSuffix = ".clustersystem"
             versionNameSuffix = "-bx11-system-test"
-            matchingFallbacks += "debug"
+            matchingFallbacks += "release"
             signingConfig = signingConfigs.getByName("clusterPlatform")
         }
     }

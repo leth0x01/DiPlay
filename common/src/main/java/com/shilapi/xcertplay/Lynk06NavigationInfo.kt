@@ -39,10 +39,9 @@ internal data class Lynk06NavigationInfo(
             guidance ?: return null
             val distance = guidance.remainingMeters ?: return null
             val seconds = guidance.remainingSeconds ?: return null
-            val side = guidance.drivingSide ?: return null
             val turn = turnId(guidance.appleManeuverType)
             // Missing data must never become a fabricated route or a straight instruction.
-            if (turn < 0 || distance < 0 || seconds < 0 || guidance.distanceMeters < 0 || side !in 0..1) return null
+            if (turn < 0 || distance < 0 || seconds < 0 || guidance.distanceMeters < 0) return null
             return Lynk06NavigationInfo(turn, guidance.distanceMeters.toLong(), distance, seconds, guidance.road)
         }
 

@@ -13,6 +13,8 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var failRead = false
     @Volatile var readFailuresRemaining = 0
     @Volatile var notificationFailuresRemaining = 0
+    @Volatile var endNotificationEntered: java.util.concurrent.CountDownLatch? = null
+    @Volatile var endNotificationRelease: java.util.concurrent.CountDownLatch? = null
     @Volatile var readCalls = 0
     @Volatile var connectCalls = 0
     @Volatile var createCalls = 0
@@ -36,6 +38,11 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
     @Volatile var switchAccepted = true
     @Volatile var failPresentationSwitch = false
     @Volatile var tbtActive = false
+    @Volatile var tbtStopFailuresRemaining = 0
+    @Volatile var tbtStopCalls = 0
+    @Volatile var presentationReleaseFailuresRemaining = 0
+    val naviCallbacks = CopyOnWriteArrayList<INaviInteraction.INavigationInteractionCallback>()
+    val interactionCallbacks = CopyOnWriteArrayList<DimInteraction.IInteractionCallback>()
     @Volatile var presentationOption = 0
     @Volatile var disconnected = false
     @Volatile var naviCallback: INaviInteraction.INavigationInteractionCallback? = null
@@ -86,6 +93,10 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         menuCallback = null
     }
     override fun notifyNavigationStatus(status: Int) {
+        if (status == 0) {
+            endNotificationEntered?.countDown()
+            endNotificationRelease?.await(15, java.util.concurrent.TimeUnit.SECONDS)
+        }
         if (notificationFailuresRemaining > 0) {
             notificationFailuresRemaining--
             error("模拟一次通知失败")
@@ -100,22 +111,37 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         navigationInfos.add(info)
     }
     override fun notifyTurnByTurnStarted() { tbtActive = true }
-    override fun notifyTurnByTurnStopped() { tbtActive = false }
+    override fun notifyTurnByTurnStopped() {
+        tbtStopCalls++
+        if (tbtStopFailuresRemaining > 0) {
+            tbtStopFailuresRemaining--
+            error("模拟 TBT 停止失败")
+        }
+        tbtActive = false
+    }
     fun setPresentationToDimSwitch(type: Int, pkg: String, cls: String, on: Boolean) {
+        if (!on && presentationReleaseFailuresRemaining > 0) {
+            presentationReleaseFailuresRemaining--
+            error("模拟投影释放失败")
+        }
         if (failPresentationSwitch) error("模拟投影声明失败")
         presentationSwitches.add("$type,$pkg,$cls,$on")
     }
     override fun updateExtensionInfo(bundle: android.os.Bundle) { extensionBundles.add(bundle) }
     override fun registerNavigationInteractionCallback(callback: INaviInteraction.INavigationInteractionCallback) {
+        naviCallbacks.add(callback)
         naviCallback = callback
     }
     override fun unregisterNavigationInteractionCallback(callback: INaviInteraction.INavigationInteractionCallback) {
+        check(naviCallbacks.remove(callback))
         naviCallback = null
     }
     fun registerInteractionCallback(callback: DimInteraction.IInteractionCallback) {
+        interactionCallbacks.add(callback)
         interactionCallback = callback
     }
     fun unregisterInteractionCallback(callback: DimInteraction.IInteractionCallback) {
+        check(interactionCallbacks.remove(callback))
         interactionCallback = null
     }
     override fun switchNaviMode(mode: Int): Boolean {

@@ -104,6 +104,28 @@ class Lynk06ClusterLinkTest {
         assertFalse(vendor.tbtActive)
     }
 
+    @Test fun `navigation requests map mode once even when getter already reports full mode`() {
+        vendor.mode = 3
+        vendor.menuCallback!!.onChangeNaviMode(3)
+        await { states.lastOrNull()?.mode == 3 }
+        link.setNavigation(true)
+        await { states.lastOrNull()?.showMap == true }
+        assertEquals(listOf(3), vendor.switchRequests.toList())
+
+        // getter 变为 1 时只更新诊断，本次导航不重复请求。
+        vendor.mode = 1
+        vendor.menuCallback!!.onChangeNaviMode(1)
+        await { states.lastOrNull()?.mode == 1 }
+        assertTrue(states.last().showMap)
+        assertEquals(listOf(3), vendor.switchRequests.toList())
+
+        link.setNavigation(false)
+        await { states.lastOrNull()?.navigating == false }
+        link.setNavigation(true)
+        await { states.lastOrNull()?.showMap == true }
+        assertEquals(listOf(3, 3), vendor.switchRequests.toList())
+    }
+
     @Test fun `presentation switch failure still sends navigation and is diagnosed`() {
         vendor.failPresentationSwitch = true
         link.setNavigation(true)
@@ -137,6 +159,111 @@ class Lynk06ClusterLinkTest {
         assertTrue(vendor.presentationSwitches.last().endsWith(",false"))
         assertNull(vendor.menuCallback)
         assertNull(vendor.watcher)
+    }
+
+    @Test fun `route end hides map before a blocked vendor cleanup returns`() {
+        link.setNavigation(true)
+        await { states.lastOrNull()?.showMap == true }
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        vendor.endNotificationEntered = entered
+        vendor.endNotificationRelease = release
+        try {
+            link.setNavigation(false)
+            await { entered.count == 0L }
+            await { states.lastOrNull()?.showMap == false }
+            assertEquals(1L, release.count)
+        } finally {
+            release.countDown()
+        }
+        await { vendor.notifications.lastOrNull() == 0 }
+    }
+
+    @Test fun `route end retries TBT stop after navigation status was cleared`() {
+        link.setNavigation(true)
+        await { vendor.tbtActive }
+        vendor.tbtStopFailuresRemaining = 1
+        link.setNavigation(false)
+        await { vendor.notifications.lastOrNull() == 0 }
+        await { !vendor.tbtActive && vendor.tbtStopCalls == 2 }
+        assertEquals(listOf(1, 0), vendor.notifications.toList())
+        assertTrue(vendor.presentationSwitches.last().endsWith(",false"))
+    }
+
+    @Test fun `route end retries projection release independently of other cleanup`() {
+        link.setNavigation(true)
+        await { vendor.tbtActive }
+        vendor.presentationReleaseFailuresRemaining = 1
+        link.setNavigation(false)
+        await { vendor.notifications.lastOrNull() == 0 }
+        await { vendor.presentationSwitches.last().endsWith(",false") }
+        assertEquals(1, vendor.tbtStopCalls)
+        assertEquals(listOf(1, 0), vendor.notifications.toList())
+    }
+
+    @Test fun `reconnect retains projection cleanup after repeated release failures`() {
+        link.setNavigation(true)
+        await { vendor.tbtActive }
+        vendor.presentationReleaseFailuresRemaining = 3
+        link.setNavigation(false)
+        await { vendor.connectCalls >= 2 }
+        await { vendor.presentationSwitches.last().endsWith(",false") }
+        assertEquals(listOf(1, 0), vendor.notifications.toList())
+    }
+
+    @Test fun `close retries failed cleanup before disconnecting`() {
+        link.setNavigation(true)
+        await { vendor.tbtActive }
+        vendor.notificationFailuresRemaining = 1
+        vendor.tbtStopFailuresRemaining = 1
+        vendor.presentationReleaseFailuresRemaining = 1
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        assertEquals(listOf(1, 0), vendor.notifications.toList())
+        assertFalse(vendor.tbtActive)
+        assertTrue(vendor.presentationSwitches.last().endsWith(",false"))
+    }
+
+    @Test fun `exhausted close cleanup survives a new link and finishes before navigation restarts`() {
+        link.setNavigation(true)
+        await { vendor.tbtActive }
+        vendor.presentationReleaseFailuresRemaining = 3
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        assertTrue(Lynk06ClusterLink.diagnosticReport().contains("projectionCleanupPending=true"))
+        link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, {})
+        link.start()
+        link.setNavigation(true)
+        await { vendor.presentationSwitches.count { it.endsWith(",false") } == 1 && vendor.notifications.lastOrNull() == 1 && vendor.tbtActive }
+        assertTrue(vendor.presentationSwitches.takeLast(2)[0].endsWith(",false"))
+        assertTrue(vendor.presentationSwitches.last().endsWith(",true"))
+        assertTrue(vendor.tbtActive)
+    }
+
+    @Test fun `new link waits for closing retries before taking navigation ownership`() {
+        link.setNavigation(true)
+        await { vendor.tbtActive }
+        vendor.notificationFailuresRemaining = 1
+        val previous = link
+        previous.close()
+        link = Lynk06ClusterLink(RuntimeEnvironment.getApplication(), { states.add(it) }, {})
+        link.start()
+        link.setNavigation(true)
+        await { vendor.notifications.toList() == listOf(1, 0, 1) && vendor.tbtActive }
+        assertEquals(1, vendor.naviCallbacks.size)
+        assertEquals(1, vendor.interactionCallbacks.size)
+        assertTrue(vendor.presentationSwitches.last().endsWith(",true"))
+    }
+
+    @Test fun `reconnect replaces callbacks without leaving previous registrations`() {
+        vendor.watcher!!.onDisConnected()
+        await { vendor.connectCalls == 2 && vendor.menuRegistrationCalls == 2 && vendor.naviCallbacks.size == 1 && vendor.interactionCallbacks.size == 1 }
+        assertEquals(1, vendor.naviCallbacks.size)
+        assertEquals(1, vendor.interactionCallbacks.size)
+        link.close()
+        await { vendor.disconnected && vendor.watcher == null }
+        assertTrue(vendor.naviCallbacks.isEmpty())
+        assertTrue(vendor.interactionCallbacks.isEmpty())
     }
 
     @Test fun `first read failure automatically recovers without a service callback`() {

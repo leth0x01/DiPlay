@@ -26,6 +26,25 @@ class CarPlayNavigationStatusTest {
         assertEquals(listOf(false, true, false, true, false), events)
     }
 
+    @Test fun `cancelled route ends navigation even when the source name remains cached`() {
+        CarPlayNavigationStatus.setListener(listener)
+        CarPlayNavigationStatus.onFrame(Iap2Frame(0x5201, byteArrayOf(0, 8, 0, 0x13, 0x4d, 0x61, 0x70, 0)))
+        CarPlayNavigationStatus.onFrame(state(1))
+        CarPlayNavigationStatus.onFrame(state(0))
+        // 迟到的转向详情不能重新开启已结束的导航。
+        CarPlayNavigationStatus.onFrame(Iap2Frame(0x5202, byteArrayOf(0, 5, 0, 3, 14)))
+        assertEquals(listOf(false, true, false), events)
+        assertFalse(CarPlayNavigationStatus.snapshot().active)
+    }
+
+    @Test fun `cleared source name ends navigation without a state field`() {
+        CarPlayNavigationStatus.setListener(listener)
+        CarPlayNavigationStatus.onFrame(state(1))
+        CarPlayNavigationStatus.onFrame(Iap2Frame(0x5201, byteArrayOf(0, 4, 0, 0x13)))
+        assertEquals(listOf(false, true, false), events)
+        assertFalse(CarPlayNavigationStatus.snapshot().active)
+    }
+
     @Test fun `invalid update does not end navigation`() {
         CarPlayNavigationStatus.setListener(listener)
         CarPlayNavigationStatus.onFrame(state(1))
