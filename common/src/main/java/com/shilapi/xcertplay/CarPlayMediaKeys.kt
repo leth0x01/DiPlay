@@ -357,6 +357,7 @@ internal object CarPlayMediaKeys {
         }
         Log.i(TAG, "media keys active focusDisabled=$focusDisabled focusGranted=$granted")
         logMediaEvent("媒体：MediaSession 已启用 focusDisabled=$focusDisabled focusGranted=$granted")
+        WheelKeyLog.note("media keys active focusDisabled=$focusDisabled focusGranted=$granted")
     }
 
     private fun forwardGrantedFocusLocked() {
@@ -384,6 +385,7 @@ internal object CarPlayMediaKeys {
         }
         if (!current) return
         Log.i(TAG, "audio focus change=$change")
+        WheelKeyLog.note("media keys audio focus change=$change")
         // Resolve the matching sink and invoke it outside the media-key monitor. An abandoned
         // request must never mute a newer controller, and these owners must not nest locks.
         val background = CarPlayBackgroundSession.snapshot()
@@ -444,17 +446,20 @@ internal object CarPlayMediaKeys {
         if (CarPlayVideo.onMediaKey(index)) {
             Log.i(TAG, "media key $source -> car video player $index")
             logMediaEvent("媒体：来源=$source 指令=$index 转发=车机视频")
+            WheelKeyLog.note("media key $source -> car video player $index")
             return
         }
         // 蓝牙音频由原车 AVRCP 控制，避免同时通过 CarPlay 再执行一次。
         val active = synchronized(this) { if (carBluetoothAudio) null else controller }
         if (active == null) {
             logMediaEvent("媒体：来源=$source 指令=$index 未转发 bluetoothAudio=$carBluetoothAudio")
+            WheelKeyLog.note("media key $source -> CarPlay $index sent=false")
             return
         }
         val sent = active.sendMediaButton(index)
         Log.i(TAG, "media key $source -> CarPlay $index sent=$sent")
         logMediaEvent("媒体：来源=$source 指令=$index 转发=CarPlay sent=$sent")
+        WheelKeyLog.note("media key $source -> CarPlay $index sent=$sent")
     }
 
     private fun logMediaEvent(message: String) {

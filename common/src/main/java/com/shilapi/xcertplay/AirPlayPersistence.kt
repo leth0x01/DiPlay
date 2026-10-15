@@ -49,10 +49,13 @@ object AirPlayPersistence {
     private const val KEY_DISABLE_MEDIA_KEY_AUDIO_FOCUS = "disable_media_key_audio_focus"
     private const val KEY_MEDIA_AUDIO_CHANNEL = "media_audio_channel"
     private const val KEY_NAVIGATION_AUDIO_CHANNEL = "navigation_audio_channel"
+    private const val KEY_NAVIGATION_AUDIO_ATTENUATION = "navigation_audio_attenuation_db"
     private const val KEY_NAVIGATION_STREAM_TYPE = "navigation_stream_type"
     private const val KEY_WIRELESS_ENABLED = "wireless_enabled"
     private const val KEY_WIRELESS_HOTSPOT_MODE = "wireless_hotspot_mode"
     private const val KEY_WIFI_P2P_PREFERRED_CHANNEL = "wifi_p2p_preferred_channel"
+    /** Read by CarPlayController in the shared module under the same name. */
+    const val KEY_WIFI_DIRECT_SCAN_PAUSE = "wifi_direct_scan_pause"
     private const val KEY_MANUAL_HOTSPOT_SSID = "manual_hotspot_ssid"
     private const val KEY_MANUAL_HOTSPOT_PASSPHRASE = "manual_hotspot_passphrase"
     private const val KEY_MANUAL_HOTSPOT_BAND = "manual_hotspot_band"
@@ -284,6 +287,19 @@ object AirPlayPersistence {
             .apply()
     }
 
+    fun loadNavigationAudioAttenuationDb(context: Context): Int =
+        com.shilapi.xcertplay.media.NavigationAudioGain.clamp(
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_NAVIGATION_AUDIO_ATTENUATION, 0),
+        )
+
+    fun saveNavigationAudioAttenuationDb(context: Context, db: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(KEY_NAVIGATION_AUDIO_ATTENUATION,
+                com.shilapi.xcertplay.media.NavigationAudioGain.clamp(db))
+            .apply()
+    }
+
     /** Applies a nonzero setup-guide default only when no current or legacy choice exists. */
     fun applySetupNavigationAudioChannelDefault(context: Context, channel: Int): Boolean {
         if (channel !in AUDIO_CHANNELS || channel == 0) return false
@@ -378,6 +394,15 @@ object AirPlayPersistence {
         require(WifiP2pChannels.isValid(channel))
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putInt(KEY_WIFI_P2P_PREFERRED_CHANNEL, channel).apply()
+    }
+
+    /** Wi-Fi Direct: pause the car's own Wi-Fi search while CarPlay runs (on by default, needs ADB). */
+    fun loadWifiDirectScanPause(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_WIFI_DIRECT_SCAN_PAUSE, true)
+
+    fun saveWifiDirectScanPause(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_WIFI_DIRECT_SCAN_PAUSE, enabled).apply()
     }
 
     fun loadExistingWifiSsid(context: Context): String =

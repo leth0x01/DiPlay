@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.graphics.drawable.ColorDrawable
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.os.Looper
 import android.view.Surface
 import android.view.View
@@ -15,6 +18,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import com.shilapi.xcertplay.adb.LocalAdb
@@ -23,6 +27,8 @@ import com.shilapi.xcertplay.orchestration.WirelessHotspotMode
 import com.shilapi.xcertplay.orchestration.CarPlayController
 import com.shilapi.xcertplay.media.AndroidMediaSink
 import java.time.Duration
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -36,11 +42,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.verify
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowAlertDialog
@@ -504,8 +512,8 @@ class AdaptiveSettingsUiTest {
     }
 
     @Test
-    @Config(sdk = [33], shadows = [HotspotSearchProbe::class])
-    fun hotspotSwitchStaysHiddenOffBydUnitsWithoutAnAppTetheringCall() {
+    @Config(sdk = [25, 33], shadows = [HotspotSearchProbe::class])
+    fun hotspotSwitchStaysHiddenOffBydUnitsWhereAndroidLetsNoAppStartTethering() {
         AirPlayPersistence.saveWirelessHotspotMode(context, WirelessHotspotMode.MANUAL)
         HotspotSearchProbe.workers.clear()
         HotspotSearchProbe.entered = CountDownLatch(1)
@@ -704,6 +712,8 @@ class AdaptiveSettingsUiTest {
 
         assertTrue(connection.any { it.startsWith(text(R.string.settings_usb_charging)) })
         assertFalse(advanced.any { it.startsWith(text(R.string.settings_usb_charging)) })
+        assertTrue(audio.any { it.startsWith(text(R.string.settings_navigation_attenuation)) })
+        assertFalse(advanced.any { it.startsWith(text(R.string.settings_navigation_attenuation)) })
         assertTrue(audio.any { it.startsWith(text(R.string.settings_music_buffer_wireless)) })
         assertTrue(audio.any { it.startsWith(text(R.string.settings_music_buffer_wired)) })
         listOf(R.string.main_buffered_audio, R.string.settings_car_bluetooth_audio, R.string.efficient_video, R.string.smooth_video, R.string.settings_direct_video_output, R.string.settings_low_latency_decoder, R.string.call_echo_cancellation, R.string.call_voice_filter, R.string.settings_disable_media_key_audio_focus, R.string.contrib_audio_home_toggle_audio_focus).forEach {
@@ -729,6 +739,84 @@ class AdaptiveSettingsUiTest {
         listOf(R.string.main_buffered_audio, R.string.efficient_video, R.string.smooth_video, R.string.settings_direct_video_output, R.string.settings_low_latency_decoder, R.string.call_echo_cancellation, R.string.call_voice_filter, R.string.settings_disable_media_key_audio_focus, R.string.right_hand_drive, R.string.car_button_in_carplay,
             R.string.side_panel, R.string.split_screen_areas, R.string.carplay_rotation).forEach {
             assertFalse(text(it), text(it) in display)
+        }
+    }
+
+    @Test fun navigationAttenuationSliderSavesAndUpdatesActiveAudioWithoutReconnect() {
+        val screen = openSettings()
+        val session = mock(CarPlayController::class.java)
+        val sink = mock(AndroidMediaSink::class.java)
+        var disconnects = 0
+        CarPlayBackgroundSession.store(session, sink, 800, 480, Any(),
+            CarPlaySessionDisplay(800, 480, Surface.ROTATION_0, false, false, 800, 480)) { disconnects++ }
+        CarPlayBackgroundSession.active = true
+        try {
+            PendingReconnect.clear()
+            ReflectionHelpers.setField(screen, "settingsCategory", SettingsCategory.AUDIO)
+            ReflectionHelpers.callInstanceMethod<Unit>(screen, "render")
+            val slider = descendants(screen.window.decorView).filterIsInstance<SeekBar>().single()
+            assertEquals(20, slider.max)
+            assertEquals(20, slider.progress)
+            val listener = SeekBar::class.java.getDeclaredField("mOnSeekBarChangeListener")
+                .apply { isAccessible = true }.get(slider) as SeekBar.OnSeekBarChangeListener
+            slider.progress = 7
+            listener.onProgressChanged(slider, 7, true)
+            assertEquals(-13, AirPlayPersistence.loadNavigationAudioAttenuationDb(context))
+            verify(sink).setNavigationAttenuationDb(-13)
+            assertFalse(PendingReconnect.isPending(session))
+            assertEquals(0, disconnects)
+            assertSame(session, CarPlayBackgroundSession.snapshot()?.controller)
+        } finally {
+            CarPlayBackgroundSession.clear()
+            PendingReconnect.clear()
+        }
+    }
+
+    @Test @Config(sdk = [29], qualifiers = "ja-w320dp-h600dp")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun navigationSliderScreenshotCompactJapaneseLargeFont() = captureNavigationSlider("compact-ja", 1.3f)
+
+    @Test @Config(sdk = [29], qualifiers = "en-w1000dp-h700dp")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun navigationSliderScreenshotExpandedLargeFont() = captureNavigationSlider("expanded-en", 1.3f)
+
+    @Test @Config(sdk = [29], qualifiers = "ar-ldrtl-w320dp-h600dp")
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun navigationSliderScreenshotCompactArabicRtlLargeFont() = captureNavigationSlider("compact-ar-rtl", 1.3f)
+
+    private fun captureNavigationSlider(name: String, fontScale: Float) {
+        RuntimeEnvironment.setFontScale(fontScale)
+        val screen = openSettings()
+        ReflectionHelpers.setField(screen, "settingsCategory", SettingsCategory.AUDIO)
+        ReflectionHelpers.callInstanceMethod<Unit>(screen, "render")
+        layoutRoot(screen)
+        val slider = descendants(screen.window.decorView).filterIsInstance<SeekBar>().single()
+        val scroll = generateSequence(slider.parent) { it.parent }.filterIsInstance<ScrollView>().first()
+        val sliderBounds = Rect(0, 0, slider.width, slider.height)
+        scroll.offsetDescendantRectToMyCoords(slider, sliderBounds)
+        // 直接定位到滑块，避免 Robolectric 的请求滚动仅更新可见性、截图仍停在页首。
+        scroll.scrollTo(0, sliderBounds.top - scroll.height / 3)
+        val rectangle = Rect()
+        assertTrue("Navigation volume slider should be visible", slider.getGlobalVisibleRect(rectangle))
+        assertTrue(rectangle.height() >= slider.height / 2)
+        val root = screen.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            // 直接绘制根 ScrollView 时补上父视图通常提供的滚动坐标变换。
+            canvas.translate(-root.scrollX.toFloat(), -root.scrollY.toFloat())
+            root.draw(canvas)
+            // 截图必须包含实际控件，避免只保存背景色也被判为通过。
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            assertTrue("导航音量截图应包含实际控件", pixels.any { it != pixels[0] })
+            val output = Paths.get("build/reports/navigation-audio-ui/$name.png")
+            Files.createDirectories(output.parent)
+            Files.newOutputStream(output).use { stream ->
+                assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream))
+            }
+        } finally {
+            bitmap.recycle()
         }
     }
 

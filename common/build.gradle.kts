@@ -25,7 +25,11 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // The UI suite covers several SDKs and locale-specific resource sandboxes.
-        unitTests.all { it.maxHeapSize = "1g" }
+        unitTests.all {
+            it.maxHeapSize = "4g"
+            // Robolectric 的多版本资源与 Native 截图会累积，分批重启以控制完整测试的内存。
+            it.forkEvery = 50
+        }
     }
 }
 

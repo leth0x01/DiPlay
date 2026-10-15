@@ -1584,6 +1584,7 @@ class CarPlayHostActivity : ComponentActivity() {
         }
 
         // Keep DiPlay's existing steering-wheel/voice-key Siri handling intact.
+        if (CarPlayMediaButton.isShortVoiceKey(event.keyCode) && WheelZoomSettings.siriLongPressOnly(this)) return true
         if (!CarPlayMediaButton.opensSiri(event.keyCode)) return super.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_DOWN) legacySiriPresses.add(physicalKey)
         if (event.action == KeyEvent.ACTION_UP) {
@@ -1593,7 +1594,7 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     private fun requestLegacySiri(keyCode: Int) {
-        val sent = controller?.requestSiri() == true
+        val sent = VoiceKeyPair.shared.allowGenericKey(android.os.SystemClock.uptimeMillis()) && controller?.requestSiri() == true
         appendLog("Siri: voice key $keyCode sent=$sent")
     }
 
@@ -5004,6 +5005,7 @@ class CarPlayHostActivity : ComponentActivity() {
             audioFocusAutoYield = AirPlayPersistence.loadAudioFocusAutoYield(this),
             mediaChannel = AirPlayPersistence.loadMediaAudioChannel(this),
             navigationChannel = AirPlayPersistence.loadNavigationAudioChannel(this),
+            navigationAttenuationDb = AirPlayPersistence.loadNavigationAudioAttenuationDb(this),
             context = this,
             navigationStreamType = navigationStreamType,
             onScreenStreamActiveChanged = { type, active ->
