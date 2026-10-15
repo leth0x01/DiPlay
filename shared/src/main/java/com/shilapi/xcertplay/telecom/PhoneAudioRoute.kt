@@ -49,6 +49,8 @@ internal class PhoneAudioRouteController(
     private val now: () -> Long = System::currentTimeMillis,
     private val releaseDelayMillis: Long = RELEASE_DELAY_MILLIS,
     private val failureBackoffMillis: Long = FAILURE_BACKOFF_MILLIS,
+    /** Where the car's phone audio state is reported, so a diagnostic report can show whether it ran. */
+    private val log: (String) -> Unit = {},
 ) {
     private val lock = Any()
     private val wanted = mutableSetOf<PhoneAudioReason>()
@@ -82,9 +84,11 @@ internal class PhoneAudioRouteController(
                     if (backend.start()) {
                         held = true
                         Log.i(TAG, "car phone audio state on")
+                        report("car phone audio state on")
                     } else {
                         failedAt = now()
                         Log.w(TAG, "Telecom refused the call that selects the car's phone audio state")
+                        report("Telecom refused the car phone audio state; retrying in ${failureBackoffMillis / 60_000} min")
                     }
                 }
             } else if (held && cancelRelease == null) {
@@ -94,10 +98,16 @@ internal class PhoneAudioRouteController(
                         backend.stop()
                         held = false
                         Log.i(TAG, "car phone audio state off")
+                        report("car phone audio state off")
                     }
                 }
             }
         }
+    }
+
+    private fun report(message: String) {
+        runCatching { log("phone audio: $message") }
+            .onFailure { Log.w(TAG, "phone audio log failed", it) }
     }
 
     companion object {
@@ -129,11 +139,27 @@ object PhoneAudioRoute {
     @Volatile private var controller: PhoneAudioRouteController? = null
     private var watcher: VoipCallWatcher? = null // guarded by this
     @Volatile private var carPlayCallActive = false
+    @Volatile private var appContext: Context? = null
+    @Volatile private var log: ((String) -> Unit)? = null
+
+    /**
+     * Where the car's phone audio state is written for the diagnostic report. The host activity sets
+     * its session log while it lives; the sink must be dropped with that activity so it is not kept.
+     */
+    fun setLog(sink: ((String) -> Unit)?) {
+        log = sink
+    }
+
+    private fun report(message: String) {
+        runCatching { log?.invoke("phone audio: $message") }
+            .onFailure { Log.w(TAG, "phone audio log failed", it) }
+    }
 
     /** Safe to call often; the first call sets everything up and later ones re-read the settings. */
     @Synchronized
     fun attach(context: Context) {
         val app = context.applicationContext
+        appContext = app
         if (controller == null) {
             controller = PhoneAudioRouteController(
                 backend = TelecomPhoneAudioBackend(app),
@@ -152,6 +178,7 @@ object PhoneAudioRoute {
                     }
                 },
                 enabled = { reason -> enabledFor(app, reason) },
+                log = { message -> log?.invoke(message) },
             )
         }
         syncWatcher(app)
@@ -160,6 +187,8 @@ object PhoneAudioRoute {
     /** The iPhone has a call (any phase), or none any more. */
     fun carPlayCall(active: Boolean) {
         carPlayCallActive = active
+        val setting = appContext?.let { BydOutputSettings.phoneAudioRoute(it) }
+        report("CarPlay call active=$active, car phone audio setting=$setting")
         controller?.setWanted(PhoneAudioReason.CARPLAY_CALL, active)
     }
 
@@ -171,6 +200,11 @@ object PhoneAudioRoute {
     /** One of the two settings changed. */
     fun settingsChanged(context: Context) {
         attach(context)
+        val app = context.applicationContext
+        report(
+            "settings changed: carPlay=${BydOutputSettings.phoneAudioRoute(app)}, " +
+                "apps=${BydOutputSettings.phoneAudioRouteApps(app)}",
+        )
         controller?.settingsChanged()
     }
 

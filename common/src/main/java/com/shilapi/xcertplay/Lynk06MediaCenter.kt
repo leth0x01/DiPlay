@@ -51,6 +51,7 @@ internal class Lynk06MediaCenter(
     @Volatile private var pendingArtwork: Bitmap? = initialArtwork
     private data class PublicationState(val updated: Boolean, val playing: Boolean, val artwork: Uri?)
     private var lastPublicationState: PublicationState? = null
+    private var lastArtworkDiagnostic: String? = null
     private data class TrackPublication(val title: String?, val artist: String?, val album: String?,
         val duration: Long?, val artwork: Uri?)
     private var lastTrackPublication: TrackPublication? = null
@@ -64,7 +65,7 @@ internal class Lynk06MediaCenter(
     private val launchIntent = PendingIntent.getActivity(this.context, 0,
         Intent(this.context, CarPlayHostActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-    private val playback = Lynk06MusicPlayback(this.context.packageName, launchIntent, ::currentArtworkUri) { nowPlaying }
+    private val playback = Lynk06MusicPlayback(this.context.packageName, launchIntent, ::currentArtworkUri, log, { nowPlaying })
     private val client = Lynk06MusicClient(playback, { nowPlaying }, { index ->
         // 失去原车媒体控制权或退出会话后，迟到回调不能操作 iPhone。
         forward(index)
@@ -205,16 +206,34 @@ internal class Lynk06MediaCenter(
                     .onFailure { logFailure("同步封面", it) }
                 if (pendingArtwork !== candidate) return
             }
+            val image = pendingArtwork
+            // 快照只取一次，避免 nav= 与 summary() 来自不同状态。
+            val map = Lynk06MapDiagnostics.snapshot()
+            val artworkDiagnostic = "reference=${nowPlaying.artworkTransferId} " +
+                "image=${image?.let { System.identityHashCode(it) }} recycled=${image?.isRecycled} " +
+                "cover=${coverId(currentArtworkUri())} control=${control.owned} " +
+                "nav=${map.navigationRequested}"
+            if (artworkDiagnostic != lastArtworkDiagnostic) {
+                lastArtworkDiagnostic = artworkDiagnostic
+                log("领克封面路由：$artworkDiagnostic action=${if (control.owned) "publish" else "defer-no-control"} " +
+                    map.summary())
+            }
             // 失去控制权时保留最新快照，切回仪表音乐后再发布，避免无效 token 重绑。
             if (!control.owned) return
             val info = nowPlaying
             val track = TrackPublication(info.title, info.artist, info.album, info.durationMillis, currentArtworkUri())
             if (track != lastTrackPublication) {
+                val previous = lastTrackPublication
                 service.updateCurrentTrack(registered, info, track.artwork)
                 lastTrackPublication = track
                 trackRevision++
+                // 歌词式标题每换一行都会走到这里；原车按 title|art 生成 UUID 并重拉封面，
+                // 标记纯标题变化，供诊断区分“换歌”和“换歌词”。
+                val titleOnlyChurn = previous != null && previous.artwork == track.artwork &&
+                    previous.title != track.title && previous.artist == track.artist && previous.album == track.album
                 log("领克媒体中心：当前歌曲列表已同步 trackRevision=$trackRevision count=1 " +
-                    "artworkReference=${info.artworkTransferId} cover=${coverId(track.artwork)}")
+                    "artworkReference=${info.artworkTransferId} cover=${coverId(track.artwork)} " +
+                    "reason=${if (titleOnlyChurn) "title-only-churn" else "identity-change"}")
             }
             // 原车对相同信息也返回 false，不能据此注销客户端或丢失方控控制权。
             val updated = service.updatePlayback(registered, playback)

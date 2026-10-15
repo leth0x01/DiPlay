@@ -82,4 +82,20 @@ class Lynk06MapDiagnosticsTest {
         assertTrue(lines.all { DiagnosticRedactor.redact(it) == it })
         assertTrue(lines.last().contains("mcuRequest=true"))
     }
+
+    @Test fun repeatedMcuOpenRefreshesEventTimeWithoutInventingAVisibilityTransition() {
+        Lynk06MapDiagnostics.capture(owner, "starting", lines::add)
+        native("sendBytesToMcuByPropID INFO_ID_MMI_NAVSYNCDISPLAY open")
+        val revision = Lynk06MapDiagnostics.snapshot().revision
+        Lynk06MapDiagnostics.nativeLine(owner, prefix.replace("14:08:10.491", "14:09:20.123") +
+            "sendBytesToMcuByPropID INFO_ID_MMI_NAVSYNCDISPLAY open", lines::add)
+        assertEquals(revision, Lynk06MapDiagnostics.snapshot().revision)
+        assertTrue(Lynk06MapDiagnostics.report().contains("lastMcuOpenAt=10-13 14:09:20.123"))
+        assertTrue(Lynk06MapDiagnostics.report().contains("mcuCloseEverSeen=false"))
+        native("sendBytesToMcuByPropID INFO_ID_MMI_NAVSYNCDISPLAY close")
+        assertTrue(Lynk06MapDiagnostics.report().contains("lastMcuCloseAt=10-13 14:08:10.491"))
+        assertTrue(Lynk06MapDiagnostics.report().contains("mcuCloseEverSeen=true"))
+        Lynk06MapDiagnostics.capture(Any(), "starting", lines::add)
+        assertTrue(Lynk06MapDiagnostics.report().contains("lastMcuOpenAt=null lastMcuCloseAt=null"))
+    }
 }

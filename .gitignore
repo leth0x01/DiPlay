@@ -35,6 +35,7 @@ Thumbs.db
 keystore.properties
 *.jks
 *.keystore
+_ecarx_investigation
 
 # Never commit credential containers or installable distribution artifacts.
 *.pk8

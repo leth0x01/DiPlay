@@ -18,15 +18,19 @@ import android.view.View
 import com.shilapi.xcertplay.host.R
 
 /** Local music card inside the existing projection; does not change any OEM cluster mode. */
-internal class ClusterMusicView(context: Context) : View(context) {
+internal class ClusterMusicView(context: Context, private val diagnostic: (String) -> Unit = {}) : View(context) {
     private val main = Handler(Looper.getMainLooper())
     private var stopState: (() -> Unit)? = null
     private var stopSettings: (() -> Unit)? = null
-    private var snapshot = ClusterMusicState.Snapshot()
+    // Read from the diagnostic thread as well; volatile keeps the best-effort report from tearing.
+    @Volatile private var snapshot = ClusterMusicState.Snapshot()
     private var visibleUntil = 0L
     private var lastTrackRevision: Long? = null
     private val expire = Runnable { updateVisibility() }
-    private var captionVisible = false
+    @Volatile private var captionVisible = false
+    private var lastDiagnostic: String? = null
+    private var drawDiagnosticPending = true
+    @Volatile private var lastDraw = "none"
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val textPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
@@ -52,6 +56,7 @@ internal class ClusterMusicView(context: Context) : View(context) {
     }
 
     override fun onDetachedFromWindow() {
+        diagnostic("仪表音乐浮层：reason=detach ${diagnosticReport()}")
         stopState?.invoke(); stopState = null
         stopSettings?.invoke(); stopSettings = null
         main.removeCallbacksAndMessages(null)
@@ -60,6 +65,19 @@ internal class ClusterMusicView(context: Context) : View(context) {
         lastTrackRevision = null
         captionVisible = false
         super.onDetachedFromWindow()
+    }
+
+    // 这里只能确认应用提交绘制，不能作为物理仪表已显示封面的回执。
+    fun diagnosticReport(includeDraw: Boolean = true): String {
+        val art = snapshot.artwork
+        val image = if (art == null) "none" else if (art.isRecycled) "recycled" else
+            "${System.identityHashCode(art)}:${art.width}x${art.height}"
+        return "enabled=${ClusterMusicSettings.enabled(context)} permanent=${ClusterMusicSettings.permanent(context)} " +
+            "hasTrack=${!snapshot.info.title.isNullOrBlank() || !snapshot.info.artist.isNullOrBlank()} " +
+            "reference=${snapshot.info.artworkTransferId} image=$image trackRevision=${snapshot.revision} " +
+            "attached=$isAttachedToWindow visibility=$visibility windowVisibility=$windowVisibility shown=$isShown " +
+            "size=${width}x$height caption=$captionVisible" +
+            if (includeDraw) " lastDraw=[$lastDraw]" else ""
     }
 
     private fun updateVisibility() {
@@ -71,7 +89,24 @@ internal class ClusterMusicView(context: Context) : View(context) {
         visibility = if (ClusterMusicSettings.enabled(context) && hasTrack && (permanent || captionVisible)) VISIBLE else GONE
         // The caption expires even when permanent artwork keeps the view visible.
         if (visibility == VISIBLE && remaining > 0) main.postDelayed(expire, remaining)
+        val summary = diagnosticReport(includeDraw = false)
+        if (summary != lastDiagnostic) {
+            lastDiagnostic = summary
+            drawDiagnosticPending = true
+            diagnostic("仪表音乐浮层：reason=state $summary")
+        }
         invalidate()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        // 父地图窗口隐藏后再显示时，也需要重新记录首次绘制。
+        drawDiagnosticPending = true
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        drawDiagnosticPending = true
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -134,6 +169,13 @@ internal class ClusterMusicView(context: Context) : View(context) {
         paint.color = Color.argb(35, 255, 255, 255)
         canvas.drawRoundRect(rect, radius, radius, paint)
         paint.style = Paint.Style.FILL
+        if (drawDiagnosticPending) {
+            drawDiagnosticPending = false
+            lastDraw = "reference=${snapshot.info.artworkTransferId} image=${if (art == null) "placeholder" else System.identityHashCode(art).toString()} " +
+                "bounds=$artRect at=${android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss.SSS", System.currentTimeMillis())} " +
+                "elapsedMs=${SystemClock.elapsedRealtime()}"
+            diagnostic("仪表音乐浮层：reason=draw ${diagnosticReport()}")
+        }
     }
 
     companion object {

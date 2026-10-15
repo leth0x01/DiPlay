@@ -57,12 +57,14 @@ class PhoneAudioRouteControllerTest {
     private val backend = FakeBackend()
     private val scheduler = FakeScheduler()
     private val enabled = mutableSetOf(PhoneAudioReason.CARPLAY_CALL, PhoneAudioReason.VOIP_APP)
+    private val reports = mutableListOf<String>()
 
     private fun controller() = PhoneAudioRouteController(
         backend = backend,
         scheduler = scheduler,
         enabled = { it in enabled },
         now = { scheduler.time },
+        log = { reports += it },
     )
 
     @Test fun aCarPlayCallHoldsTheTelecomCallUntilItHasEnded() {
@@ -186,5 +188,24 @@ class PhoneAudioRouteControllerTest {
         assertFalse(VoipCallWatcher.voipActive(listOf(MediaRecorder.AudioSource.CAMCORDER), listOf(call)))
         assertFalse(VoipCallWatcher.voipActive(listOf(MediaRecorder.AudioSource.VOICE_RECOGNITION), listOf(call)))
         assertFalse(VoipCallWatcher.voipActive(emptyList(), emptyList()))
+    }
+
+    @Test fun theCarPhoneAudioStateIsReportedForTheDiagnosticReport() {
+        val route = controller()
+        route.setWanted(PhoneAudioReason.CARPLAY_CALL, true)
+        assertEquals(listOf("phone audio: car phone audio state on"), reports)
+        route.setWanted(PhoneAudioReason.CARPLAY_CALL, false)
+        scheduler.advance(PhoneAudioRouteController.RELEASE_DELAY_MILLIS)
+        assertEquals("phone audio: car phone audio state off", reports.last())
+    }
+
+    @Test fun aRefusedCarPhoneAudioStateIsReportedWithItsBackOff() {
+        backend.accept = false
+        val route = controller()
+        route.setWanted(PhoneAudioReason.CARPLAY_CALL, true)
+        assertEquals(
+            listOf("phone audio: Telecom refused the car phone audio state; retrying in 5 min"),
+            reports,
+        )
     }
 }

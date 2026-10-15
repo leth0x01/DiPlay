@@ -44,6 +44,44 @@ class Lynk06MediaSystemLogTest {
         assertTrue(process.destroyed.await(1, TimeUnit.SECONDS))
     }
 
+    @Test fun capturesMdcPrefixedDimTagsAndIgnoresTagNamesEchoedInOtherMessages() {
+        // 原车 DIM 图片链路使用 MDC-[pid]- 前缀的 tag；按内容匹配会把回显这些名字的应用日志也吃进来。
+        val text = "10-15 12:21:13.000 100 200 D MDC-[32015008]-DimImageProcess: current is in downloading Song\n" +
+            "10-15 12:21:13.100 100 200 D Unrelated: DimInteractionHelper appears in the message\n"
+        val lines = CopyOnWriteArrayList<String>()
+        val finished = CountDownLatch(1)
+        val process = FakeProcess(ByteArrayInputStream(text.toByteArray()))
+        Lynk06MediaSystemLog({ lines.add(it); if (it.contains("采集进程退出")) finished.countDown() }, { process }).use {
+            it.start(context(PackageManager.PERMISSION_GRANTED))
+            assertTrue(finished.await(3, TimeUnit.SECONDS))
+        }
+        assertTrue(lines.any { it.contains("DimImageProcess") && it.contains("downloading") })
+        assertFalse(lines.any { it.contains("appears in the message") })
+    }
+
+    @Test fun keepsCoverTagsPaddedShortTagsAndStackContinuationsButDropsUnrelatedTags() {
+        val text = "10-15 12:21:13.000 100 200 D MDC-[32015008]-MusicPlaybackInfoHelper: artwork: null\n" +
+            "10-15 12:21:13.100 100 200 W Glide   : Load failed for null\n" +
+            "10-15 12:21:13.101 100 200 W Glide   : java.io.FileNotFoundException(open failed)\n" +
+            "10-15 12:21:13.200 100 200 D Unrelated: must not be captured\n" +
+            "10-15 12:21:13.201 100 200 D Unrelated: continuation after an unrelated tag is dropped\n" +
+            "10-15 12:21:13.300 100 200 D ThreeAlbumService: current artwork\n"
+        val lines = CopyOnWriteArrayList<String>()
+        val finished = CountDownLatch(1)
+        val process = FakeProcess(ByteArrayInputStream(text.toByteArray()))
+        Lynk06MediaSystemLog({ lines.add(it); if (it.contains("采集进程退出")) finished.countDown() }, { process }).use {
+            it.start(context(PackageManager.PERMISSION_GRANTED))
+            assertTrue(finished.await(3, TimeUnit.SECONDS))
+        }
+        assertTrue(lines.any { it.contains("MusicPlaybackInfoHelper") })
+        assertTrue(lines.any { it.contains("Load failed for null") })
+        // 无行头的堆栈续行跟随上一行保留，否则看不到加载失败的原因。
+        assertTrue(lines.any { it.contains("FileNotFoundException") })
+        assertTrue(lines.any { it.contains("ThreeAlbumService") })
+        assertFalse(lines.any { it.contains("must not be captured") })
+        assertFalse(lines.any { it.contains("continuation after an unrelated tag") })
+    }
+
     @Test fun closingSessionDestroysBlockedLogReader() {
         val input = PipedInputStream()
         val output = PipedOutputStream(input)

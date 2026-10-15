@@ -7,6 +7,7 @@ import android.os.IBinder
 import android.os.Parcel
 import com.shilapi.xcertplay.airplay.CarPlayMediaButton
 import com.shilapi.xcertplay.media.CarPlayNowPlaying
+import java.util.concurrent.atomic.AtomicInteger
 
 /** 本车 XSFMediaCenter Stub 中核对的 transaction 编号；不依赖其他车型的 SDK。 */
 internal class Lynk06MediaCenterService(private val remote: IBinder) {
@@ -149,9 +150,11 @@ internal class Lynk06MusicPlayback(
     private val packageName: String,
     private val launchIntent: PendingIntent?,
     private val artwork: () -> Uri? = { null },
+    private val log: (String) -> Unit = {},
     private val snapshot: () -> CarPlayNowPlaying,
 ) : Binder() {
     init { attachInterface(null, DESCRIPTOR) }
+    @Volatile private var lastArtworkNull: Boolean? = null
 
     override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
         if (code == INTERFACE_TRANSACTION) { reply?.writeString(DESCRIPTOR); return true }
@@ -174,6 +177,16 @@ internal class Lynk06MusicPlayback(
             11 -> reply.writeInt(if (info.playing) 1 else 0)
             16 -> {
                 val uri = artwork()
+                val calls = getArtworkCalls.incrementAndGet()
+                if (uri == null) getArtworkNulls.incrementAndGet()
+                // 原车导航布局取封面走这条 getter；记录空/非空翻转与累计次数，
+                // 区分“从未调用”和“调用但一直非空”。日志不能拖累或打断这次读取。
+                if ((uri == null) != lastArtworkNull) {
+                    lastArtworkNull = uri == null
+                    runCatching {
+                        log("领克封面 getArtwork null=${uri == null} calls=$calls nulls=${getArtworkNulls.get()}")
+                    }
+                }
                 reply.writeInt(if (uri == null) 0 else 1)
                 uri?.writeToParcel(reply, 0)
             }
@@ -186,7 +199,13 @@ internal class Lynk06MusicPlayback(
         return true
     }
 
-    companion object { const val DESCRIPTOR = "ecarx.xsf.mediacenter.IMusicPlaybackInfo" }
+    companion object {
+        const val DESCRIPTOR = "ecarx.xsf.mediacenter.IMusicPlaybackInfo"
+        private val getArtworkCalls = AtomicInteger()
+        private val getArtworkNulls = AtomicInteger()
+        fun diagnosticReport(): String =
+            "领克封面 getArtwork calls=${getArtworkCalls.get()} nulls=${getArtworkNulls.get()}"
+    }
 }
 
 internal fun lynk06MusicId(info: CarPlayNowPlaying): String =

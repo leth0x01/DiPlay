@@ -15,6 +15,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 data class AirPlayDeviceInfo(
     val name: String,
@@ -96,7 +97,7 @@ class AirPlaySession(
     private var eventCseq = 0
     private var pendingNightMode: Boolean? = null
     private val firstTouchSendLogged = AtomicBoolean(false)
-    private val touchSendFailureLogged = AtomicBoolean(false)
+    private val touchSendFailures = AtomicInteger(0)
     private val ntp = NtpClock()
     private var keepAliveSocket: DatagramSocket? = null
     private var keepAliveThread: Thread? = null
@@ -343,16 +344,27 @@ class AirPlaySession(
         val report = AirPlayHid.touchReport(scaled)
         val sendStartNs = System.nanoTime()
         val sent = sendHidReport(AirPlayHid.TOUCH_HID_UID, report)
-        if (sent) com.shilapi.xcertplay.media.TouchLatencyProbe.onTouchSent(sendStartNs, System.nanoTime() - sendStartNs)
-        if (sent && firstTouchSendLogged.compareAndSet(false, true)) {
-            val first = scaled.firstOrNull()
-            Log.i(
-                TAG,
-                "airplay touch report sent contacts=${scaled.size} first=" +
-                    "(${first?.x},${first?.y},down=${first?.down}) report=${report.toHexString()}",
-            )
-        } else if (!sent && touchSendFailureLogged.compareAndSet(false, true)) {
-            Log.w(TAG, "airplay touch dropped: event channel is not ready")
+        if (sent) {
+            com.shilapi.xcertplay.media.TouchLatencyProbe.onTouchSent(sendStartNs, System.nanoTime() - sendStartNs)
+            val recovered = touchSendFailures.getAndSet(0)
+            if (recovered > 0) {
+                debugLog("airplay touch reports resumed after $recovered dropped report(s)")
+            }
+            if (firstTouchSendLogged.compareAndSet(false, true)) {
+                val first = scaled.firstOrNull()
+                Log.i(
+                    TAG,
+                    "airplay touch report sent contacts=${scaled.size} first=" +
+                        "(${first?.x},${first?.y},down=${first?.down}) report=${report.toHexString()}",
+                )
+            }
+        } else {
+            // CarPlay keeps its last contact state, so a dropped up leaves a finger held down and
+            // later touches behave strangely; name the count so the log shows how long it lasted.
+            val dropped = touchSendFailures.incrementAndGet()
+            if (dropped == 1 || dropped % TOUCH_DROPS_PER_LOG == 0) {
+                debugLog("airplay touch report dropped: event channel is not ready (dropped=$dropped)")
+            }
         }
         return sent
     }
@@ -966,6 +978,8 @@ class AirPlaySession(
         const val ZOOM_DIRECTION_OUT = 1
         const val EVENT_READY_POLL_MILLIS = 25L
         const val NANOS_PER_MILLISECOND = 1_000_000L
+        /** How often a dropped touch report is named again while the event channel stays unready. */
+        const val TOUCH_DROPS_PER_LOG = 20
     }
 }
 

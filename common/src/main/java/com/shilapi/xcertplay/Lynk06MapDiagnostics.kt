@@ -47,6 +47,8 @@ internal object Lynk06MapDiagnostics {
     private var presentationOwner: java.lang.ref.WeakReference<Any>? = null
     private var nativeOwner: Any? = null
     private var nativeObservedNanos = 0L
+    private var lastMcuOpenAt: String? = null
+    private var lastMcuCloseAt: String? = null
 
     @Synchronized fun snapshot(): Snapshot = state
     @Synchronized fun context(): String = "mapRevision=${state.revision} appMapReady=${state.appMapReady} " +
@@ -104,6 +106,8 @@ internal object Lynk06MapDiagnostics {
         if (status == "starting") {
             nativeOwner = owner
             nativeObservedNanos = 0
+            lastMcuOpenAt = null
+            lastMcuCloseAt = null
             change("native-capture-start", log, state.copy(factoryReset = null, naviNotStarted = null,
                 ihuState = null, lcdState = null, nativeStartRequested = null, signalConnected = null,
                 nativeRejected = null, lastMcuProjectionRequest = null, lastNativeEvent = null,
@@ -124,7 +128,14 @@ internal object Lynk06MapDiagnostics {
         POWER_STATE.find(body)?.let { next = next.copy(ihuState = it.groupValues[1].toIntOrNull(), lcdState = it.groupValues[2].toIntOrNull()) }
         START.find(body)?.let { next = next.copy(nativeStartRequested = it.groupValues[1].toBoolean(),
             signalConnected = it.groupValues[2].toBoolean(), nativeRejected = body.endsWith("not enable Screen Projection.")) }
-        MCU.matchEntire(body)?.let { next = next.copy(lastMcuProjectionRequest = it.groupValues[1] == "open") }
+        MCU.matchEntire(body)?.let { mcu ->
+            // 事件时间来自外层 POWER 日志，不是 MCU 匹配本身。
+            val at = match.groupValues[1]
+            val open = mcu.groupValues[1] == "open"
+            // 重复 open 也保留原车事件时间，不能把旧的 true 当作新的投影反馈。
+            if (open) lastMcuOpenAt = at else lastMcuCloseAt = at
+            next = next.copy(lastMcuProjectionRequest = open)
+        }
         if (next == state) {
             // 相同有效事件仍更新时间，其他 Power 日志不能刷新投影证据时间。
             if (!FLAGS.containsMatchIn(body) && !POWER_STATE.containsMatchIn(body) &&
@@ -135,12 +146,17 @@ internal object Lynk06MapDiagnostics {
         else state = state.copy(lastNativeEvent = match.groupValues[1])
     }
 
-    @Synchronized fun report(): String = state.summary() + "\nlastNativeEvent=${state.lastNativeEvent} " +
+    @Synchronized fun report(): String = state.summary() +
+        // 本固件可能只发 open、从不发 close；没有 close 时不能把 mcuRequest=true 读成“当前在投影”。
+        // 这是“采集期间曾见过 close”的闩锁，不代表现在已关闭；当前状态看 summary 的 mcuRequest。
+        "\nmcuCloseEverSeen=${lastMcuCloseAt != null} lastMcuOpenAt=$lastMcuOpenAt lastMcuCloseAt=$lastMcuCloseAt " +
+        "\nlastNativeEvent=${state.lastNativeEvent} " +
         "nativeObservedAgoMs=${if (nativeObservedNanos == 0L) null else (System.nanoTime() - nativeObservedNanos) / 1_000_000} " +
         "physicalVisibility=unknown（记录应用窗口与原车投影指令，未取得仪表像素回执）"
 
     @Synchronized internal fun resetForTest() {
         state = Snapshot(); linkOwner = null; presentationOwner = null; nativeOwner = null; nativeObservedNanos = 0
+        lastMcuOpenAt = null; lastMcuCloseAt = null
     }
 
     private val POWER = Regex("^(\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\s+\\d+\\s+\\d+\\s+[VDIWEF]\\s+(?:ECarXPowerManagerService:\\s+<ECarXScreenProjectionService>|ECarXScreenProjectionService:\\s*)(.*)$")

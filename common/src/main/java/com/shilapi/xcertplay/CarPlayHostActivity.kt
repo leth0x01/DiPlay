@@ -73,6 +73,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.shilapi.xcertplay.airplay.CarPlayMediaButton
 import com.shilapi.xcertplay.airplay.AirPlayConfig
+import com.shilapi.xcertplay.airplay.AirPlayContact
 import com.shilapi.xcertplay.airplay.AirPlayDisplaySettings
 import com.shilapi.xcertplay.airplay.AirPlayPhysicalSizeBasis
 import com.shilapi.xcertplay.airplay.AirPlayPhysicalSizeMm
@@ -433,6 +434,21 @@ class CarPlayHostActivity : ComponentActivity() {
     private var pendingDisplaySize: DisplaySize? = null
     private var sessionDisplay: CarPlaySessionDisplay? = null
     private var touchOutsideContent = false
+    // Touch diagnostics: what the driver touched, what CarPlay received, and what the host held back.
+    private var touchGestureActive = false
+    private var touchGestureStartedMillis = 0L
+    private var touchGestureStartX = 0f
+    private var touchGestureStartY = 0f
+    private var touchGestureEndX = 0f
+    private var touchGestureEndY = 0f
+    private var touchGestureMoves = 0
+    private var touchGestureMaxPointers = 0
+    private var touchGestureSent = 0
+    private var touchGestureDropped = 0
+    private var touchGestureCancelled = false
+    private var touchContactsDown = 0
+    private var touchMoveLoggedMillis = 0L
+    private var touchBlockedLoggedMillis = 0L
     private var displayScalePercent = 100
     private var displayScaleTenths = CarPlayDisplayScale.DEFAULT_TENTHS
     private var uiScalePercent = CarPlayUiScale.DEFAULT
@@ -738,6 +754,10 @@ class CarPlayHostActivity : ComponentActivity() {
         getSystemService(android.hardware.display.DisplayManager::class.java)
             ?.registerDisplayListener(clusterDisplayListener, mainHandler)
         initializeSessionLog()
+        // The car's phone audio state is what makes the car's own echo cancellation run on a CarPlay
+        // call, so its changes belong in the session log the diagnostic report is built from. The state
+        // changes on the phone-audio worker, so write it on the same thread the rest of the log uses.
+        com.shilapi.xcertplay.telecom.PhoneAudioRoute.setLog { message -> mainHandler.post { appendLog(message) } }
         lastConfiguration = Configuration(resources.configuration)
         darkMode = savedInstanceState?.getBoolean("carplay_night_active")
             ?: nightModeOrNull(resources.configuration.uiMode) ?: false
@@ -1756,6 +1776,8 @@ class CarPlayHostActivity : ComponentActivity() {
         sessionLog?.append("Activity destroyed")
         sessionLog?.close()
         sessionLog = null
+        // Do not keep this activity, and its log, alive through the static sink.
+        com.shilapi.xcertplay.telecom.PhoneAudioRoute.setLog(null)
         super.onDestroy()
     }
 
@@ -6132,7 +6154,10 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     private fun onHostTouch(view: View, event: MotionEvent): Boolean {
-        if (menuOpen) return true
+        if (menuOpen) {
+            logTouchBlocked("the settings menu is open")
+            return true
+        }
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -6146,6 +6171,7 @@ class CarPlayHostActivity : ComponentActivity() {
                     gestureStartX = pointerCentroid(event, horizontal = true)
                     gestureStartY = pointerCentroid(event, horizontal = false)
                     controller?.sendTouch(emptyList())
+                    touchContactsDown = 0
                     appendLog("Settings swipe tracking started; fingers=$gestureFingerCount")
                     return true
                 }
@@ -6162,6 +6188,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 ) {
                     gestureSequenceActive = false
                     gestureTracking = false
+                    appendLog("Settings swipe ended without opening settings; the touch did not reach CarPlay")
                 } else if (event.actionMasked == MotionEvent.ACTION_POINTER_UP) {
                     gestureTracking = false
                 }
@@ -6186,6 +6213,12 @@ class CarPlayHostActivity : ComponentActivity() {
         val content = contentRect(view.width, view.height)
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             touchOutsideContent = !content.contains(event.x, event.y)
+            if (touchOutsideContent) {
+                logTouchBlocked(
+                    "the touch started outside the CarPlay picture at " +
+                        TouchDiagnostics.point(event.x, event.y),
+                )
+            }
         }
         if (touchOutsideContent) {
             // Ignore the entire touch sequence when it starts in a letterbox bar.
@@ -6196,6 +6229,7 @@ class CarPlayHostActivity : ComponentActivity() {
         }
         val contacts = CarPlayTouchMapper.contacts(event, content)
         val queued = controller?.sendTouch(contacts) ?: false
+        recordTouchEvent(event, contacts, queued)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN,
             MotionEvent.ACTION_POINTER_DOWN,
@@ -6208,6 +6242,112 @@ class CarPlayHostActivity : ComponentActivity() {
             )
         }
         return true
+    }
+
+    /**
+     * Writes what CarPlay received for one touch event, and warns when a gesture ends without sending
+     * an up: CarPlay then keeps a contact held down, which makes later touches behave strangely.
+     */
+    private fun recordTouchEvent(event: MotionEvent, contacts: List<AirPlayContact>, queued: Boolean) {
+        val now = SystemClock.uptimeMillis()
+        val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                if (touchContactsDown > 0) {
+                    appendLog(
+                        "touch anomaly: a new touch arrived while CarPlay still holds " +
+                            "$touchContactsDown contact(s) down; the previous gesture sent no up",
+                    )
+                }
+                touchGestureActive = true
+                touchGestureStartedMillis = now
+                touchMoveLoggedMillis = 0L
+                touchGestureStartX = contacts.firstOrNull()?.x?.toFloat() ?: 0f
+                touchGestureStartY = contacts.firstOrNull()?.y?.toFloat() ?: 0f
+                touchGestureMoves = 0
+                touchGestureMaxPointers = event.pointerCount
+                touchGestureSent = 0
+                touchGestureDropped = 0
+                touchGestureCancelled = false
+                logTouchLine(event, contacts, queued)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                touchGestureMoves++
+                if (now - touchMoveLoggedMillis >= TOUCH_MOVE_LOG_INTERVAL_MILLIS) {
+                    touchMoveLoggedMillis = now
+                    logTouchLine(event, contacts, queued)
+                }
+            }
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP ->
+                logTouchLine(event, contacts, queued)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (cancelled) touchGestureCancelled = true
+                logTouchLine(event, contacts, queued)
+            }
+        }
+        touchGestureMaxPointers = maxOf(touchGestureMaxPointers, event.pointerCount)
+        contacts.firstOrNull()?.let {
+            touchGestureEndX = it.x.toFloat()
+            touchGestureEndY = it.y.toFloat()
+        }
+        if (queued) {
+            touchGestureSent++
+            touchContactsDown = contacts.count { it.down }
+        } else {
+            touchGestureDropped++
+        }
+        if ((event.actionMasked == MotionEvent.ACTION_UP || cancelled) && touchGestureActive) {
+            touchGestureActive = false
+            if (touchGestureMoves > 0 || touchGestureMaxPointers > 1 ||
+                touchGestureCancelled || touchGestureDropped > 0
+            ) {
+                appendLog(
+                    TouchDiagnostics.summary(
+                        touchGestureStartX, touchGestureStartY, touchGestureEndX, touchGestureEndY,
+                        touchGestureMaxPointers, touchGestureMoves, now - touchGestureStartedMillis,
+                        touchGestureSent, touchGestureDropped, touchGestureCancelled,
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * One line per touch event CarPlay may act on, naming the Android pointer ids in the order the
+     * contacts are reported, so a gesture whose contacts change slot is visible in the log.
+     */
+    private fun logTouchLine(event: MotionEvent, contacts: List<AirPlayContact>, queued: Boolean) {
+        val ids = (0 until event.pointerCount).map { event.getPointerId(it) }
+        val lifted = if (event.actionMasked == MotionEvent.ACTION_POINTER_UP) {
+            " lifted=${event.getPointerId(event.actionIndex)}"
+        } else {
+            ""
+        }
+        val first = contacts.firstOrNull()
+        appendLog(
+            "touch ${touchActionName(event.actionMasked)} ids=${TouchDiagnostics.ids(ids)}$lifted " +
+                "contacts=${contacts.count { it.down }} " +
+                "uv=${if (first != null) TouchDiagnostics.point(first.x.toFloat(), first.y.toFloat()) else "-"} " +
+                "queued=$queued",
+        )
+    }
+
+    /** A touch the host took before CarPlay saw it, at most once per [TOUCH_BLOCKED_LOG_INTERVAL_MILLIS]. */
+    private fun logTouchBlocked(reason: String) {
+        val now = SystemClock.uptimeMillis()
+        if (now - touchBlockedLoggedMillis < TOUCH_BLOCKED_LOG_INTERVAL_MILLIS) return
+        touchBlockedLoggedMillis = now
+        appendLog("touch blocked: $reason")
+    }
+
+    private fun touchActionName(action: Int): String = when (action) {
+        MotionEvent.ACTION_DOWN -> "DOWN"
+        MotionEvent.ACTION_MOVE -> "MOVE"
+        MotionEvent.ACTION_UP -> "UP"
+        MotionEvent.ACTION_CANCEL -> "CANCEL"
+        MotionEvent.ACTION_POINTER_DOWN -> "POINTER_DOWN"
+        MotionEvent.ACTION_POINTER_UP -> "POINTER_UP"
+        else -> action.toString()
     }
 
     private fun pointerCentroid(event: MotionEvent, horizontal: Boolean): Float {
@@ -6454,6 +6594,9 @@ class CarPlayHostActivity : ComponentActivity() {
         const val AUDIO_CAPTURE_MARKER = "audio-capture.enabled"
         const val AUDIO_CAPTURE_DIRECTORY = "audio-captures"
         const val PROTOCOL_TRACE_PREFIX = "TRACE "
+        /** Touch diagnostics: at most one move line and one blocked line per interval. */
+        const val TOUCH_MOVE_LOG_INTERVAL_MILLIS = 500L
+        const val TOUCH_BLOCKED_LOG_INTERVAL_MILLIS = 1_000L
         const val SETTINGS_SWIPE_DISTANCE_DP = 72
         const val SETTINGS_SWIPE_DIRECTION_RATIO = 1.15f
         const val SWIPE_CHROME_PADDING_DP = 16

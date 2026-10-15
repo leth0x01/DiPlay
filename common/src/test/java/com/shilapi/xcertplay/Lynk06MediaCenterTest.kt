@@ -340,6 +340,24 @@ class Lynk06MediaCenterTest {
         assertEquals(0, call(playback, 16) { it.readInt() })
     }
 
+    @Test fun artworkGetterCountsCallsAndNullsForTheInstrumentCoverDiagnosis() {
+        fun counts(): Pair<Int, Int> {
+            val numbers = Regex("calls=(\\d+) nulls=(\\d+)")
+                .find(Lynk06MusicPlayback.diagnosticReport()) ?: error("缺少 getArtwork 计数")
+            return numbers.groupValues[1].toInt() to numbers.groupValues[2].toInt()
+        }
+        val (callsBefore, nullsBefore) = counts()
+        var uri: android.net.Uri? = android.net.Uri.parse("content://lynkplay/covers/1.jpg")
+        val playback = Lynk06MusicPlayback("lynkplay", null, { uri }) { CarPlayNowPlaying() }
+        call(playback, 16) { it.readInt() }
+        call(playback, 16) { it.readInt() }
+        uri = null
+        call(playback, 16) { it.readInt() }
+        val (callsAfter, nullsAfter) = counts()
+        assertEquals(3, callsAfter - callsBefore)
+        assertEquals(1, nullsAfter - nullsBefore)
+    }
+
     @Test fun unchangedPlaybackDoesNotUnregisterOrLoseControl() {
         val app = RuntimeEnvironment.getApplication()
         val token = Binder()

@@ -42,6 +42,12 @@ internal class ClusterMapPresentation(
     // The placeholder until the map arrives: a small spinner.
     private var waitingLabel: View? = null
     private var turnCardView: ClusterTurnCardView? = null
+    // activePresentationReport() 在诊断线程读取这些字段；volatile 避免报告读到旧值或 null。
+    @Volatile private var musicView: ClusterMusicView? = null
+    private var lastMusicMapVisibility: Boolean? = null
+    @Volatile private var lastMapVisibilityAt = "none"
+    @Volatile private var lastMapShownAt = "none"
+    @Volatile private var lastMapHiddenAt = "none"
     private var videoView: View? = null
     private var streamActive = false
         private set
@@ -158,7 +164,14 @@ internal class ClusterMapPresentation(
         root.addView(waitingLabel, FrameLayout.LayoutParams(videoParams))
         turnCardView = ClusterTurnCardView(context).apply { visibility = View.GONE }
         root.addView(turnCardView, FrameLayout.LayoutParams(-1, -1))
-        root.addView(ClusterMusicView(context), FrameLayout.LayoutParams(videoParams))
+        musicView = ClusterMusicView(context) { message ->
+            if (Lynk06ClusterDisplay.supported()) {
+                // Keep the key map fields only; a full summary here duplicated the explicit lines below.
+                val entry = "$message ${Lynk06MapDiagnostics.context()}"
+                Log.i(TAG, entry)
+                AsyncDiagnosticLog.append(CarPlayMediaKeys.diagnosticLogTarget(), entry)
+            }
+        }.also { root.addView(it, FrameLayout.LayoutParams(videoParams)) }
         root.addView(ClusterSpeedometerView(context), FrameLayout.LayoutParams(-1, -1))
         // Start with the placeholder visible; SurfaceView would otherwise cover the light
         // backdrop with an empty black surface before the first stream notification.
@@ -207,6 +220,14 @@ internal class ClusterMapPresentation(
             if (window.attributes.alpha != alpha) window.attributes = window.attributes.apply { this.alpha = alpha }
         }
         recordMapDiagnostics("window-visibility")
+        if (Lynk06ClusterDisplay.supported() && lastMusicMapVisibility != visible) {
+            lastMusicMapVisibility = visible
+            lastMapVisibilityAt = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss.SSS", System.currentTimeMillis()).toString()
+            if (visible) lastMapShownAt = lastMapVisibilityAt else lastMapHiddenAt = lastMapVisibilityAt
+            val message = "仪表音乐浮层：reason=map-visibility at=$lastMapVisibilityAt ${musicView?.diagnosticReport()} ${Lynk06MapDiagnostics.context()}"
+            Log.i(TAG, message)
+            AsyncDiagnosticLog.append(CarPlayMediaKeys.diagnosticLogTarget(), message)
+        }
     }
 
     private fun recordMapDiagnostics(reason: String, showing: Boolean = isShowing) {
@@ -249,8 +270,10 @@ internal class ClusterMapPresentation(
                 appendLine("presentationShowing=true")
                 appendLine("presentationDisplay=${clusterDisplay?.displayId}:${clusterDisplay?.name}")
                 appendLine("mapVisible=${presentation.mapVisible} streamActive=${presentation.streamActive}")
+                appendLine("lastMapWindowShownAt=${presentation.lastMapShownAt} lastMapWindowHiddenAt=${presentation.lastMapHiddenAt}（应用侧窗口状态，非物理仪表回执）")
                 appendLine("windowVisibility=${presentation.window?.decorView?.visibility} videoView=${presentation.videoView?.javaClass?.simpleName}")
-                append("outputSurfaceValid=${presentation.outputSurface?.isValid}")
+                appendLine("outputSurfaceValid=${presentation.outputSurface?.isValid}")
+                append("clusterMusic=${presentation.musicView?.diagnosticReport()}")
             }
         }
 
