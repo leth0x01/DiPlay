@@ -46,6 +46,11 @@ class Lynk06MediaCenterTest {
                         events += "publish"
                     }
                     8 -> assertEquals(6, data.readInt())
+                    9 -> {
+                        assertEquals(6, data.readInt())
+                        assertEquals(1, data.readInt())
+                        events += "playlist"
+                    }
                     10 -> data.readLong()
                     4 -> Unit
                     else -> fail("未预期的服务调用：$code")
@@ -62,7 +67,7 @@ class Lynk06MediaCenterTest {
             assertEquals(0, call(client, 8, { it.writeInt(1) }) { it.readInt() })
             assertEquals(1, call(client, 8, { it.writeInt(6) }) { it.readInt() })
             assertTrue("音乐选择未转发播放", played.await(5, java.util.concurrent.TimeUnit.SECONDS))
-            assertEquals(listOf("claim", "publish", "send:${CarPlayMediaButton.PLAY}"), events)
+            assertEquals(listOf("claim", "playlist", "publish", "send:${CarPlayMediaButton.PLAY}"), events)
         } finally { link.close() }
     }
 
@@ -109,7 +114,7 @@ class Lynk06MediaCenterTest {
                     assertEquals(0, call(playback, 11) { it.readInt() })
                 } else if (code == 10) data.readLong()
                 else if (code == 8) assertEquals(6, data.readInt())
-                else assertTrue(code == 4 || code == 5)
+                else assertTrue(code == 4 || code == 5 || code == 9)
                 reply!!.writeNoException()
                 if (code != 10) reply.writeInt(1)
                 return true
@@ -228,6 +233,51 @@ class Lynk06MediaCenterTest {
         assertThrows(IllegalArgumentException::class.java) { Lynk06MediaCenterService(wrong) }
     }
 
+    @Test fun currentTrackReplacesTheOemPlaylistWithOneRealArtworkEntry() {
+        val token = Binder()
+        val info = CarPlayNowPlaying(title = "当前歌曲", artist = "歌手", album = "专辑", durationMillis = 123_000)
+        val artwork = android.net.Uri.parse("http://127.0.0.1:1234/covers/session/current.jpg")
+        var received = false
+        val remote = object : Binder() {
+            init { attachInterface(null, Lynk06MediaCenterService.DESCRIPTOR) }
+            override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+                assertEquals(9, code)
+                data.enforceInterface(Lynk06MediaCenterService.DESCRIPTOR)
+                assertSame(token, data.readStrongBinder())
+                assertEquals(6, data.readInt())
+                assertEquals(1, data.readInt()) // no invented previous/next tracks
+                assertEquals(1, data.readInt())
+                assertEquals(lynk06MusicId(info), data.readString())
+                assertEquals(info.title, data.readString())
+                assertEquals(info.artist, data.readString())
+                assertEquals(info.album, data.readString())
+                repeat(6) { assertEquals("", data.readString()) }
+                assertEquals(123_000L, data.readLong())
+                assertEquals(0, data.readInt())
+                assertEquals(0, data.readInt())
+                repeat(5) { assertEquals("", data.readString()) }
+                assertEquals(6, data.readInt())
+                assertNull(data.readParcelable<android.net.Uri>(javaClass.classLoader))
+                assertEquals("", data.readString())
+                assertNull(data.readParcelable<android.net.Uri>(javaClass.classLoader))
+                assertEquals(artwork, data.readParcelable<android.net.Uri>(javaClass.classLoader))
+                assertEquals("", data.readString())
+                assertEquals("", data.readString())
+                assertEquals(0, data.readInt())
+                assertEquals("", data.readString())
+                assertEquals(-1, data.readInt())
+                assertEquals(0, data.readInt())
+                assertEquals(0, data.readInt())
+                assertEquals(0, data.dataAvail())
+                received = true
+                reply!!.writeNoException()
+                return true
+            }
+        }
+        Lynk06MediaCenterService(remote).updateCurrentTrack(token, info, artwork)
+        assertTrue(received)
+    }
+
     @Test fun onlyMediaKeysAndDimCapabilitiesAreDeclaredWithTheInstrumentMusicSource() {
         val token = Binder()
         val codes = mutableListOf<Int>()
@@ -305,6 +355,7 @@ class Lynk06MediaCenterTest {
                     6 -> data.readStrongBinder()
                     10 -> data.readLong()
                     4 -> Unit
+                    9 -> Unit
                     else -> fail("未预期的调用：$code")
                 }
                 reply!!.writeNoException()
@@ -317,6 +368,9 @@ class Lynk06MediaCenterTest {
             ReflectionHelpers.setField(link, "token", token)
             val control = ReflectionHelpers.getField<Lynk06MediaControl>(link, "control")
             control.focusChanged(app.packageName)
+            ReflectionHelpers.callInstanceMethod<Unit>(link, "publishState")
+            assertEquals(listOf(9, 6, 10), codes)
+            codes.clear()
             ReflectionHelpers.callInstanceMethod<Unit>(link, "publishState")
             assertEquals(listOf(6, 10), codes)
             assertSame(token, ReflectionHelpers.getField<IBinder>(link, "token"))

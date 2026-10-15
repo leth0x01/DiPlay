@@ -50,6 +50,9 @@ internal class Lynk06MediaCenter(
     @Volatile private var pendingArtwork: Bitmap? = initialArtwork
     private data class PublicationState(val updated: Boolean, val playing: Boolean, val artwork: Uri?)
     private var lastPublicationState: PublicationState? = null
+    private data class TrackPublication(val title: String?, val artist: String?, val album: String?,
+        val duration: Long?, val artwork: Uri?)
+    private var lastTrackPublication: TrackPublication? = null
     private val control = Lynk06MediaControl(this.context.packageName)
     private var bound = false
     @Volatile private var api: Lynk06MediaCenterService? = null
@@ -153,6 +156,7 @@ internal class Lynk06MediaCenter(
             control.completeRequest(revision, accepted)
             log("领克媒体中心：请求媒体控制权 accepted=$accepted control=${control.owned}")
             if (accepted && control.owned) {
+                lastTrackPublication = null
                 service.selectMusicSource(registered)
                 publishState()
             }
@@ -195,6 +199,13 @@ internal class Lynk06MediaCenter(
             }
             // 失去控制权时保留最新快照，切回仪表音乐后再发布，避免无效 token 重绑。
             if (!control.owned) return
+            val info = nowPlaying
+            val track = TrackPublication(info.title, info.artist, info.album, info.durationMillis, currentArtworkUri())
+            if (track != lastTrackPublication) {
+                service.updateCurrentTrack(registered, info, track.artwork)
+                lastTrackPublication = track
+                log("领克媒体中心：当前歌曲列表已同步 count=1 artwork=${track.artwork != null}")
+            }
             // 原车对相同信息也返回 false，不能据此注销客户端或丢失方控控制权。
             val updated = service.updatePlayback(registered, playback)
             val publication = PublicationState(updated, nowPlaying.playing, currentArtworkUri())
@@ -214,6 +225,7 @@ internal class Lynk06MediaCenter(
         token = null
         api = null
         lastPublicationState = null
+        lastTrackPublication = null
         unbind()
         scheduleRetry()
     }

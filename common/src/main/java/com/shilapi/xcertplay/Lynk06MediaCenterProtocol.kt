@@ -19,6 +19,15 @@ internal class Lynk06MediaCenterService(private val remote: IBinder) {
     fun requestControl(token: IBinder): Boolean = tokenCall(5, token)
     fun updatePlayback(token: IBinder, playback: IBinder): Boolean =
         call(6, { it.writeStrongBinder(token); it.writeStrongBinder(playback) }) { it.readInt() != 0 }
+    /** 本车 IPKMode=2 从播放列表取封面，单独更新 playback 不会替换原车旧列表。 */
+    fun updateCurrentTrack(token: IBinder, info: CarPlayNowPlaying, artwork: Uri?) =
+        call(9, {
+            it.writeStrongBinder(token)
+            it.writeInt(SOURCE_MUSIC)
+            it.writeInt(1) // typed list size：只提供实际已知的当前歌曲。
+            it.writeInt(1) // non-null IMedia
+            writeLynk06CurrentTrack(it, info, artwork)
+        }) { }
     fun updateSources(token: IBinder) {
         call(7, { it.writeStrongBinder(token); it.writeIntArray(intArrayOf(SOURCE_MUSIC)) }) { }
         selectMusicSource(token)
@@ -51,6 +60,31 @@ internal class Lynk06MediaCenterService(private val remote: IBinder) {
         // 本车 PlaybackState.SOURCE_TYPE_ONLINE；DIM 将来源 6 编码为仪表“音乐”。
         const val SOURCE_MUSIC = 6
     }
+}
+
+/** XSFMediaCenter 本车 IMedia.writeToParcel 的字段顺序，不是 Binder playback 的格式。 */
+internal fun writeLynk06CurrentTrack(parcel: Parcel, info: CarPlayNowPlaying, artwork: Uri?) {
+    parcel.writeString(lynk06MusicId(info))
+    parcel.writeString(info.title.orEmpty())
+    parcel.writeString(info.artist.orEmpty())
+    parcel.writeString(info.album.orEmpty())
+    repeat(6) { parcel.writeString("") } // author, composer, description, subtitle, rating, year
+    parcel.writeLong(info.durationMillis ?: 0)
+    parcel.writeInt(0) // positionInQueue
+    parcel.writeInt(0) // albumIndex
+    repeat(5) { parcel.writeString("") } // category, subCategory, mediaId, mediaCp, targetType
+    parcel.writeInt(Lynk06MediaCenterService.SOURCE_MUSIC)
+    parcel.writeParcelable(null, 0) // mediaPath
+    parcel.writeString("") // lyricContent
+    parcel.writeParcelable(null, 0) // lyric
+    parcel.writeParcelable(artwork, 0)
+    parcel.writeString("") // radioFrequency
+    parcel.writeString("") // radioStationName
+    parcel.writeInt(0) // vip
+    parcel.writeString("") // playingMediaListId
+    parcel.writeInt(-1) // playingMediaListType
+    parcel.writeInt(0) // supportCollect
+    parcel.writeInt(0) // collected
 }
 
 /** 原车音乐客户端回调，四种操作分别转发，不能把明确播放/暂停再次变为切换。 */
