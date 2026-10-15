@@ -61,8 +61,44 @@ class Iap2LocationClientTest {
         // $GPRMC,time,status,lat,N/S,lon,E/W,speed,course,date,...
         assertEquals("", rmcFields(null)[8])
         assertEquals("", rmcFields(Double.NaN)[8])
+        assertEquals("", rmcFields(-1.0)[8])
+        assertEquals("", rmcFields(360.0)[8])
+        assertEquals("0.00", rmcFields(0.0)[8])
         assertEquals("84.40", rmcFields(84.4)[8])
         assertEquals("230326", rmcFields(null)[9])
+    }
+
+    @Test
+    fun missingMeasurementsStayEmptyInsteadOfClaimingAGpsReading() {
+        val fix = CarPlayLocationFix(48.1173, 11.5166667, accuracyMeters = 4.5)
+        val sentences = NmeaLocationEncoder.encode(fix).split("\r\n").filter { it.isNotBlank() }
+        val gga = sentences[0].substringBefore('*').split(',')
+        val rmc = sentences[1].substringBefore('*').split(',')
+
+        // 米制精度不能换算为 HDOP；Location 也未提供卫星数和大地水准面差。
+        assertEquals(listOf("", "", "", "", "", ""), gga.subList(7, 13))
+        assertEquals("", rmc[7])
+        sentences.forEach { sentence ->
+            assertEquals(checksum(sentence.substring(1).substringBefore('*')), sentence.substringAfter('*'))
+        }
+    }
+
+    @Test
+    fun invalidOptionalMeasurementsStayEmptyButRealZeroMeasurementsAreKept() {
+        fun fields(altitude: Double?, speed: Double?): List<List<String>> = NmeaLocationEncoder.encode(
+            CarPlayLocationFix(48.1173, 11.5166667, altitudeMeters = altitude, speedMetersPerSecond = speed),
+        ).split("\r\n").filter { it.isNotBlank() }.map { it.substringBefore('*').split(',') }
+
+        listOf(Double.NaN, Double.POSITIVE_INFINITY).forEach { invalid ->
+            val sentences = fields(invalid, invalid)
+            assertEquals(listOf("", ""), sentences[0].subList(9, 11))
+            assertEquals("", sentences[1][7])
+        }
+        assertEquals("", fields(null, -1.0)[1][7])
+        assertEquals(listOf("0.0", "M"), fields(0.0, 0.0)[0].subList(9, 11))
+        assertEquals("0.00", fields(0.0, 0.0)[1][7])
+        assertEquals(listOf("-12.5", "M"), fields(-12.5, 1.0)[0].subList(9, 11))
+        assertEquals("1.94", fields(null, 1.0)[1][7])
     }
 
     @Test

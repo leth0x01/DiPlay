@@ -8,13 +8,13 @@ import java.util.GregorianCalendar
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.min
 
 /** One Android location sample converted into the fields carried by the NMEA pair. */
 data class CarPlayLocationFix(
     val latitudeDegrees: Double,
     val longitudeDegrees: Double,
+    /** NMEA GGA 使用平均海平面高度（MSL），不能直接传入 WGS84 椭球高。 */
     val altitudeMeters: Double? = null,
     val bearingDegrees: Double? = null,
     val speedMetersPerSecond: Double? = null,
@@ -65,25 +65,24 @@ object NmeaLocationEncoder {
 
         val latitude = degreesToNmea(fix.latitudeDegrees, latitude = true)
         val longitude = degreesToNmea(fix.longitudeDegrees, latitude = false)
-        val hdop = fix.accuracyMeters
-            ?.takeIf { it.isFinite() && it > 0 }
-            ?.let { min(50.0, max(0.5, it / 5.0)) }
-            ?: 1.0
         val altitude = fix.altitudeMeters
             ?.takeIf { it.isFinite() }
             ?.let { format("%.1f", it) }
-            ?: "0.0"
+            .orEmpty()
 
+        // 参考 749001858/DiPlay 的 LegacyLocationEncoder：未知测量值保留空字段。
+        // Location 未提供卫星数、HDOP 和大地水准面差，米制定位精度也不能替代 HDOP。
+        val altitudeUnit = if (altitude.isEmpty()) "" else "M"
         val ggaBody = "GPGGA,$time,${latitude.value},${latitude.hemisphere}," +
-            "${longitude.value},${longitude.hemisphere},1,08,${format("%.1f", hdop)}," +
-            "$altitude,M,0.0,M,,"
+            "${longitude.value},${longitude.hemisphere},1,,," +
+            "$altitude,$altitudeUnit,,,,"
         val speedKnots = fix.speedMetersPerSecond
             ?.takeIf { it.isFinite() && it >= 0 }
             ?.let { format("%.2f", it * KNOTS_PER_METER_PER_SECOND) }
-            ?: "0.00"
+            .orEmpty()
         // Without a GPS direction (for example while parked) the course stays empty: 0.00 would say north.
         val course = fix.bearingDegrees
-            ?.takeIf { it.isFinite() }
+            ?.takeIf { it.isFinite() && it >= 0 && it < 360 }
             ?.let { format("%.2f", it) }
             .orEmpty()
         val rmcBody = "GPRMC,$time,A,${latitude.value},${latitude.hemisphere}," +

@@ -113,15 +113,7 @@ class AndroidCarPlayLocationProvider(
         val fix = latestFix() ?: return null
         return try {
             NmeaLocationEncoder.encode(
-                CarPlayLocationFix(
-                    latitudeDegrees = fix.latitude,
-                    longitudeDegrees = fix.longitude,
-                    altitudeMeters = fix.altitude.takeIf { fix.hasAltitude() }?.toDouble(),
-                    bearingDegrees = fix.bearing.takeIf { fix.hasBearing() }?.toDouble(),
-                    speedMetersPerSecond = fix.speed.takeIf { fix.hasSpeed() }?.toDouble(),
-                    accuracyMeters = fix.accuracy.takeIf { fix.hasAccuracy() }?.toDouble(),
-                    timestampMillis = fix.time,
-                ),
+                fix.toCarPlayLocationFix(),
             )
         } catch (error: Throwable) {
             Log.w(TAG, "Could not encode Android location as NMEA", error)
@@ -144,3 +136,14 @@ class AndroidCarPlayLocationProvider(
         private const val DEFAULT_PREFERRED_LOCATION_AGE_MILLIS = 30_000L
     }
 }
+
+/** Android 的 altitude 是椭球高；只有明确提供 MSL 高度时才能填入 GGA 海拔。 */
+internal fun Location.toCarPlayLocationFix(): CarPlayLocationFix = CarPlayLocationFix(
+    latitudeDegrees = latitude,
+    longitudeDegrees = longitude,
+    altitudeMeters = if (Build.VERSION.SDK_INT >= 34 && hasMslAltitude()) mslAltitudeMeters else null,
+    bearingDegrees = bearing.takeIf { hasBearing() }?.toDouble(),
+    speedMetersPerSecond = speed.takeIf { hasSpeed() }?.toDouble(),
+    accuracyMeters = accuracy.takeIf { hasAccuracy() }?.toDouble(),
+    timestampMillis = time,
+)
