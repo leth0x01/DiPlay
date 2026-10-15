@@ -132,7 +132,7 @@ internal class Lynk06MusicClient(
             10 -> reply.writeStrongBinder(playback)
             11 -> reply.writeIntArray(intArrayOf(Lynk06MediaCenterService.SOURCE_MUSIC))
             12 -> reply.writeInt(Lynk06MediaCenterService.SOURCE_MUSIC)
-            13 -> reply.writeLong(snapshot().elapsedMillis ?: 0)
+            13 -> reply.writeLong(snapshot().positionMillisAt(System.nanoTime()) ?: 0)
             14, 28 -> reply.writeList(emptyList<Any>())
             25, 33, 34 -> Unit
             29 -> reply.writeStrongBinder(null)

@@ -484,7 +484,8 @@ internal object CarPlayMediaKeys {
 
     /** Whether [next] changes what the media session's metadata shows; position and play state do not. */
     internal fun metadataChanged(previous: CarPlayNowPlaying, next: CarPlayNowPlaying): Boolean =
-        previous.copy(elapsedMillis = null, playing = false) != next.copy(elapsedMillis = null, playing = false)
+        previous.copy(elapsedMillis = null, playing = false, positionUpdatedAtNanos = null) !=
+            next.copy(elapsedMillis = null, playing = false, positionUpdatedAtNanos = null)
 
     internal fun androidMetadata(info: CarPlayNowPlaying, artwork: Bitmap? = null): MediaMetadata =
         MediaMetadata.Builder().apply {

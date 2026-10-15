@@ -32,7 +32,7 @@ class CarPlayPlaybackStatusTest {
 
     @Test
     fun retainsIncrementalNowPlayingMetadata() {
-        val status = CarPlayPlaybackStatus()
+        val status = CarPlayPlaybackStatus { 1_000_000_000L }
 
         assertEquals(
             CarPlayNowPlaying(
@@ -59,6 +59,7 @@ class CarPlayPlaybackStatusTest {
                 durationMillis = 257_000,
                 elapsedMillis = 12_500,
                 playing = true,
+                positionUpdatedAtNanos = 1_000_000_000L,
             ),
             status.acceptUpdate(update {
                 group(1) {
@@ -85,5 +86,54 @@ class CarPlayPlaybackStatusTest {
         assertNull(updated?.title)
         assertEquals(0x81, updated?.artworkTransferId)
         assertEquals(CarPlayNowPlaying(), status.clearAll())
+    }
+
+    @Test fun metadataUpdatesKeepThePositionAnchorAndExplicitPositionsRefreshIt() {
+        var now = 1_000_000_000L
+        val status = CarPlayPlaybackStatus { now }
+        status.acceptUpdate(update { group(1) { u8(0, 1); u32(1, 5_000) } })
+        now += 2_000_000_000L
+        val metadata = status.acceptUpdate(update { group(0) { string(6, "补充专辑") } })!!
+        assertEquals(7_000L, metadata.positionMillisAt(now))
+        assertEquals(1_000_000_000L, metadata.positionUpdatedAtNanos)
+
+        // 相同数值也可能是 seek 回原位置，必须以本次真实上报重新校准。
+        val seek = status.acceptUpdate(update { group(1) { u32(1, 5_000) } })!!
+        assertEquals(5_000L, seek.positionMillisAt(now))
+        assertEquals(now, seek.positionUpdatedAtNanos)
+        now += 1_000_000_000L
+        assertEquals(6_000L, seek.positionMillisAt(now))
+    }
+
+    @Test fun statusOnlyPauseAndResumeKeepAContinuousPosition() {
+        var now = 1_000_000_000L
+        val status = CarPlayPlaybackStatus { now }
+        status.acceptUpdate(update { group(1) { u8(0, 1); u32(1, 5_000) } })
+        now += 2_000_000_000L
+        val paused = status.acceptUpdate(update { group(1) { u8(0, 2) } })!!
+        assertEquals(7_000L, paused.positionMillisAt(now + 10_000_000_000L))
+        now += 10_000_000_000L
+        val resumed = status.acceptUpdate(update { group(1) { u8(0, 1) } })!!
+        assertEquals(8_000L, resumed.positionMillisAt(now + 1_000_000_000L))
+        val seek = status.acceptUpdate(update { group(1) { u32(1, 1_000) } })!!
+        assertEquals(1_000L, seek.positionMillisAt(now))
+    }
+
+    @Test fun unknownAndInvalidPositionsDoNotAcquireAnAnchor() {
+        val status = CarPlayPlaybackStatus { 1_000_000_000L }
+        val playing = status.acceptUpdate(update { group(1) { u8(0, 1) } })!!
+        assertNull(playing.positionMillisAt(5_000_000_000L))
+        assertNull(playing.positionUpdatedAtNanos)
+        assertNull(status.acceptUpdate(update { group(1) { bytes(1, byteArrayOf(1)) } }))
+    }
+
+    @Test fun positionCalculationBoundsClockDurationAndOverflow() {
+        val info = CarPlayNowPlaying(elapsedMillis = 9_000, playing = true,
+            durationMillis = 10_000, positionUpdatedAtNanos = 2_000_000_000L)
+        assertEquals(9_000L, info.positionMillisAt(1_000_000_000L))
+        assertEquals(10_000L, info.positionMillisAt(20_000_000_000L))
+        assertEquals(9_000L, info.copy(positionUpdatedAtNanos = null).positionMillisAt(20_000_000_000L))
+        assertEquals(Long.MAX_VALUE, info.copy(elapsedMillis = Long.MAX_VALUE - 1, durationMillis = null)
+            .positionMillisAt(20_000_000_000L))
     }
 }

@@ -54,6 +54,7 @@ internal class Lynk06MediaCenter(
         val duration: Long?, val artwork: Uri?)
     private var lastTrackPublication: TrackPublication? = null
     private val control = Lynk06MediaControl(this.context.packageName)
+    private val progressTick = Runnable { publishProgress() }
     private var bound = false
     @Volatile private var api: Lynk06MediaCenterService? = null
     @Volatile private var token: IBinder? = null
@@ -68,9 +69,11 @@ internal class Lynk06MediaCenter(
     }, { packageName ->
         control.focusChanged(packageName)
         log("领克媒体中心：媒体控制权=${control.owned}")
+        worker.post { publishProgress() }
     }, { selectMusic() }, { source, packageName ->
         if (source != Lynk06MediaCenterService.SOURCE_MUSIC || packageName != this.context.packageName) {
             control.disconnected()
+            worker.post { publishProgress() }
         }
         log("领克媒体中心：来源变更 source=$source control=${control.owned}")
     })
@@ -214,12 +217,29 @@ internal class Lynk06MediaCenter(
                     "playing=${publication.playing} artwork=${publication.artwork != null} artworkUri=${publication.artwork}")
                 lastPublicationState = publication
             }
-            service.updateProgress(registered, nowPlaying.elapsedMillis ?: 0)
+            publishProgress()
         }.onFailure { logFailure("同步播放状态", it); disconnect() }
+    }
+
+    /** 进度独立刷新，避免每秒重发歌曲或封面；任何控制权变化都重新检查。 */
+    private fun publishProgress() {
+        worker.removeCallbacks(progressTick)
+        if (stopped || !control.owned) return
+        val service = api ?: return
+        val registered = token ?: return
+        val info = nowPlaying
+        runCatching {
+            service.updateProgress(registered, info.positionMillisAt(System.nanoTime()) ?: 0)
+        }.onFailure { logFailure("同步播放进度", it); disconnect(); return }
+        if (!stopped && control.owned && api === service && token === registered &&
+            info.playing && info.elapsedMillis != null && info.positionUpdatedAtNanos != null) {
+            worker.postDelayed(progressTick, PROGRESS_MILLIS)
+        }
     }
 
     private fun disconnect() {
         control.disconnected()
+        worker.removeCallbacks(progressTick)
         val registered = token
         if (registered != null) runCatching { api?.unregister(registered) }
         token = null
@@ -250,5 +270,6 @@ internal class Lynk06MediaCenter(
         private const val PACKAGE = "ecarx.xsf.mediacenter"
         private const val ACTION = "ecarx.xsf.MEDIA_CENTER_SERVICE"
         private const val RETRY_MILLIS = 3_000L
+        private const val PROGRESS_MILLIS = 1_000L
     }
 }

@@ -2,7 +2,7 @@
 
 A [DiPlay](https://github.com/shihabal3amri/DiPlay) fork targeting the **2023 Lynk & Co 06 petrol model with an Android 9 head unit**. [中文说明](README.zh-CN.md).
 
-The current LynkPlay version is **0.2.2** (versionCode 53), incorporating DiPlay 0.2.20.
+The current LynkPlay version is **0.2.3** (versionCode 54), incorporating DiPlay 0.2.20.
 
 Vehicle feedback confirms that both wired and wireless CarPlay connect on the target head unit. In the previous build, steering-wheel music controls stopped working when car Bluetooth was disconnected. This version adds a client for the vehicle media center; the new media controls, audio behavior and cluster display changes still need vehicle validation.
 

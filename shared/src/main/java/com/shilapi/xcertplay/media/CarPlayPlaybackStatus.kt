@@ -14,14 +14,25 @@ data class CarPlayNowPlaying(
     val durationMillis: Long? = null,
     val elapsedMillis: Long? = null,
     val playing: Boolean = false,
-)
+    /** 位置对应的本地单调时钟；补充元数据不会重置它。 */
+    val positionUpdatedAtNanos: Long? = null,
+) {
+    /** 仅外推已有位置；暂停时冻结，时钟异常不倒退，已知时长限制显示上界。 */
+    fun positionMillisAt(nowNanos: Long): Long? {
+        val base = elapsedMillis?.coerceAtLeast(0L) ?: return null
+        val anchor = positionUpdatedAtNanos
+        val delta = if (playing && anchor != null) (nowNanos - anchor).coerceAtLeast(0L) / 1_000_000 else 0L
+        val position = base + delta.coerceAtMost(Long.MAX_VALUE - base)
+        return durationMillis?.takeIf { it > 0 }?.let { position.coerceAtMost(it) } ?: position
+    }
+}
 
 /**
  * Retains NowPlayingUpdate (0x5001) fields requested by [Iap2ControlMessages]. Updates carry only
  * what changed, so an omitted field preserves its previous value while a present empty string
  * clears it.
  */
-class CarPlayPlaybackStatus {
+class CarPlayPlaybackStatus(private val nanoTime: () -> Long = System::nanoTime) {
     @Volatile var nowPlaying = CarPlayNowPlaying()
         private set
 
@@ -34,6 +45,13 @@ class CarPlayPlaybackStatus {
         val media = runCatching { body.optionalGroup(MEDIA_ITEM) }.getOrNull()
         val playback = runCatching { body.optionalGroup(PLAYBACK) }.getOrNull()
         val previous = nowPlaying
+        val elapsed = playback?.takeIf { it.has(ELAPSED) }?.let { runCatching { it.u32(ELAPSED) }.getOrNull() }
+        val playing = playback.updatedStatus(previous.playing)
+        val positionChanged = elapsed != null || playing != previous.playing
+        val updatedAt = if (positionChanged) nanoTime() else previous.positionUpdatedAtNanos
+        val position = elapsed ?: if (playing != previous.playing) {
+            previous.positionMillisAt(checkNotNull(updatedAt))
+        } else previous.elapsedMillis
         val next = previous.copy(
             title = media.updatedString(TITLE, previous.title),
             album = media.updatedString(ALBUM, previous.album),
@@ -41,8 +59,9 @@ class CarPlayPlaybackStatus {
             artworkTransferId = media.updatedU8(ARTWORK_TRANSFER_ID, previous.artworkTransferId),
             sourceApp = playback.updatedString(SOURCE_APP, previous.sourceApp),
             durationMillis = media.updatedU32(DURATION, previous.durationMillis),
-            elapsedMillis = playback.updatedU32(ELAPSED, previous.elapsedMillis),
-            playing = playback.updatedStatus(previous.playing),
+            elapsedMillis = position,
+            playing = playing,
+            positionUpdatedAtNanos = if (position != null) updatedAt else null,
         )
         if (next == previous) return null
         nowPlaying = next
