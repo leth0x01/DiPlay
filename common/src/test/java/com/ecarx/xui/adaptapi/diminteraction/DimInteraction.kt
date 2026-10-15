@@ -173,7 +173,7 @@ class DimInteraction : IConnectable, IDimMenuInteraction, INaviInteraction {
         return switchAccepted
     }
     fun getShowPresentationOption(): Int = presentationOption
-    interface IInteractionCallback
+    interface IInteractionCallback { fun onShowPresentationOptionChanged(option: Int) }
     companion object {
         @Volatile var instance = DimInteraction()
         @JvmStatic fun create(context: Context): DimInteraction = instance.also { it.createCalls++ }

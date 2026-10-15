@@ -1180,6 +1180,7 @@ class CarPlayHostActivity : ComponentActivity() {
     private fun ensureLynk06ClusterLink() {
         if (!Lynk06ClusterDisplay.supported() || lynk06ClusterLink != null) return
         lateinit var link: Lynk06ClusterLink
+        val displayDiagnosticLog = sessionLog
         link = Lynk06ClusterLink(this, { state ->
             if (lynk06ClusterLink === link) {
                 lynk06ClusterState = state
@@ -1187,7 +1188,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 clusterPresentation?.setMapVisible(state.showMap)
                 updateClusterMapShown()
             }
-        }, ::appendLog)
+        }, ::appendLog, diagnostic = { message -> AsyncDiagnosticLog.append(displayDiagnosticLog, message) })
         lynk06ClusterLink = link
         link.start()
         com.shilapi.xcertplay.hud.CarPlayNavigationStatus.setListener(lynk06NavigationListener)
@@ -5128,9 +5129,12 @@ class CarPlayHostActivity : ComponentActivity() {
 
             override fun onDebugLog(message: String) {
                 if (DiagnosticRedactor.redact(message) == null) return
-                if (message.startsWith(CarPlayController.CONNECTION_DIAGNOSTIC_PREFIX + " ")) {
-                    // Retain old-controller teardown evidence without accepting its UI/session state.
-                    AsyncDiagnosticLog.append(diagnosticLog, message)
+                if (message.startsWith(CarPlayController.CONNECTION_DIAGNOSTIC_PREFIX + " ") ||
+                    message.startsWith("媒体诊断：") || message.startsWith("媒体HID：")) {
+                    // 诊断在事件线程入队，避免 UI 排队或控制器换代丢失实际操作时间。
+                    // 同时保留旧控制器的关闭记录，不接收它的 UI/会话状态。
+                    val contextual = if (message.startsWith("媒体")) "$message ${Lynk06MapDiagnostics.context()}" else message
+                    AsyncDiagnosticLog.append(diagnosticLog, contextual)
                     return
                 }
                 runOnUiThread {

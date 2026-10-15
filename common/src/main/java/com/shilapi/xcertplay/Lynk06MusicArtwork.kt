@@ -107,7 +107,7 @@ class Lynk06MusicArtworkProvider : ContentProvider() {
 }
 
 /** 在媒体 worker 上写入，避免 Binder getter 或主线程压缩图片。 */
-internal class Lynk06MusicArtwork(private val context: Context) {
+internal class Lynk06MusicArtwork(private val context: Context, private val log: (String) -> Unit = {}) {
     private val directory = Lynk06MusicArtworkProvider.directory(context)
     private val owned = linkedSetOf<File>()
     private var server: Lynk06ArtworkServer? = null
@@ -124,7 +124,7 @@ internal class Lynk06MusicArtwork(private val context: Context) {
             file.outputStream().use { check(scaled.compress(Bitmap.CompressFormat.JPEG, 90, it)) {
                 "无法编码仪表封面"
             } }
-            val endpoint = server ?: Lynk06ArtworkServer(directory).also { server = it }
+            val endpoint = server ?: Lynk06ArtworkServer(directory, log).also { server = it }
             val uri = Uri.parse(endpoint.publish(file))
             owned.add(file)
             // 同时清理上次异常退出留下的图片，目录中最多保留三张供延迟读取。

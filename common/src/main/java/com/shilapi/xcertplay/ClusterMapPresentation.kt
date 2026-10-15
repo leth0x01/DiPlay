@@ -53,15 +53,24 @@ internal class ClusterMapPresentation(
     override fun onStart() {
         super.onStart()
         activePresentation = this
+        recordMapDiagnostics("start")
+    }
+
+    override fun show() {
+        super.show()
+        // Dialog.onStart 早于 isShowing=true；show 返回后再记录窗口已展示。
+        recordMapDiagnostics("shown")
     }
 
     override fun onStop() {
         if (activePresentation === this) activePresentation = null
+        recordMapDiagnostics("stop", showing = false)
         super.onStop()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        recordMapDiagnostics("create")
         val size = sizeOf(display)
         val adaptive = DiLink51ClusterLayout.supported()
         val plan = if (adaptive) DiLink51ClusterLayout.plan(size.x, size.y, theme) else null
@@ -94,6 +103,7 @@ internal class ClusterMapPresentation(
                     texture.setDefaultBufferSize(DiLink51ClusterLayout.STREAM_WIDTH, DiLink51ClusterLayout.STREAM_HEIGHT)
                     transform()
                     outputSurface = Surface(texture).also(onSurface)
+                    recordMapDiagnostics("surface-created")
                 }
                 override fun onSurfaceTextureSizeChanged(texture: SurfaceTexture, width: Int, height: Int) = transform()
                 override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
@@ -101,6 +111,7 @@ internal class ClusterMapPresentation(
                     onSurface(null)
                     outputSurface?.release()
                     outputSurface = null
+                    recordMapDiagnostics("surface-destroyed")
                     return true
                 }
             }
@@ -116,6 +127,7 @@ internal class ClusterMapPresentation(
                     Log.i(TAG, "cluster surface created")
                     outputSurface = holder.surface
                     onSurface(holder.surface)
+                    recordMapDiagnostics("surface-created")
                 }
 
                 override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -127,6 +139,7 @@ internal class ClusterMapPresentation(
                     onSurface(null)
                     // SurfaceHolder owns this surface; do not release it ourselves.
                     outputSurface = null
+                    recordMapDiagnostics("surface-destroyed")
                 }
             })
             root.addView(surfaceView, videoParams)
@@ -167,6 +180,7 @@ internal class ClusterMapPresentation(
         if (streamActive == active) return
         // Update before cancelling: a cancelled fade must not hide the newly restored label.
         streamActive = active
+        recordMapDiagnostics("stream-change")
         val video = videoView
         val label = waitingLabel
         video?.animate()?.cancel()
@@ -191,6 +205,18 @@ internal class ClusterMapPresentation(
             }
             val alpha = if (visible) 1f else 0f
             if (window.attributes.alpha != alpha) window.attributes = window.attributes.apply { this.alpha = alpha }
+        }
+        recordMapDiagnostics("window-visibility")
+    }
+
+    private fun recordMapDiagnostics(reason: String, showing: Boolean = isShowing) {
+        if (!Lynk06ClusterDisplay.supported()) return
+        val target = CarPlayMediaKeys.diagnosticLogTarget()
+        Lynk06MapDiagnostics.presentation(this, showing, mapVisible,
+            window?.decorView?.visibility, window?.attributes?.alpha, display.displayId,
+            outputSurface?.isValid == true, streamActive, reason) { message ->
+            Log.i(TAG, message)
+            AsyncDiagnosticLog.append(target, message)
         }
     }
 
@@ -273,6 +299,7 @@ internal class ClusterMapPresentation(
                 appendLine(CarPlayNavigationStatus.diagnosticReport())
                 appendLine(Lynk06ClusterLink.diagnosticReport())
                 appendLine(activePresentationReport())
+                appendLine(Lynk06MapDiagnostics.report())
             } else {
                 appendLine("navigationReceiverAvailable=${com.shilapi.xcertplay.hud.BydOutputSettings.navigationAvailable(context)}")
             }

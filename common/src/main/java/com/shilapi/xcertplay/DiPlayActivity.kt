@@ -5552,6 +5552,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         if (VehicleIntegration.detectedCapabilities.oemMediaCenter) {
             appendLine(Lynk06MusicArtworkProvider.diagnosticReport())
             appendLine(Lynk06ArtworkServer.diagnosticReport())
+            appendLine(Lynk06MediaSystemLog.diagnosticReport())
         }
         appendLine()
         appendLine("--- Head-unit input devices ---")

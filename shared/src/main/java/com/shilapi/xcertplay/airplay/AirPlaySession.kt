@@ -308,8 +308,13 @@ class AirPlaySession(
         videoPlaybackAvailability.setDesired(allowed)
 
     private fun sendCommandLocked(command: Map<String, Any?>, extraHeaders: String = ""): Boolean {
-        val socket = eventSocket ?: return false
-        val cipher = eventCipher ?: return false
+        val mediaHid = command["type"] == "hidSendReport" && command["uuid"] == AirPlayHid.MEDIA_HID_UID.toString(16)
+        val socket = eventSocket
+        val cipher = eventCipher
+        if (socket == null || cipher == null) {
+            if (mediaHid) debugLog("媒体HID：未写入 eventSocket=${socket != null} eventCipher=${cipher != null} closed=${closed.get()}")
+            return false
+        }
         eventCseq++
         val body = BplistCodec.encode(command)
         val head = "POST /command RTSP/1.0\r\n" + extraHeaders +
@@ -325,6 +330,7 @@ class AirPlaySession(
             true
         } catch (error: Exception) {
             Log.w(TAG, "airplay event command failed type=${command["type"]}", error)
+            if (mediaHid) debugLog("媒体HID：写入失败 error=${error.javaClass.simpleName}")
             close()
             false
         }
@@ -359,9 +365,12 @@ class AirPlaySession(
     fun sendKnobSelect(down: Boolean) =
         sendHidReport(AirPlayHid.KNOB_HID_UID, AirPlayHid.knobReport(AirPlayKnobState(select = down)))
 
-    fun sendMedia(index: Int) {
-        sendHidReport(AirPlayHid.MEDIA_HID_UID, AirPlayHid.mediaReport(index))
-        sendHidReport(AirPlayHid.MEDIA_HID_UID, AirPlayHid.mediaReport(0))
+    data class MediaSendResult(val pressed: Boolean, val released: Boolean)
+
+    fun sendMedia(index: Int): MediaSendResult {
+        val pressed = sendHidReport(AirPlayHid.MEDIA_HID_UID, AirPlayHid.mediaReport(index))
+        val released = sendHidReport(AirPlayHid.MEDIA_HID_UID, AirPlayHid.mediaReport(0))
+        return MediaSendResult(pressed, released)
     }
 
     fun sendTelephony(index: Int) {

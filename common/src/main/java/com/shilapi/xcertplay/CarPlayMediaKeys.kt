@@ -126,10 +126,29 @@ internal object CarPlayMediaKeys {
         lynk06MediaCenter = Lynk06MediaCenter(context, nowPlaying,
             send = { index ->
                 val current = synchronized(this) { controller === expected && !carBluetoothAudio }
-                current && CarPlayBackgroundSession.active && !inCall(context) &&
-                    (CarPlayVideo.onMediaKey(index) || expected.sendMediaButton(index))
+                val active = CarPlayBackgroundSession.active
+                val calling = inCall(context)
+                when {
+                    !current || !active || calling -> {
+                        val message = "领克媒体指令：未转发 command=$index controllerCurrent=$current sessionActive=$active inCall=$calling"
+                        Log.i(TAG, message)
+                        AsyncDiagnosticLog.append(logTarget, message)
+                        false
+                    }
+                    CarPlayVideo.onMediaKey(index) -> {
+                        val message = "领克媒体指令：交由视频播放器 command=$index"
+                        Log.i(TAG, message)
+                        AsyncDiagnosticLog.append(logTarget, message)
+                        true
+                    }
+                    else -> expected.sendMediaButton(index, source = "lynk06-oem")
+                }
             },
-            log = { message -> Log.i(TAG, message); AsyncDiagnosticLog.append(logTarget, message) },
+            log = { message ->
+                val contextual = "$message ${Lynk06MapDiagnostics.context()}"
+                Log.i(TAG, contextual)
+                AsyncDiagnosticLog.append(logTarget, contextual)
+            },
             initialArtwork = nowPlaying.artworkTransferId?.let { artworkCache[it] },
         ).also { it.start() }
     }
@@ -461,6 +480,8 @@ internal object CarPlayMediaKeys {
         logMediaEvent("媒体：来源=$source 指令=$index 转发=CarPlay sent=$sent")
         WheelKeyLog.note("media key $source -> CarPlay $index sent=$sent")
     }
+
+    @Synchronized internal fun diagnosticLogTarget(): SessionLogFile? = diagnosticLog
 
     private fun logMediaEvent(message: String) {
         // 保留会话日志目标，后台方控事件也能进入导出的诊断报告。

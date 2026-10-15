@@ -125,8 +125,11 @@ class Lynk06ClusterDisplayTest {
             presentation.create()
             presentation.setMapVisible(false)
             assertEquals(android.view.View.INVISIBLE, presentation.window!!.decorView.visibility)
+            assertEquals(false, Lynk06MapDiagnostics.snapshot().windowMapVisible)
+            assertFalse(Lynk06MapDiagnostics.snapshot().appMapReady)
             presentation.setMapVisible(true)
             assertEquals(android.view.View.VISIBLE, presentation.window!!.decorView.visibility)
+            assertEquals(true, Lynk06MapDiagnostics.snapshot().windowMapVisible)
         } finally { presentation.dismiss() }
     }
 

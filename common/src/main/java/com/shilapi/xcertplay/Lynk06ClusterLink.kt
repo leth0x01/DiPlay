@@ -47,6 +47,7 @@ internal class Lynk06ClusterLink(
     private val onState: (Lynk06ClusterState) -> Unit,
     private val log: (String) -> Unit,
     private val abiSnapshot: () -> List<String> = Lynk06ClusterAbiProbe::snapshot,
+    private val diagnostic: (String) -> Unit = log,
 ) {
     private val context = context.applicationContext
     private val thread = HandlerThread("lynk06-cluster-link").apply { start() }
@@ -107,9 +108,11 @@ internal class Lynk06ClusterLink(
     fun start() {
         predecessor = activeLink?.takeIf { it !== this && it.stopped && !it.closeFinished }
         activeLink = this
+        Lynk06MapDiagnostics.beginLink(this, ::diagnosticLog)
         worker.post { initialize() }
     }
     fun setNavigation(active: Boolean) {
+        Lynk06MapDiagnostics.navigation(this, active, ::diagnosticLog)
         navigationRequested = active
         // 画面关闭不等待厂商 Binder；旧的导航进行回调也不能重新打开已结束的地图。
         if (!active) main.post { if (!stopped && !navigationRequested) onState(Lynk06ClusterState()) }
@@ -187,8 +190,11 @@ internal class Lynk06ClusterLink(
             menu = dimClass!!.getMethod("getDimMenuInteraction").invoke(dim) ?: error("仪表菜单接口为空")
             navi = dimClass!!.getMethod("getNaviInteraction").invoke(dim) ?: error("仪表导航接口为空")
             val type = Class.forName("com.ecarx.xui.adaptapi.diminteraction.IDimMenuInteraction\$IDimMenuInteractionCallback")
-            callback = callbackProxy(type) { name, _ ->
-                if (name == "onChangeNaviMode") worker.post { if (!stopped) refresh() }
+            callback = callbackProxy(type) { name, args ->
+                if (name == "onChangeNaviMode") {
+                    Lynk06MapDiagnostics.callback(this, name, args?.firstOrNull() as? Int, ::diagnosticLog)
+                    worker.post { if (!stopped) refresh() }
+                }
             }
             menuClass!!.getMethod("registerDimMenuInteractionCallback", type).invoke(menu, callback)
             // 原厂导航同时注册导航交互回调和顶层交互回调，DIM 据此认定导航源。
@@ -466,7 +472,9 @@ internal class Lynk06ClusterLink(
         val interaction = dim ?: return
         try {
             val type = Class.forName("com.ecarx.xui.adaptapi.diminteraction.DimInteraction\$IInteractionCallback")
-            interactionCallback = callbackProxy(type) { name, _ -> logOnMain("领克仪表：仪表交互回调 $name") }
+            interactionCallback = callbackProxy(type) { name, args ->
+                Lynk06MapDiagnostics.callback(this, name, args?.firstOrNull() as? Int, ::diagnosticLog)
+            }
             dimClass!!.getMethod("registerInteractionCallback", type).invoke(interaction, interactionCallback)
             interactionCallbackRegistered = true
             logOnMain("领克仪表：已注册仪表交互回调")
@@ -486,6 +494,7 @@ internal class Lynk06ClusterLink(
     }
 
     private fun publish(next: Lynk06ClusterState) {
+        Lynk06MapDiagnostics.link(this, next.available, next.showMap, next.mode, presentationOption, ::diagnosticLog)
         if (state != next) {
             state = next
             main.post { if (!stopped) onState(next.copy(navigating = next.navigating && navigationRequested)) }
@@ -620,6 +629,12 @@ internal class Lynk06ClusterLink(
         }
     }
 
+    // 显示诊断直接进入异步文件队列，不受主线程排队和 close() 移除回调影响。
+    private fun diagnosticLog(message: String) {
+        android.util.Log.i("Lynk06ClusterLink", message)
+        diagnostic(message)
+    }
+
     private fun logOnMain(message: String) { main.post { if (!stopped) log(message) } }
 
     private fun detachMenu() {
@@ -644,6 +659,7 @@ internal class Lynk06ClusterLink(
     @Synchronized fun close() {
         if (stopped) return
         stopped = true
+        Lynk06MapDiagnostics.endLink(this, ::diagnosticLog)
         worker.removeCallbacksAndMessages(null)
         main.removeCallbacksAndMessages(null)
         worker.post { finishClose(1) }

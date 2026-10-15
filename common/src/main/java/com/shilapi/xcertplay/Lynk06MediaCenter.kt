@@ -46,13 +46,15 @@ internal class Lynk06MediaCenter(
     @Volatile private var nowPlaying = initial
     private data class ArtworkPublication(val bitmap: Bitmap? = null, val uri: Uri? = null)
     @Volatile private var artworkPublication = ArtworkPublication()
-    private val artworkStore = Lynk06MusicArtwork(this.context)
+    private val artworkStore = Lynk06MusicArtwork(this.context, log)
+    private val systemLog = Lynk06MediaSystemLog(log)
     @Volatile private var pendingArtwork: Bitmap? = initialArtwork
     private data class PublicationState(val updated: Boolean, val playing: Boolean, val artwork: Uri?)
     private var lastPublicationState: PublicationState? = null
     private data class TrackPublication(val title: String?, val artist: String?, val album: String?,
         val duration: Long?, val artwork: Uri?)
     private var lastTrackPublication: TrackPublication? = null
+    private var trackRevision = 0L
     private val control = Lynk06MediaControl(this.context.packageName)
     private val progressTick = Runnable { publishProgress() }
     private var bound = false
@@ -80,7 +82,7 @@ internal class Lynk06MediaCenter(
     private val publish = Runnable { publishState() }
     private val retry = Runnable { bind() }
 
-    fun start() { worker.post { bind() } }
+    fun start() { systemLog.start(context); worker.post { bind() } }
 
     fun update(info: CarPlayNowPlaying, artwork: Bitmap? = null) {
         val previous = nowPlaying
@@ -98,6 +100,7 @@ internal class Lynk06MediaCenter(
         // 先同步关闭回调门控，再在 worker 上注销，避免阻塞媒体键锁。
         if (stopped) return
         stopped = true
+        systemLog.close()
         control.close()
         worker.removeCallbacksAndMessages(null)
         worker.post {
@@ -188,6 +191,8 @@ internal class Lynk06MediaCenter(
         return published.uri.takeIf { published.bitmap === pendingArtwork }
     }
 
+    private fun coverId(uri: Uri?): String = uri?.lastPathSegment?.let(Lynk06ArtworkServer::coverId) ?: "none"
+
     private fun publishState() {
         if (stopped) return
         val service = api ?: return
@@ -207,14 +212,16 @@ internal class Lynk06MediaCenter(
             if (track != lastTrackPublication) {
                 service.updateCurrentTrack(registered, info, track.artwork)
                 lastTrackPublication = track
-                log("领克媒体中心：当前歌曲列表已同步 count=1 artwork=${track.artwork != null}")
+                trackRevision++
+                log("领克媒体中心：当前歌曲列表已同步 trackRevision=$trackRevision count=1 " +
+                    "artworkReference=${info.artworkTransferId} cover=${coverId(track.artwork)}")
             }
             // 原车对相同信息也返回 false，不能据此注销客户端或丢失方控控制权。
             val updated = service.updatePlayback(registered, playback)
             val publication = PublicationState(updated, nowPlaying.playing, currentArtworkUri())
             if (publication != lastPublicationState) {
                 log("领克媒体中心：播放信息 updated=$updated source=${Lynk06MediaCenterService.SOURCE_MUSIC} " +
-                    "playing=${publication.playing} artwork=${publication.artwork != null} artworkUri=${publication.artwork}")
+                    "trackRevision=$trackRevision cover=${coverId(publication.artwork)} playing=${publication.playing} artwork=${publication.artwork != null} artworkUri=${publication.artwork}")
                 lastPublicationState = publication
             }
             publishProgress()

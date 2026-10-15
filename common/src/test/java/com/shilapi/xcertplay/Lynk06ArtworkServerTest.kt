@@ -81,6 +81,23 @@ class Lynk06ArtworkServerTest {
         }
     }
 
+    @Test fun requestLogsCorrelateDistinctCoversAfterReportRedaction() {
+        val directory = temporary.newFolder("diagnostic-covers")
+        val logs = java.util.concurrent.CopyOnWriteArrayList<String>()
+        Lynk06ArtworkServer(directory, logs::add).use { server ->
+            val first = server.publish(File(directory, "12345678-abcd-1234-abcd-123456789012.jpg")
+                .apply { writeBytes(byteArrayOf(1, 2)) })
+            val second = server.publish(File(directory, "87654321-abcd-1234-abcd-123456789012.jpg")
+                .apply { writeBytes(byteArrayOf(3)) })
+            request(first) { assertEquals(200, it.responseCode) }
+            request(second, "HEAD") { assertEquals(200, it.responseCode) }
+        }
+        val report = logs.mapNotNull(DiagnosticRedactor::redact)
+        assertTrue(report.any { it.contains("cover=12345678abcd status=200 bodyBytes=2") })
+        assertTrue(report.any { it.contains("method=HEAD cover=87654321abcd status=200 bodyBytes=0") })
+        assertEquals(2, report.count { it.contains("读取结束 request=") })
+    }
+
     private fun request(url: String, method: String = "GET", check: (HttpURLConnection) -> Unit) {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 1_000

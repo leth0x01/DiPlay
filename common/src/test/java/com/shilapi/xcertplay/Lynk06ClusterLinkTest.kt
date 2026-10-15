@@ -45,6 +45,20 @@ class Lynk06ClusterLinkTest {
         appleManeuverType = 14, drivingSide = 0,
     )
 
+    @Test fun `diagnostics retain callback values even when getter and navigation remain unchanged`() {
+        link.setNavigation(true)
+        await { states.lastOrNull()?.showMap == true }
+        vendor.mode = 1
+        vendor.menuCallback!!.onChangeNaviMode(3)
+        vendor.interactionCallback!!.onShowPresentationOptionChanged(2)
+        await { Lynk06MapDiagnostics.snapshot().menuMode == 1 }
+        val snapshot = Lynk06MapDiagnostics.snapshot()
+        assertEquals(3, snapshot.menuCallbackMode)
+        assertEquals(2, snapshot.presentationCallbackOption)
+        assertTrue(states.last().showMap)
+        assertNull(snapshot.lastMcuProjectionRequest)
+    }
+
     @Test fun `full card retries a rejected transaction and stops publishing when real navigation ends`() {
         vendor.infoFailuresRemaining = 1
         link.setNavigation(true)

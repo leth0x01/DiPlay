@@ -236,6 +236,7 @@ class CarPlayController(
     @Volatile private var dashboardMapOutputVisible = false
     private val dashboardMapEpoch = AtomicInteger()
     private val playbackStatus = com.shilapi.xcertplay.media.CarPlayPlaybackStatus()
+    private val mediaDiagnostics = com.shilapi.xcertplay.media.MediaCommandDiagnostics(::debugLog)
 
     private val albumReplayLock = Any()
     private var initialArtworkReplay: com.shilapi.xcertplay.transport.Iap2ArtworkTransfer? = null
@@ -613,13 +614,33 @@ class CarPlayController(
         }
     }
 
-    fun sendMediaButton(index: Int): Boolean {
-        if (closed) return false
-        val session = activeSession ?: return false
+    fun sendMediaButton(index: Int): Boolean = sendMediaButton(index, "media-key")
+
+    fun sendMediaButton(index: Int, source: String): Boolean {
+        val request = mediaDiagnostics.begin(index, source, nowPlayingSnapshot().playing)
+        if (closed) {
+            mediaDiagnostics.rejected(request, "controller-closed")
+            return false
+        }
+        val session = activeSession
+        if (session == null) {
+            mediaDiagnostics.rejected(request, "no-session")
+            return false
+        }
         return try {
-            touchExecutor.execute { session.sendMedia(index) }
+            startupTimer.schedule({ mediaDiagnostics.timeout(request) }, 5, TimeUnit.SECONDS)
+            touchExecutor.execute {
+                mediaDiagnostics.executing(request)
+                try {
+                    val result = session.sendMedia(index)
+                    mediaDiagnostics.sent(request, result.pressed, result.released)
+                } catch (failure: Exception) {
+                    mediaDiagnostics.rejected(request, failure.javaClass.simpleName)
+                }
+            }
             true
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            mediaDiagnostics.rejected(request, failure.javaClass.simpleName)
             false
         }
     }
@@ -634,6 +655,7 @@ class CarPlayController(
         }
         firstTcpWatchdog?.terminate()
         BydBluetoothSuspend.resume(appContext, this) { debugLog(it) }
+        mediaDiagnostics.close()
         startupTimer.shutdownNow()
         (hotspot as? ManualHotspotManager)?.close()
         val teardownStarted = System.nanoTime()
@@ -783,9 +805,13 @@ class CarPlayController(
         BydNavigationOutputs.onFrame(frame)
         com.shilapi.xcertplay.glance.CarPlayGlance.onFrame(frame)
         synchronized(playbackStatus) {
-            val previousPlaying = playbackStatus.playing
-            playbackStatus.acceptUpdate(frame)?.let { it to (it.playing != previousPlaying) }
-        }?.let { (update, playingChanged) ->
+            val previous = playbackStatus.nowPlaying
+            playbackStatus.acceptUpdate(frame)?.let {
+                Triple(it, it.playing != previous.playing,
+                    it.title != previous.title || it.artist != previous.artist || it.album != previous.album)
+            }
+        }?.let { (update, playingChanged, trackChanged) ->
+            mediaDiagnostics.observe(update.playing, playingChanged, trackChanged)
             nowPlayingListener?.invoke(update)
             if (playingChanged) playbackListener?.invoke(update.playing)
         }
