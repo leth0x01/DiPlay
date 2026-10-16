@@ -214,6 +214,10 @@ class CarPlayController(
     private val availabilityPollGeneration = AtomicInteger(0)
     private var permissionPollGeneration = 0
     private var reenumerationAttempts = 0
+    private val reenumerationWatchdog =
+        ReenumerationWatchdog(REENUMERATION_WAIT_TIMEOUT_MILLIS) { delayMillis, run ->
+            mainHandler.postDelayed(run, delayMillis)
+        }
     @Volatile private var wiredDeviceName: String? = null
     private val usbAdbGrantAttempts = mutableSetOf<String>()
     private val pendingUsbAdbGrants = mutableSetOf<String>()
@@ -667,6 +671,7 @@ class CarPlayController(
         closeReceivers()
         availabilityPollGeneration.incrementAndGet()
         permissionPollGeneration += 1
+        reenumerationWatchdog.cancel()
         touchExecutor.shutdownNow()
         tunnelExecutor.shutdownNow()
         val service = vpnService
@@ -1961,39 +1966,7 @@ class CarPlayController(
                 debugLog("wired iPhone USB permission granted")
                 permissionPollGeneration++
                 when (phase) {
-                    Phase.REENUMERATION, Phase.IPHONE -> {
-                        val configuration = IphoneCarPlayConfiguration.find(result.device)
-                        val carPlayMode = configuration?.let(IphoneCarPlayConfiguration::isCarPlayMode) == true
-                        val sessionAlreadyStarted = WiredSessionMemory.startedOn(result.device.deviceName)
-                        val action = WiredConfigurationAction.choose(
-                            found = configuration != null,
-                            carPlayMode = carPlayMode,
-                            transitionsTried = reenumerationAttempts,
-                            maximumTransitions = MAXIMUM_REENUMERATION_ATTEMPTS,
-                            sessionAlreadyStarted = sessionAlreadyStarted,
-                        )
-                        connectionDiagnostic(
-                            "USB configuration ready=${configuration != null} " +
-                                "configurationId=${configuration?.id ?: "none"} " +
-                                "reenumerationAttempts=$reenumerationAttempts " +
-                                (if (sessionAlreadyStarted && carPlayMode) "previousSessionOnThisEnumeration=true " else "") +
-                                "action=${action.diagnostic}",
-                        )
-                        when (action) {
-                            WiredConfigurationAction.USE,
-                            WiredConfigurationAction.USE_WITHOUT_APPLE_ETHERNET -> openDataPaths(result.device)
-                            WiredConfigurationAction.REQUEST_TRANSITION -> beginReenumeration(
-                                result.device,
-                                WiredConfigurationAction.fallbackAfterRejection(
-                                    configuration != null, carPlayMode, sessionAlreadyStarted),
-                            )
-                            WiredConfigurationAction.REJECT -> fail(
-                                IphoneUsbException.Protocol(
-                                    "iPhone did not expose a complete CarPlay USB configuration",
-                                ),
-                            )
-                        }
-                    }
+                    Phase.REENUMERATION, Phase.IPHONE -> applyConfigurationDecision(result.device)
                     else -> Unit
                 }
             }
@@ -2002,6 +1975,59 @@ class CarPlayController(
                 onStatus(CarPlayStatus.Failed("iPhone USB permission was denied"))
             }
         }
+    }
+
+    /**
+     * Applies [WiredConfigurationAction]'s table to the configuration the iPhone offers.
+     *
+     * Reached on a fresh permission grant, and again when the iPhone does not re-enumerate after a
+     * CarPlay mode request ([reenumerationWatchdog]): the second pass then uses the offered
+     * configuration instead of requesting the same mode again.
+     */
+    private fun applyConfigurationDecision(device: UsbDevice) {
+        val configuration = IphoneCarPlayConfiguration.find(device)
+        val carPlayMode = configuration?.let(IphoneCarPlayConfiguration::isCarPlayMode) == true
+        val sessionAlreadyStarted = WiredSessionMemory.startedOn(device.deviceName)
+        val action = WiredConfigurationAction.choose(
+            found = configuration != null,
+            carPlayMode = carPlayMode,
+            transitionsTried = reenumerationAttempts,
+            maximumTransitions = MAXIMUM_REENUMERATION_ATTEMPTS,
+            sessionAlreadyStarted = sessionAlreadyStarted,
+        )
+        connectionDiagnostic(
+            "USB configuration ready=${configuration != null} " +
+                "configurationId=${configuration?.id ?: "none"} " +
+                "reenumerationAttempts=$reenumerationAttempts " +
+                (if (sessionAlreadyStarted && carPlayMode) "previousSessionOnThisEnumeration=true " else "") +
+                "action=${action.diagnostic}",
+        )
+        when (action) {
+            WiredConfigurationAction.USE,
+            WiredConfigurationAction.USE_WITHOUT_APPLE_ETHERNET -> openDataPaths(device)
+            WiredConfigurationAction.REQUEST_TRANSITION -> beginReenumeration(
+                device,
+                WiredConfigurationAction.fallbackAfterRejection(
+                    configuration != null, carPlayMode, sessionAlreadyStarted),
+            )
+            WiredConfigurationAction.REJECT -> fail(
+                IphoneUsbException.Protocol("iPhone did not expose a complete CarPlay USB configuration"),
+            )
+        }
+    }
+
+    /**
+     * The iPhone did not re-enumerate after the CarPlay mode request. Nothing else drives the phase,
+     * so re-run the decision: it now uses the configuration the iPhone offers (or asks again, until
+     * [MAXIMUM_REENUMERATION_ATTEMPTS], and then fails).
+     */
+    private fun onReenumerationExpired(device: UsbDevice) {
+        if (closed || phase != Phase.REENUMERATION) return
+        connectionDiagnostic(
+            "USB re-enumeration did not happen within ${REENUMERATION_WAIT_TIMEOUT_MILLIS}ms; " +
+                "using the configuration the iPhone offers",
+        )
+        applyConfigurationDecision(device)
     }
 
     /** Some Android builds grant the dialog without delivering the permission broadcast. */
@@ -2046,8 +2072,11 @@ class CarPlayController(
         onStatus(CarPlayStatus.SelectingConfiguration)
         iphoneHost.requestCarPlayReenumerationAsync(device, executor) { transition ->
             when (transition) {
-                IphoneUsbHost.TransitionResult.ReenumerationRequested ->
+                IphoneUsbHost.TransitionResult.ReenumerationRequested -> {
                     onStatus(CarPlayStatus.WaitingForReenumeration)
+                    // Accepted by the iPhone, but not all firmware re-enumerates afterwards.
+                    reenumerationWatchdog.arm { onReenumerationExpired(device) }
+                }
                 is IphoneUsbHost.TransitionResult.Failed -> if (fallbackAfterRejection) {
                     connectionDiagnostic(
                         "USB transition rejected; using the configuration the iPhone offers " +
@@ -2066,6 +2095,8 @@ class CarPlayController(
     private fun onIphoneAttached(device: UsbDevice) {
         when (phase) {
             Phase.REENUMERATION, Phase.IPHONE -> {
+                // The iPhone re-enumerated before the wait expired; its own path decides what is next.
+                reenumerationWatchdog.cancel()
                 availabilityPollGeneration.incrementAndGet()
                 requestIphonePermission(device)
             }
@@ -2090,6 +2121,7 @@ class CarPlayController(
     }
 
     private fun openDataPaths(device: UsbDevice) {
+        reenumerationWatchdog.cancel()
         phase = Phase.DATAPATHS
         wiredDeviceName = device.deviceName
         debugLog("wired opening iPhone USB data paths")
@@ -2905,6 +2937,7 @@ class CarPlayController(
     private fun fail(error: Throwable, generation: Int? = null) {
         synchronized(wirelessResourceLock) {
             if (closed || generation != null && generation != wirelessGeneration.get()) return
+            reenumerationWatchdog.cancel()
             val wireless = config.transport == CarPlayTransport.WIRELESS
             if (wireless) {
                 if (!wirelessFailureReported.compareAndSet(false, true)) return
@@ -3062,6 +3095,18 @@ class CarPlayController(
         private const val WIRELESS_HANDOFF_TIMEOUT_MILLIS = 45_000L
         private const val RFCOMM_CONNECT_TIMEOUT_MILLIS = 15_000L
         private const val MAXIMUM_REENUMERATION_ATTEMPTS = 2
+
+        /**
+         * How long to wait for the iPhone to re-enumerate after a CarPlay mode request.
+         *
+         * [WiredSessionMemory] records that the iPhone takes a new session only after it resets USB,
+         * 30 to 150 s after DiPlay ends the session itself (#335). Waiting past that window does not
+         * pre-empt a reset that was going to happen; when it still has not, the reconnect uses the
+         * configuration the iPhone offers instead of waiting forever.
+         * Field record 2026-10-16 (BX11 / IHU514G): the mode request was accepted and no re-enumeration
+         * followed, so the phase must end on its own.
+         */
+        private const val REENUMERATION_WAIT_TIMEOUT_MILLIS = 180_000L
         private const val START_SESSION_PROGRESS = "iap2 tx=0x4301"
         private const val EXECUTOR_CLOSE_TIMEOUT_MILLIS = 2_000L
         private const val ADAPTER_ADDRESS_PLACEHOLDER = "02:00:00:00:00:00"

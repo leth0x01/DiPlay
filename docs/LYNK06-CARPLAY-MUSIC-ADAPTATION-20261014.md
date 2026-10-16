@@ -6,6 +6,13 @@
 
 此前用户确认的仪表封面、歌词、歌手来自原车音乐。CarPlay 上一首、下一首可用，播放键能开始播放但不能暂停。本次源码改动需要安装新构建后实车验收。
 
+> **2026-10-16 后续实车采集**：同一次会话里下一曲 / 上一曲 / 暂停都由原车媒体中心回调送达应用并转发
+> （`领克媒体中心：回调指令=4/5/2 control=true handled=true`，暂停后 `playing=false`），上面
+> “播放键能开始播放但不能暂停”的问题已不再出现；原车 `MusicPlaybackInfoHelper` 也把播放记为
+> `appName:LynkPlay`，`artwork` 为本应用发布的 URL——即 CarPlay 的标题/歌手确实已进入原车仪表媒体卡片。
+> 但仪表媒体中心的专辑封面仍不显示（原车对 null 封面 URL 抛 `MalformedURLException` 后回退默认），
+> 原因与待办见[验证记录](LYNKPLAY-VALIDATION.md) 2026-10-16 条目。
+
 ## 已实现
 
 - 使用 `registerInMusic`（19）携带实际安装包名注册，保持令牌、控制权回调与播放信息中的包名一致。

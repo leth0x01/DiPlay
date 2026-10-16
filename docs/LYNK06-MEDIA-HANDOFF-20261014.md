@@ -2,6 +2,13 @@
 
 后续源码适配见[CarPlay 仪表音乐适配记录](LYNK06-CARPLAY-MUSIC-ADAPTATION-20261014.md)。本文中的安装包、源码快照和现场日志仍描述原交接基线；后续源码改动的实车效果需通过新构建确认。
 
+> **2026-10-16 后续实车采集**：原车自己的 `MusicPlaybackInfoHelper` 现在把播放信息记为
+> `appName:LynkPlay`，`artwork` 就是本应用发布的 `http://127.0.0.1:<port>/covers/<uuid>/<uuid>.jpg`，
+> 因此下面“显示的封面、歌词和歌手来自原车音乐”的判断已不适用于当前版本：CarPlay 的标题/歌手确实已进入
+> 原车仪表媒体卡片。同一份日志里也出现 `artwork: null`（`FANTASTIC BABY`、`Good Things` 等条目）：
+> 原车 `ThreeAlbumService` 对 null 封面 URL 执行 `new URL("null")` 抛 `MalformedURLException` 并回退默认封面。
+> 封面仍不显示的原因与待办见[验证记录](LYNKPLAY-VALIDATION.md) 2026-10-16 条目。
+
 ## 当前目标与最新实车反馈
 
 目标车：2023 款领克 06 燃油版，BX11 / IHU514G / Android 9。
@@ -10,11 +17,11 @@
 
 **以最后一次反馈为准：上一首、下一首已可用；播放键会触发 CarPlay 音乐播放，但无法暂停。** 起初用户描述播放和暂停都不生效，随后明确修正为“会触发carplay音乐播放，但是无法暂停”。不能把旧描述继续当成当前结论。
 
-用户于 2026-10-14 补充澄清：**仪表已显示的封面、歌词和歌手来自原车音乐，而非 CarPlay。** 此反馈不能作为 CarPlay 媒体信息已显示在仪表上的证据；CarPlay 仪表媒体信息显示情况仍待实车确认。修复暂停后应回归检查原车音乐的信息显示。本轮未通过截图独立验证封面，也未定位歌词究竟通过哪个字段传输；日志中歌曲信息随歌词变化，其来源需进一步核对，不应直接归为 CarPlay 信息、当成错误歌名或另加一套歌词实现。
+用户于 2026-10-14 补充澄清：**仪表已显示的封面、歌词和歌手来自原车音乐，而非 CarPlay。** 此反馈不能作为 CarPlay 媒体信息已显示在仪表上的证据；CarPlay 仪表媒体信息显示情况仍待实车确认（2026-10-16 已确认：原车 `MusicPlaybackInfoHelper` 把播放记为 `appName:LynkPlay`、`artwork` 为本应用 URL，见文首后续说明）。修复暂停后应回归检查原车音乐的信息显示。本轮未通过截图独立验证封面，也未定位歌词究竟通过哪个字段传输；日志中歌曲信息随歌词变化，其来源需进一步核对，不应直接归为 CarPlay 信息、当成错误歌名或另加一套歌词实现。
 
 原车媒体上下切换的项目为：蓝牙、音乐、USB、新闻、听书。用户观察新闻、听书、音乐点击播放会打开 App；蓝牙、USB 点击播放则播放音乐。用户最低要求是将“音乐”入口接到 CarPlay；本轮未确认点击后具体打开哪个 App，也未证明播放成功是经过“音乐”入口、Android MediaSession 或蓝牙 AVRCP 中的哪条路径。
 
-本轮收集资料，不修改播放控制实现，不安装新包。暂停问题仍未修复。
+本轮收集资料，不修改播放控制实现，不安装新包。暂停问题仍未修复（2026-10-16 实车已确认暂停正常，见文首后续说明）。
 
 ## 源码基线与运行身份
 
@@ -106,4 +113,4 @@
 
 本轮完整 CI 命令已自行结束：`BUILD FAILED in 28m 10s`，退出码 1。shared 共 1431 项，2 项失败：`BufferedAudioStreamTest.tinyAuthenticatedFramesCannotGrowAnUnboundedObjectQueue`（condition not met in time）及 `AmbientWorkerOwnerLockTest.anotherProcessCannotEnterUntilOwnerReleases`（Child lock probe timed out）。本轮没有修改这些测试或产品代码，也没有为了此次文档交接重跑全量检查；不能将未获成功结果的其余任务标为通过。没有触发手动停止或 30 分钟超时。
 
-`git diff --check` 通过。最终结果、失败 XML 和检查过程中采集的线程栈保存于资料目录，见 `validation.txt`、`ci-final-output.txt` 与 `TEST-*.xml`。源码快照中的实车暂停问题仍未修复。
+`git diff --check` 通过。最终结果、失败 XML 和检查过程中采集的线程栈保存于资料目录，见 `validation.txt`、`ci-final-output.txt` 与 `TEST-*.xml`。源码快照中的实车暂停问题仍未修复（2026-10-16 实车已确认暂停正常）。

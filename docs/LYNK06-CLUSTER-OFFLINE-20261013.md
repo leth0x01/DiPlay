@@ -21,7 +21,7 @@
 
 这是本次固件的公开可读授权路径，不能用其他项目的 AppId/AppKey、包名或临时探针调用返回替代 LynkPlay 的实际授权结果。本轮未尝试修改许可、包名、系统身份或认证行为。
 
-本工作区 common/src/main/AndroidManifest.xml 未声明这两个元数据，common/mobile 的 main/assets 中未找到 license.txt。该事实只覆盖当前源码路径；应用商店提供者是否给当前安装包授予 navi、其他源集/最终 APK 是否包含许可，尚未由本轮运行时检查确认。因此不能直接宣称 LynkPlay 一定无授权，也不能宣称能够经 EAS 访问导航模块。
+本工作区 common/src/main/AndroidManifest.xml 未声明这两个元数据，common/mobile 的 main/assets 中未找到 license.txt。该事实只覆盖当前源码路径；应用商店提供者是否给当前安装包授予 navi、其他源集/最终 APK 是否包含许可，在本轮运行时检查里未能确认。2026-10-16 的实车采集显示，平台签名包 `com.leth0x01.lynkplay` 已在物理仪表显示 CarPlay 地图，即该路径在当前安装包上可用（见[验证记录](LYNKPLAY-VALIDATION.md)）；navi 授权本身仍未经独立查询证实。因此不能直接宣称 LynkPlay 一定无授权，也不能宣称能够经 EAS 访问导航模块。
 
 ### boot SDK 与第三轮原始摘录
 

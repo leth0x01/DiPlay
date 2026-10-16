@@ -27,4 +27,6 @@ AGENTS.md 指定的全部任务通过（JDK 25，4 分 28 秒）：三个模块�
 | common | 1522 | 0 | 0 | 0 |
 | samples/home | 6 | 0 | 0 | 0 |
 
-执行日志：`.private/rea-carplay-20261004/progress-ci.log`。本轮验证为本地测试、静态检查和构建；新进度显示尚待实车确认。
+执行日志：`.private/rea-carplay-20261004/progress-ci.log`。本轮验证为本地测试、静态检查和构建。
+
+2026-10-16 实车采集补充：原车 `MusicPlaybackInfoHelper` 已记录本应用发布的 `DurTime` 与 `PlaybackState`（`appName:LynkPlay`），说明进度信息已进入原车媒体卡片；原车进度条本身的显示未单独观察，见[验证记录](LYNKPLAY-VALIDATION.md)。

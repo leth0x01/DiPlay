@@ -1,5 +1,54 @@
 # LynkPlay 验证记录
 
+## 2026-10-16：领克 06 实车采集（方控 / 仪表地图 / 连接稳定性）
+
+在 2023 款领克 06 燃油版（BX11 / IHU514G / xecarx / Android 9 / SDK 28）完成一轮只读采集与按键取证：
+三次系统快照、应用诊断报告、分段 logcat 与按键时间线（资料包 `lynk06-field`，采集全程未修改车机设置、
+属性、USB role 或系统服务，未操作 I2C 寄存器，未读取认证素材）。
+
+**已核实**
+
+| 项 | 结果 | 证据 |
+| --- | --- | --- |
+| 车型自动识别 | 命中 `Lynk06PetrolAdapter` | `product/device=IHU514G`、`model=BX11`、`hardware=xecarx`、`sdk=28` |
+| 固件 | `PQ2A.190405.003 dev-keys`；`ro.build.version.versionname=SW0BX110520H8EHH.00762`；ABI `arm64-v8a` | `getprop` |
+| 屏幕 | 物理 1920×720 / 160dpi；应用可用 1800×720 | `wm size`、应用报告 `Screen:` |
+| 安装与权限 | `com.leth0x01.lynkplay` v0.2.3 / versionCode 54，`sharedUser=android.uid.system` | `dumpsys package` |
+| 有线 CarPlay | 连接成功，画面与声音正常 | 用户确认与会话日志 |
+| 方控媒体键 | 下一曲 / 上一曲 / 播放暂停由**原车媒体中心回调**送达并转发 CarPlay | `领克媒体中心：回调指令=4/5/2/1 control=true handled=true` |
+| 语音键短按 | 唤起 Siri，经 ECARX 有序广播 | `Lynk06VoiceKey: 动作=0；处理=true` |
+| 接听 / 挂断 | 人工确认成功（未记录键码来源） | 采集时的人工确认 |
+| 仪表媒体信息 | 原车助手把播放记为 `appName:LynkPlay`，`artwork` 为本应用发布的 `http://127.0.0.1:<port>/covers/<uuid>/<uuid>.jpg` | 原车 `MusicPlaybackInfoHelper` 日志 |
+| 仪表地图 | 物理仪表显示 CarPlay 路线 | 用户确认；应用侧 `mapVisible=true`、`routeGuidanceFrames=38/valid=36` |
+| USB 插拔恢复 | 2 次均约 13 秒恢复画面与声音 | `stability-usb-01/02-*` |
+| OneOS 输入服务 | 本车不存在（预期） | `Geely input service: visible=false` |
+
+**本次修复（待复验）**
+
+- 软件「断开 → 用 USB 连接」重连：实车 2/2 停在 `WaitingForReenumeration`，该阶段只有请求失败才有
+  fallback、没有超时。新增 `ReenumerationWatchdog`（180 s，越过 `WiredSessionMemory` 记录的
+  30–150 s USB 复位窗口），超时后重跑配置决策使用 iPhone 当前提供的配置。
+
+**仍未核实**
+
+- 无线 CarPlay 端到端（本轮只测有线）；语音键长按（用户跳过）。
+- 完整稳定性循环：退出重连 2/10、USB 插拔 2/20、熄火→上电 0/5；蓝牙 / Wi-Fi / 原车语音恢复未逐项确认。
+- 仪表媒体中心的专辑封面：原车 `ThreeAlbumService` 拿到 null 封面 URL 时执行 `new URL("null")`
+  抛 `MalformedURLException` 并回退默认封面；客户端「封面未就绪即发空」为既有设计，未改动。
+  用户报告「不开仪表地图有封面、一开就没有」，但本轮日志里该异常在 `appMapReady` 两种状态下都出现，
+  且地图开启时段（22:05–22:09）原车 `MusicPlaybackInfoHelper` 与 `ThreeAlbumService` 都没有输出，
+  需同一首歌、只切地图开关的对照采集才能区分是原车换了渲染组件、播放源变化，还是失败率上升。
+- MFi 认证芯片（仅确认 `/dev/i2c-*` 节点存在）；车机上实际运行 APK 的哈希与签名。
+
+**已定位的实车缺陷**
+
+- 在车机设置里启用 LynkPlay 无障碍服务会使设置应用崩溃（OEM `AccessibilityServiceWarning` 弹窗空指针，
+  与本应用声明无关）；应用内已提供经 ADB 启用的途径，不要使用设置界面。
+- 原厂 `com.neusoft.carplay` 未出现在 `pm path`；不能据此断言不存在。
+
+ECARX 输入路径的调查过程、映射表与不采用理由见
+[ECARX AdaptAPI 输入调查](LYNK06-ECARX-INPUT-20261016.md)。
+
 ## 2026-10-13：领克 06 方控、麦克风与蓝牙适配
 
 新增本车语音键有序广播接入：CarPlay 活跃且未通话时短按 Siri，长按请求打开 LynkPlay；成功处理后终止后续广播。补齐本车前台播放／暂停按键；蓝牙音频模式下媒体控制交给 AVRCP，并保持当前会话配置到重新连接。Siri 录音器启动失败后释放并尝试后备源，领克追加 MIC 末级回退；录音诊断记录实际来源。蓝牙诊断改为本车 A2DP Sink / HFP Client。

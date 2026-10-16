@@ -1,6 +1,6 @@
 # BX11 / IHU514G 系统仪表测试版本
 
-此实现根据 2026-10-13 实车独立显示成功的 `com.ganfandw.carplay` 对照结果接入。代码完成不等于 LynkPlay 已经在物理仪表验证成功；需要独立安装和真实导航实验。
+此实现根据 2026-10-13 实车独立显示成功的 `com.ganfandw.carplay` 对照结果接入。后续包名与签名已统一为平台签名的 `com.leth0x01.lynkplay`；2026-10-16 实车采集确认该包（`sharedUser=android.uid.system`）在物理仪表显示 CarPlay 地图，见[验证记录](LYNKPLAY-VALIDATION.md)。
 
 2026-10-14 已完成完整 CI、系统版本构建和专用 lint，最终 APK 位于 `.private/lynkplay-system-implementation-20261013-230349/LynkPlay-0.1.9-bx11-system-test.apk`。已核验签名和 Manifest 的系统共享 UID 声明；尚未安装，因此实际 UID 和实车效果未确认。
 

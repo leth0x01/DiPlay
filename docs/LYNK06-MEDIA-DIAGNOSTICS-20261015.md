@@ -22,3 +22,8 @@ HTTP 200 只表示响应写入完成；HID 写入成功只表示本地事件通�
 ## 验证结果
 
 2026-10-15，AGENTS.md 指定的完整 Gradle CI 命令执行成功（4 分 20 秒）。shared 1546 项（跳过 1 项）、common 1526 项、home 6 项，失败与错误均为 0；mobile/home/maphost 的 lintDebug 与 assembleDebug 均通过。新增 10 项测试通过；封面服务测试共 5 项、媒体请求跟踪 6 项、原车日志采集 3 项均通过。
+
+## 实车使用记录
+
+2026-10-16 的领克 06 采集正是用这套诊断完成的：应用报告里能看到媒体请求跟踪、封面 HTTP 登记与读取、
+原车 `ThreeAlbumService`/`MusicPlaybackInfoHelper` 的日志采集与脱敏关联。结果见[验证记录](LYNKPLAY-VALIDATION.md)。

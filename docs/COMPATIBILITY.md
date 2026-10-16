@@ -27,7 +27,9 @@ Two limits come from the car, not from DiPlay:
 
 When the car's own music app is playing as well, the wheel reaches both it and CarPlay: the head unit routes the key to its current audio source before any app sees it.
 
-Tested on the car named above; other Geely/Lynk firmware is untested.
+On the 2023 Lynk 06 (product/device `IHU514G`, model `BX11`, `xecarx`, Android 9) the wheel reaches CarPlay by different routes, verified on the car on 2026-10-16: next/previous/play-pause arrive as head-unit media-centre callbacks, and the voice key opens Siri through the car's ordered broadcast `ecarx.intent.action.ECARX_KEY_RVOICEASSIST_EVENT`. The `com.geely.inputservice` path above does not exist on this firmware (`Geely input service: visible=false`), and the ECARX AdaptAPI input route was measured to carry only the voice and volume keys, so it is not used.
+
+The `geely_fx11` path is tested on the car named above and the Lynk 06 routes on a 2023 Lynk 06; other Geely/Lynk firmware is untested.
 
 ## Android 9 Wi-Fi Direct and experimental features
 

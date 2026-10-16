@@ -61,6 +61,7 @@ Siri 的 VOICE_RECOGNITION 在创建、初始化或启动失败时尝试 VOICE_C
 
 ## 实车复核
 
-停车后验证 CarPlay 连接时短按只打开 Siri，长按打开 LynkPlay；未连接时短按仍打开领克语音。长按能否抢在原车 HiCar 接收者之前，以及 App 未运行时的启动，需要实车确认广播顺序和车机启动限制。
+停车后验证 CarPlay 连接时短按只打开 Siri，长按打开 LynkPlay；未连接时短按仍打开领克语音。
+2026-10-16 实车采集已确认短按打开 Siri（`Lynk06VoiceKey: 动作=0；处理=true`）与方控媒体键；长按能否抢在原车 HiCar 接收者之前、以及 App 未运行时的启动，仍需实车确认广播顺序和车机启动限制。
 
 分别在 CarPlay 音频、原车蓝牙音频模式下检查切歌、暂停/播放、前台和后台控制；测试 Siri 语音输入与电话后音乐恢复。导出诊断时关注“领克语音键”、`Car Bluetooth audio`、`Microphone: start`、`Microphone: failure` 和麦克风的 `peakDbfs` / `captureBytes` / `udpSent`。
