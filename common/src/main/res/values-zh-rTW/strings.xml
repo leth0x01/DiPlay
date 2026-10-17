@@ -301,7 +301,7 @@
     <string name="preparing_mfi_authentication">正在準備 MFi 認證</string>
     <string name="ready">就緒</string>
     <string name="ready_when_you_are">一切就緒</string>
-    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">接收器以採用 GPL-3.0 授權的 xcertplay 為基礎。LynkPlay 介面沿用採用 AGPL-3.0 授權的 DiAuto 設計。\n\n專案包含 AndroidX、Bouncy Castle、JmDNS 和 SLF4J。本版本附有原始碼和授權聲明。\n\nCarPlay 和 CarPlay 圖示為 Apple Inc. 所有。LynkPlay 為獨立專案。</string>
+    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">LynkPlay 衍生自 DiPlay。DiPlay 的接收器以採用 GPL-3.0 授權的 xcertplay 為基礎，介面沿用採用 AGPL-3.0 授權的 DiAuto 設計。\n\n專案包含 AndroidX、Bouncy Castle、JmDNS 和 SLF4J。本版本附有原始碼和授權聲明。\n\nCarPlay 和 CarPlay 圖示為 Apple Inc. 所有。LynkPlay 為獨立專案。</string>
     <string name="reconnecting_to_your_iphone">正在重新連線 iPhone…</string>
     <string name="remote">遠端</string>
     <string name="remote_server_address_contains_u_0000">遠端伺服器位址包含 U+0000</string>
@@ -653,7 +653,7 @@
     <string name="wheel_siri_key">方向盤 Siri 按鍵</string>
     <string name="wheel_siri_key_description">在 CarPlay 顯示於螢幕時，用你選擇的方向盤按鍵開啟 Siri。車輛自身保留的按鍵只能搭配方向盤按鍵服務使用，該服務在 CarPlay 處於背景時也可使用。未連線 CarPlay 或通話時，該按鍵保留車輛原有功能。</string>
     <string name="wheel_siri_long_press_only">僅長按開啟 Siri</string>
-    <string name="wheel_siri_long_press_only_description">只有長按方向盤語音鍵才會開啟 Siri，短按時 DiPlay 不執行任何動作。</string>
+    <string name="wheel_siri_long_press_only_description">只有長按方向盤語音鍵才會開啟 Siri，短按時 LynkPlay 不執行任何動作。</string>
     <string name="wheel_key_role_back">返回</string>
     <string name="wheel_key_service_label">LynkPlay 方向盤按鍵</string>
     <string name="wheel_key_service_description">可選的方向盤按鍵過濾，用於導航播報音量、儀表地圖縮放、CarPlay 搖桿及通話控制。不讀取螢幕內容。</string>
@@ -840,7 +840,7 @@
     <string name="settings_ambient_behavior_fixed">播放音樂時 · %1$s：燈光維持單一固定顏色，亮度第 %2$d 檔。</string>
     <string name="settings_ambient_behavior_idle">暫停、停止或中斷連線時：所有區域降到最低亮度，燈光可能完全熄滅。</string>
     <string name="settings_ambient_behavior_idle_steady">暫停、停止或中斷連線 · %1$s：燈光維持所選顏色，亮度為第 %2$d 檔。</string>
-    <string name="settings_ambient_behavior_idle_car">15 秒沒有音樂：燈光恢復為車輛自己的設定，音樂開始後 DiPlay 會再次接管。</string>
+    <string name="settings_ambient_behavior_idle_car">15 秒沒有音樂：燈光恢復為車輛自己的設定，音樂開始後 LynkPlay 會再次接管。</string>
     <string name="settings_ambient_behavior_other_zone">播放音樂時，另一個區域不會變動。</string>
     <string name="settings_ambient_behavior_lowest">第 0 檔：所有區域始終維持最低亮度，燈光可能完全熄滅。</string>
     <string name="settings_ambient_idle">沒有音樂播放時</string>
@@ -919,11 +919,11 @@
     <string name="settings_navigation_attenuation_value">%1$d dB</string>
     <string name="settings_navigation_attenuation_description">只降低 CarPlay 導航提示音量，不影響音樂與通話。調整立即生效，仍可使用車機本身的導航音量。</string>
     <string name="settings_car_hotspot_control">車輛熱點</string>
-    <string name="settings_auto_car_hotspot_system_description">開啟 DiPlay 時及無線連線前開啟已儲存的車輛熱點。DiPlay 需要 Android 的「修改系統設定」權限；不需要 ADB。若要在完全重新啟動後也有熱點，請同時開啟「車輛啟動後開啟 DiPlay」。熱點不會自動關閉。</string>
+    <string name="settings_auto_car_hotspot_system_description">開啟 LynkPlay 時及無線連線前開啟已儲存的車輛熱點。LynkPlay 需要 Android 的「修改系統設定」權限；不需要 ADB。若要在完全重新啟動後也有熱點，請同時開啟「車輛啟動後開啟 LynkPlay」。熱點不會自動關閉。</string>
     <string name="settings_write_settings_granted">「修改系統設定」權限：已允許</string>
-    <string name="settings_write_settings_missing">尚未允許「修改系統設定」權限。請允許，讓 DiPlay 能開啟熱點。</string>
+    <string name="settings_write_settings_missing">尚未允許「修改系統設定」權限。請允許，讓 LynkPlay 能開啟熱點。</string>
     <string name="settings_write_settings_allow">允許權限</string>
     <string name="settings_oem_siri_key_description">連線 CarPlay 後，短按原車方向盤語音鍵喚起 Siri，CarPlay 在背景時也可使用。關閉開關、未連線、通話中或 Siri 無法使用時，保留原車語音功能。變更立即生效，無需重新連線；長按仍開啟 LynkPlay。</string>
     <string name="settings_wifi_direct_scan_pause">CarPlay 期間暫停車機 Wi-Fi 搜尋 · 需要 ADB</string>
-    <string name="settings_wifi_direct_scan_pause_description">Wi-Fi Direct 時，車機每隔幾秒搜尋一次 Wi-Fi 網路，每次搜尋都會讓音樂和畫面卡頓。開啟後，CarPlay 執行期間 DiPlay 會暫停這個搜尋。這段期間車機也不會自動連線已知網路（例如手機熱點），可以在車機 Wi-Fi 設定裡手動連線；CarPlay 結束後恢復。關閉後車機可以自動連線。下次連線時生效。</string>
+    <string name="settings_wifi_direct_scan_pause_description">Wi-Fi Direct 時，車機每隔幾秒搜尋一次 Wi-Fi 網路，每次搜尋都會讓音樂和畫面卡頓。開啟後，CarPlay 執行期間 LynkPlay 會暫停這個搜尋。這段期間車機也不會自動連線已知網路（例如手機熱點），可以在車機 Wi-Fi 設定裡手動連線；CarPlay 結束後恢復。關閉後車機可以自動連線。下次連線時生效。</string>
 </resources>

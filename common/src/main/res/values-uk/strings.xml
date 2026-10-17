@@ -301,7 +301,7 @@
     <string name="preparing_mfi_authentication">Підготовка автентифікації MFi</string>
     <string name="ready">Готово</string>
     <string name="ready_when_you_are">Готово до підключення</string>
-    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">Приймач створено на основі xcertplay за ліцензією GPL-3.0. Інтерфейс DiPlay наслідує дизайн DiAuto за ліцензією AGPL-3.0.\n\nВикористовуються AndroidX, Bouncy Castle, JmDNS і SLF4J. Вихідний код і повідомлення про ліцензії додаються до цього випуску.\n\nCarPlay і його значок належать Apple Inc. DiPlay — незалежний проєкт.</string>
+    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">LynkPlay є похідним проєктом DiPlay. Приймач DiPlay створено на основі xcertplay за ліцензією GPL-3.0, а його інтерфейс наслідує дизайн DiAuto за ліцензією AGPL-3.0.\n\nВикористовуються AndroidX, Bouncy Castle, JmDNS і SLF4J. Вихідний код і повідомлення про ліцензії додаються до цього випуску.\n\nCarPlay і його значок належать Apple Inc. LynkPlay — незалежний проєкт.</string>
     <string name="reconnecting_to_your_iphone">Повторне підключення до iPhone…</string>
     <string name="remote">Віддалено</string>
     <string name="remote_server_address_contains_u_0000">Адреса віддаленого сервера містить U+0000</string>
@@ -638,7 +638,7 @@
     <string name="wheel_siri_key">Кнопка Siri на кермі</string>
     <string name="wheel_siri_key_description">Відкриває Siri кнопкою на кермі, яку ви оберете, поки CarPlay на екрані. Кнопка, яку автомобіль залишає собі, працює лише зі службою кнопок керма; служба працює й коли CarPlay у фоні. Без CarPlay або під час дзвінка кнопка зберігає свою дію в автомобілі.</string>
     <string name="wheel_siri_long_press_only">Siri лише за довгого натискання</string>
-    <string name="wheel_siri_long_press_only_description">Siri відкривається лише довгим натисканням кнопки голосового керування на кермі. Коротке натискання в DiPlay нічого не робить.</string>
+    <string name="wheel_siri_long_press_only_description">Siri відкривається лише довгим натисканням кнопки голосового керування на кермі. Коротке натискання в LynkPlay нічого не робить.</string>
     <string name="wheel_key_role_back">назад</string>
     <string name="wheel_key_service_label">Кнопки керма LynkPlay</string>
     <string name="wheel_key_service_description">Необов’язкова фільтрація клавіш керма для гучності голосових підказок навігації, масштабу карти на панелі, джойстика CarPlay та керування дзвінками. Вміст екрана не зчитується.</string>
@@ -792,7 +792,7 @@
     <string name="settings_ambient_behavior_fixed">Грає музика · %1$s: підсвічування горить одним фіксованим кольором на рівні %2$d.</string>
     <string name="settings_ambient_behavior_idle">Пауза, зупинка або відключення: усі зони знижуються до мінімального рівня, за якого підсвічування може згаснути.</string>
     <string name="settings_ambient_behavior_idle_steady">Пауза, зупинка або відключення · %1$s: підсвічування зберігає вибраний колір на рівні %2$d.</string>
-    <string name="settings_ambient_behavior_idle_car">Немає музики 15 секунд: підсвічування повертається до налаштувань автомобіля, а DiPlay знову бере керування, коли починається музика.</string>
+    <string name="settings_ambient_behavior_idle_car">Немає музики 15 секунд: підсвічування повертається до налаштувань автомобіля, а LynkPlay знову бере керування, коли починається музика.</string>
     <string name="settings_ambient_behavior_other_zone">Інша зона не змінюється, поки грає музика.</string>
     <string name="settings_ambient_behavior_lowest">Рівень 0: усі зони завжди залишаються на мінімальному рівні, за якого підсвічування може згаснути.</string>
     <string name="settings_ambient_idle">Коли музика не грає</string>
@@ -854,14 +854,14 @@
     <string name="settings_cluster_music_unknown">Невідомий виконавець</string>
     <string name="connection_help_reset_wifi">Попереднє з’єднання Wi-Fi Direct може заважати підключенню. Натисніть унизу «Скинути Wi-Fi CarPlay» і підключіться знову.</string>
     <string name="connection_help_bluetooth_unusable">Bluetooth цього пристрою не може передавати дані на iPhone. Бездротовий CarPlay тут не працюватиме. Використайте USB-кабель для даних.</string>
-    <string name="connection_help_hotspot">Перевірте, чи ввімкнено точку доступу авто та чи збігаються назва й пароль із налаштуваннями DiPlay. За можливості виберіть 5 ГГц і повторіть спробу.</string>
+    <string name="connection_help_hotspot">Перевірте, чи ввімкнено точку доступу авто та чи збігаються назва й пароль із налаштуваннями LynkPlay. За можливості виберіть 5 ГГц і повторіть спробу.</string>
     <string name="connection_help_iphone_wifi">Увімкніть Wi-Fi і Bluetooth. Підключіть iPhone до точки доступу авто й увімкніть автопідключення. Повторіть спробу; за помилки збережіть звіт.</string>
-    <string name="connection_help_permissions">Надайте DiPlay потрібні дозволи на USB, пристрої поблизу або геолокацію на головному пристрої та повторіть спробу.</string>
+    <string name="connection_help_permissions">Надайте LynkPlay потрібні дозволи на USB, пристрої поблизу або геолокацію на головному пристрої та повторіть спробу.</string>
     <string name="connection_help_usb">Використайте USB-порт і кабель із передаванням даних. Розблокуйте iPhone, підтвердьте довіру й CarPlay і повторіть спробу.</string>
     <string name="connection_help_bluetooth">Розблокуйте iPhone, увімкніть Bluetooth і Wi-Fi та створіть пару з головним пристроєм. Тримайте iPhone поряд і повторіть спробу.</string>
-    <string name="connection_help_general">Спробуйте підключитися знову. Якщо не вдається, поверніться в DiPlay і збережіть звіт у розділі «Налаштування → Діагностика».</string>
+    <string name="connection_help_general">Спробуйте підключитися знову. Якщо не вдається, поверніться в LynkPlay і збережіть звіт у розділі «Налаштування → Діагностика».</string>
     <string name="connection_help_wifi_direct">Тримайте Wi-Fi і Bluetooth головного пристрою ввімкненими, а iPhone розблокованим поряд, і повторіть спробу. Якщо збій повторюється, забудьте автомобіль на iPhone у розділі «Параметри → Загальні → CarPlay» і підключіться знову.</string>
-    <string name="connection_help_existing_wifi">Переконайтеся, що головний пристрій та iPhone підключені до однієї мережі Wi-Fi, а її назва й пароль збігаються з налаштуваннями DiPlay, і повторіть спробу.</string>
+    <string name="connection_help_existing_wifi">Переконайтеся, що головний пристрій та iPhone підключені до однієї мережі Wi-Fi, а її назва й пароль збігаються з налаштуваннями LynkPlay, і повторіть спробу.</string>
     <string name="settings_report_on_phone">Отримати звіт на телефоні</string>
     <string name="settings_report_on_phone_hint">Відскануйте код камерою телефона, щоб відкрити сторінку в його браузері, і виберіть «Завантажити звіт». Не закривайте цей екран, доки завантаження не завершиться.</string>
     <string name="settings_mfi_target_description">Обирайте USB/CH341, лише коли до головного пристрою підключено адаптер автентифікації CH341. Без нього оберіть «Локально, без мережі». Застосовується під час наступного підключення.</string>
@@ -871,11 +871,11 @@
     <string name="settings_navigation_attenuation_value">%1$d дБ</string>
     <string name="settings_navigation_attenuation_description">Зменшує лише гучність навігаційних підказок CarPlay, не змінюючи музику та виклики. Застосовується одразу; регулювання навігації на пристрої лишається доступним.</string>
     <string name="settings_car_hotspot_control">Точка доступу автомобіля</string>
-    <string name="settings_auto_car_hotspot_system_description">Вмикає збережену точку доступу під час відкриття DiPlay і перед бездротовим підключенням. Потрібен доступ Android «Зміна системних налаштувань»; ADB не потрібен. Щоб точка доступу з’являлася й після повного перезапуску, увімкніть відкриття DiPlay після запуску автомобіля. Точка доступу автоматично не вимикається.</string>
+    <string name="settings_auto_car_hotspot_system_description">Вмикає збережену точку доступу під час відкриття LynkPlay і перед бездротовим підключенням. Потрібен доступ Android «Зміна системних налаштувань»; ADB не потрібен. Щоб точка доступу з’являлася й після повного перезапуску, увімкніть відкриття LynkPlay після запуску автомобіля. Точка доступу автоматично не вимикається.</string>
     <string name="settings_write_settings_granted">Доступ «Зміна системних налаштувань»: дозволено</string>
-    <string name="settings_write_settings_missing">Доступ «Зміна системних налаштувань» ще не дозволено. Дозвольте його, щоб DiPlay міг вмикати точку доступу.</string>
+    <string name="settings_write_settings_missing">Доступ «Зміна системних налаштувань» ще не дозволено. Дозвольте його, щоб LynkPlay міг вмикати точку доступу.</string>
     <string name="settings_write_settings_allow">Дозволити доступ</string>
     <string name="settings_oem_siri_key_description">Коли CarPlay підключено, коротке натискання штатної голосової кнопки на кермі відкриває Siri, зокрема у фоновому режимі. Якщо перемикач вимкнено, немає підключення, триває дзвінок або Siri недоступна, зберігається штатна голосова функція автомобіля. Зміни діють одразу без повторного підключення. Довге натискання й далі відкриває LynkPlay.</string>
     <string name="settings_wifi_direct_scan_pause">Призупинити пошук Wi-Fi автомобілем під час CarPlay · потрібен ADB</string>
-    <string name="settings_wifi_direct_scan_pause_description">У режимі Wi-Fi Direct автомобіль шукає мережі Wi-Fi кожні кілька секунд, і кожен пошук перериває музику й відео. Коли параметр увімкнено, DiPlay призупиняє пошук, поки працює CarPlay. Тоді автомобіль і сам не підключається до відомої мережі, наприклад до точки доступу телефона, доки CarPlay не завершиться; підключитися можна вручну в налаштуваннях Wi-Fi автомобіля. Вимкніть, щоб автомобіль підключався сам. Застосовується під час наступного підключення.</string>
+    <string name="settings_wifi_direct_scan_pause_description">У режимі Wi-Fi Direct автомобіль шукає мережі Wi-Fi кожні кілька секунд, і кожен пошук перериває музику й відео. Коли параметр увімкнено, LynkPlay призупиняє пошук, поки працює CarPlay. Тоді автомобіль і сам не підключається до відомої мережі, наприклад до точки доступу телефона, доки CarPlay не завершиться; підключитися можна вручну в налаштуваннях Wi-Fi автомобіля. Вимкніть, щоб автомобіль підключався сам. Застосовується під час наступного підключення.</string>
 </resources>

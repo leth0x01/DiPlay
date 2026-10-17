@@ -294,7 +294,7 @@
     <string name="preparing_mfi_authentication">Preparando autenticación MFi</string>
     <string name="ready">Listo</string>
     <string name="ready_when_you_are">Listo cuando tú lo estés</string>
-    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">Receptor basado en xcertplay, con licencia GPL-3.0. La interfaz de DiPlay sigue el diseño de DiAuto, con licencia AGPL-3.0.\n\nIncluye AndroidX, Bouncy Castle, JmDNS y SLF4J. El código fuente y los avisos de licencia acompañan a esta versión.\n\nCarPlay y el icono de CarPlay pertenecen a Apple Inc. DiPlay es un proyecto independiente.</string>
+    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">LynkPlay deriva de DiPlay. El receptor de DiPlay se basa en xcertplay, con licencia GPL-3.0, y su interfaz sigue el diseño de DiAuto, con licencia AGPL-3.0.\n\nIncluye AndroidX, Bouncy Castle, JmDNS y SLF4J. El código fuente y los avisos de licencia acompañan a esta versión.\n\nCarPlay y el icono de CarPlay pertenecen a Apple Inc. LynkPlay es un proyecto independiente.</string>
     <string name="reconnecting_to_your_iphone">Reconectando con tu iPhone…</string>
     <string name="remote">Remoto</string>
     <string name="remote_server_address_contains_u_0000">La dirección del servidor remoto contiene U+0000</string>
@@ -626,7 +626,7 @@
     <string name="wheel_siri_key">Botón de Siri en el volante</string>
     <string name="wheel_siri_key_description">Abre Siri con un botón del volante que elijas mientras CarPlay está en pantalla. Un botón que el coche reserva para sí mismo solo funciona con el servicio de botones del volante, que también funciona con CarPlay en segundo plano. Sin CarPlay, o durante una llamada, el botón conserva su función en el coche.</string>
     <string name="wheel_siri_long_press_only">Siri solo con pulsación larga</string>
-    <string name="wheel_siri_long_press_only_description">Solo una pulsación larga del botón de voz del volante abre Siri. Una pulsación corta no hace nada en DiPlay.</string>
+    <string name="wheel_siri_long_press_only_description">Solo una pulsación larga del botón de voz del volante abre Siri. Una pulsación corta no hace nada en LynkPlay.</string>
     <string name="wheel_key_role_back">atrás</string>
     <string name="wheel_key_service_label">Botones del volante de LynkPlay</string>
     <string name="wheel_key_service_description">Filtrado opcional de las teclas del volante para el volumen de las indicaciones de navegación, el zoom del mapa del panel, el joystick de CarPlay y los controles de llamada. No se lee el contenido de la pantalla.</string>
@@ -780,7 +780,7 @@
     <string name="settings_ambient_behavior_fixed">Con música · %1$s: las luces se quedan en un color fijo en el nivel %2$d.</string>
     <string name="settings_ambient_behavior_idle">En pausa, detenido o desconectado: todas las zonas bajan al nivel mínimo, que puede apagar las luces.</string>
     <string name="settings_ambient_behavior_idle_steady">En pausa, detenido o desconectado · %1$s: las luces mantienen el color elegido al nivel %2$d.</string>
-    <string name="settings_ambient_behavior_idle_car">Sin música durante 15 segundos: las luces vuelven a los ajustes del coche y DiPlay retoma el control cuando empieza la música.</string>
+    <string name="settings_ambient_behavior_idle_car">Sin música durante 15 segundos: las luces vuelven a los ajustes del coche y LynkPlay retoma el control cuando empieza la música.</string>
     <string name="settings_ambient_behavior_other_zone">La otra zona no cambia mientras suena la música.</string>
     <string name="settings_ambient_behavior_lowest">Nivel 0: todas las zonas se quedan en el nivel mínimo, que puede apagar las luces.</string>
     <string name="settings_ambient_idle">Cuando no suena música</string>
@@ -842,14 +842,14 @@
     <string name="settings_cluster_music_unknown">Artista desconocido</string>
     <string name="connection_help_reset_wifi">Un grupo Wi-Fi Direct anterior puede impedir la conexión. Pulsa Restablecer Wi-Fi de CarPlay abajo y vuelve a conectarte.</string>
     <string name="connection_help_bluetooth_unusable">Esta unidad no puede enviar datos Bluetooth al iPhone. CarPlay inalámbrico no funcionará aquí. Usa un cable USB de datos.</string>
-    <string name="connection_help_hotspot">Comprueba que el punto de acceso del coche esté activo y que su nombre y contraseña coincidan con DiPlay. Si es posible, usa 5 GHz y reintenta.</string>
+    <string name="connection_help_hotspot">Comprueba que el punto de acceso del coche esté activo y que su nombre y contraseña coincidan con LynkPlay. Si es posible, usa 5 GHz y reintenta.</string>
     <string name="connection_help_iphone_wifi">Mantén Wi-Fi y Bluetooth activos. Conecta el iPhone al punto de acceso del coche y activa la conexión automática. Reintenta o guarda un informe de diagnóstico.</string>
-    <string name="connection_help_permissions">Concede a DiPlay los permisos necesarios de USB, dispositivos cercanos o ubicación en la unidad y reintenta.</string>
+    <string name="connection_help_permissions">Concede a LynkPlay los permisos necesarios de USB, dispositivos cercanos o ubicación en la unidad y reintenta.</string>
     <string name="connection_help_usb">Usa un puerto y cable USB con datos. Desbloquea el iPhone, acepta las solicitudes de confianza y CarPlay y reintenta.</string>
     <string name="connection_help_bluetooth">Desbloquea el iPhone, activa Bluetooth y Wi-Fi y enlázalo con la unidad. Mantenlo cerca y reintenta.</string>
-    <string name="connection_help_general">Reintenta la conexión. Si vuelve a fallar, regresa a DiPlay y guarda un informe en Ajustes → Diagnóstico.</string>
+    <string name="connection_help_general">Reintenta la conexión. Si vuelve a fallar, regresa a LynkPlay y guarda un informe en Ajustes → Diagnóstico.</string>
     <string name="connection_help_wifi_direct">Mantén activados el Wi-Fi y el Bluetooth de la unidad y el iPhone desbloqueado y cerca, y reintenta. Si sigue fallando, olvida el coche en el iPhone en Ajustes → General → CarPlay y vuelve a conectarte.</string>
-    <string name="connection_help_existing_wifi">Comprueba que la unidad y el iPhone estén en la misma red Wi-Fi y que su nombre y contraseña coincidan con DiPlay, y reintenta.</string>
+    <string name="connection_help_existing_wifi">Comprueba que la unidad y el iPhone estén en la misma red Wi-Fi y que su nombre y contraseña coincidan con LynkPlay, y reintenta.</string>
     <string name="settings_report_on_phone">Obtener el informe en un teléfono</string>
     <string name="settings_report_on_phone_hint">Escanea el código con la cámara del teléfono para abrir esta página en su navegador y elige Descargar informe. Mantén esta pantalla abierta hasta que termine la descarga.</string>
     <string name="settings_mfi_target_description">Elige USB/CH341 solo si hay un adaptador de autenticación CH341 conectado a la unidad principal. Sin él, elige Local sin conexión. Se aplica en la próxima conexión.</string>
@@ -859,11 +859,11 @@
     <string name="settings_navigation_attenuation_value">%1$d dB</string>
     <string name="settings_navigation_attenuation_description">Reduce solo las indicaciones de navegación de CarPlay, sin cambiar música ni llamadas. Se aplica al instante; sigue funcionando el volumen de navegación de la unidad.</string>
     <string name="settings_car_hotspot_control">Punto de acceso del coche</string>
-    <string name="settings_auto_car_hotspot_system_description">Activa el punto de acceso guardado del coche al abrir DiPlay y antes de una conexión inalámbrica. DiPlay necesita el acceso de Android «Modificar ajustes del sistema»; no se requiere ADB. Para tener el punto de acceso tras un reinicio completo, activa también abrir DiPlay al arrancar el coche. El punto de acceso no se desactiva automáticamente.</string>
+    <string name="settings_auto_car_hotspot_system_description">Activa el punto de acceso guardado del coche al abrir LynkPlay y antes de una conexión inalámbrica. LynkPlay necesita el acceso de Android «Modificar ajustes del sistema»; no se requiere ADB. Para tener el punto de acceso tras un reinicio completo, activa también abrir LynkPlay al arrancar el coche. El punto de acceso no se desactiva automáticamente.</string>
     <string name="settings_write_settings_granted">Acceso «Modificar ajustes del sistema»: permitido</string>
-    <string name="settings_write_settings_missing">El acceso «Modificar ajustes del sistema» aún no está permitido. Permítelo para que DiPlay pueda activar el punto de acceso.</string>
+    <string name="settings_write_settings_missing">El acceso «Modificar ajustes del sistema» aún no está permitido. Permítelo para que LynkPlay pueda activar el punto de acceso.</string>
     <string name="settings_write_settings_allow">Permitir acceso</string>
     <string name="settings_oem_siri_key_description">Con CarPlay conectado, una pulsación corta del botón de voz original del volante abre Siri, también en segundo plano. Si está desactivado, sin conexión, durante una llamada o si Siri no está disponible, se mantiene la función de voz del coche. Los cambios se aplican al instante sin reconectar. Una pulsación larga sigue abriendo LynkPlay.</string>
     <string name="settings_wifi_direct_scan_pause">Pausar la búsqueda de Wi-Fi del coche con CarPlay · requiere ADB</string>
-    <string name="settings_wifi_direct_scan_pause_description">Con Wi-Fi Direct el coche busca redes Wi-Fi cada pocos segundos, y cada búsqueda hace que la música y el vídeo se corten. Con esta opción, DiPlay pausa la búsqueda mientras CarPlay está activo. Entonces el coche tampoco se conecta solo a una red conocida, como el punto de acceso de tu teléfono, hasta que CarPlay termina; puedes conectarte a mano en los ajustes de Wi-Fi del coche. Desactívala para que el coche se conecte solo. Se aplica en la próxima conexión.</string>
+    <string name="settings_wifi_direct_scan_pause_description">Con Wi-Fi Direct el coche busca redes Wi-Fi cada pocos segundos, y cada búsqueda hace que la música y el vídeo se corten. Con esta opción, LynkPlay pausa la búsqueda mientras CarPlay está activo. Entonces el coche tampoco se conecta solo a una red conocida, como el punto de acceso de tu teléfono, hasta que CarPlay termina; puedes conectarte a mano en los ajustes de Wi-Fi del coche. Desactívala para que el coche se conecte solo. Se aplica en la próxima conexión.</string>
 </resources>

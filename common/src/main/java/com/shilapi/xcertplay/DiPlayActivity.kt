@@ -5616,7 +5616,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         appendLine("--- Recent own-app process exits (Android 11+) ---")
         appendLine(ProcessExitDiagnostics.report(appContext))
         appendLine()
-        appendLine("--- Last crash recorded by DiPlay ---")
+        appendLine("--- Last crash recorded by LynkPlay ---")
         appendLine(CrashRecord.report(appContext))
         appendLine()
         for (name in SessionLogFile.REPORT_NAMES) {

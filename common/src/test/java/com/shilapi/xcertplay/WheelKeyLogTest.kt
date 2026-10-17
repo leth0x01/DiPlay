@@ -30,13 +30,13 @@ class WheelKeyLogTest {
         WheelKeyLog.press(code, scan, 3, kept, detail, WheelKeyLog.writesText(code), at)
 
     @Test fun aServiceThatNeverRanSaysSo() {
-        assertEquals(listOf("Wheel keys: the service has not run since DiPlay started"), WheelKeyLog.report(bound = false))
+        assertEquals(listOf("Wheel keys: the service has not run since LynkPlay started"), WheelKeyLog.report(bound = false))
     }
 
     @Test fun aBoundServiceThatSawNoKeySaysSo() {
         WheelKeyLog.bound(1_000)
         assertEquals(
-            listOf("Wheel keys since DiPlay started: presses=0 kept=0 leftToHeadUnit=0 textKeysNotListed=0 " +
+            listOf("Wheel keys since LynkPlay started: presses=0 kept=0 leftToHeadUnit=0 textKeysNotListed=0 " +
                 "boundForMs=4000; no key has reached the service"),
             WheelKeyLog.report(bound = true, nowMillis = 5_000),
         )
@@ -49,7 +49,7 @@ class WheelKeyLogTest {
         press(292, kept = true, detail = "navigation volume", at = 62_002, scan = 114)
         assertEquals(
             listOf(
-                "Wheel keys since DiPlay started: presses=2 kept=1 leftToHeadUnit=1 textKeysNotListed=0 boundForMs=70000",
+                "Wheel keys since LynkPlay started: presses=2 kept=1 leftToHeadUnit=1 textKeysNotListed=0 boundForMs=70000",
                 "Wheel keys: 00:00:00.000  wheel key service connected",
                 "Wheel keys: 00:01:01.001  key 24/115 device 3 left to the head unit: navigation volume not used: no guidance is speaking",
                 "Wheel keys: 00:01:02.002  key 292/114 device 3 kept: navigation volume",
@@ -80,7 +80,7 @@ class WheelKeyLogTest {
             press(code, at = 1)
         }
         assertEquals(
-            listOf("Wheel keys since DiPlay started: presses=0 kept=0 leftToHeadUnit=0 " +
+            listOf("Wheel keys since LynkPlay started: presses=0 kept=0 leftToHeadUnit=0 " +
                 "textKeysNotListed=${typed.size} boundForMs=5"),
             WheelKeyLog.report(bound = true, nowMillis = 5),
         )
@@ -107,7 +107,7 @@ class WheelKeyLogTest {
         press(KeyEvent.KEYCODE_VOLUME_UP, at = 700)
         assertEquals(
             listOf(
-                "Wheel keys since DiPlay started: presses=7 kept=0 leftToHeadUnit=7 textKeysNotListed=0 boundForMs=800",
+                "Wheel keys since LynkPlay started: presses=7 kept=0 leftToHeadUnit=7 textKeysNotListed=0 boundForMs=800",
                 "Wheel keys: 00:00:00.100  key 24/0 device 3 left to the head unit x5, last 00:00:00.500",
                 "Wheel keys: 00:00:00.600  key 25/0 device 3 left to the head unit",
                 "Wheel keys: 00:00:00.700  key 24/0 device 3 left to the head unit",
@@ -137,7 +137,7 @@ class WheelKeyLogTest {
             assertEquals(
                 tag,
                 listOf(
-                    "Wheel keys since DiPlay started: presses=2 kept=0 leftToHeadUnit=2 textKeysNotListed=0 boundForMs=3723006",
+                    "Wheel keys since LynkPlay started: presses=2 kept=0 leftToHeadUnit=2 textKeysNotListed=0 boundForMs=3723006",
                     "Wheel keys: 01:02:03.004  key 24/115 device 3 left to the head unit x2, last 01:02:03.005",
                 ),
                 WheelKeyLog.report(bound = true, nowMillis = 3_723_006),
@@ -172,7 +172,7 @@ class WheelKeyLogTest {
         val listed = threads * (each - each / 5)
         val kept = threads * (each / 4 - each / 20)
         assertTrue(WheelKeyLog.report(bound = true).first().startsWith(
-            "Wheel keys since DiPlay started: presses=$listed kept=$kept leftToHeadUnit=${listed - kept} " +
+            "Wheel keys since LynkPlay started: presses=$listed kept=$kept leftToHeadUnit=${listed - kept} " +
                 "textKeysNotListed=${threads * (each / 5)} ",
         ))
     }

@@ -294,7 +294,7 @@
     <string name="preparing_mfi_authentication">جارٍ تجهيز مصادقة MFi</string>
     <string name="ready">جاهز</string>
     <string name="ready_when_you_are">جاهز عندما تكون مستعداً</string>
-    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">مستقبل مبني على xcertplay، مرخّص بموجب GPL-3.0. تتبع واجهة DiPlay تصميم DiAuto، مرخّص بموجب AGPL-3.0.\n\nيتضمن AndroidX وBouncy Castle وJmDNS وSLF4J. يرافق هذا الإصدار الشفرة المصدر وإشعارات الترخيص.\n\n‏CarPlay وأيقونة CarPlay ملك لشركة Apple Inc. DiPlay مشروع مستقل.</string>
+    <string name="receiver_based_on_xcertplay_licensed_under_gpl_3_0_diplay">LynkPlay مشروع مشتق من DiPlay. يعتمد مستقبل DiPlay على xcertplay، المرخّص بموجب GPL-3.0، وتتبع واجهته تصميم DiAuto، المرخّص بموجب AGPL-3.0.\n\nيتضمن AndroidX وBouncy Castle وJmDNS وSLF4J. يرافق هذا الإصدار الشفرة المصدر وإشعارات الترخيص.\n\n‏CarPlay وأيقونة CarPlay ملك لشركة Apple Inc. LynkPlay مشروع مستقل.</string>
     <string name="reconnecting_to_your_iphone">جارٍ إعادة الاتصال بـ iPhone…</string>
     <string name="remote">عن بُعد</string>
     <string name="remote_server_address_contains_u_0000">عنوان الخادم البعيد يحتوي على U+0000</string>
@@ -626,7 +626,7 @@
     <string name="wheel_siri_key">زر Siri على المقود</string>
     <string name="wheel_siri_key_description">يفتح Siri بزر على المقود تختاره عندما تكون CarPlay على الشاشة. الزر الذي تحتفظ به السيارة لنفسها لا يعمل إلا مع خدمة أزرار المقود، التي تعمل أيضًا عندما تكون CarPlay في الخلفية. من دون CarPlay، أو أثناء مكالمة، يحتفظ الزر بوظيفته في السيارة.</string>
     <string name="wheel_siri_long_press_only">Siri بالضغط المطوّل فقط</string>
-    <string name="wheel_siri_long_press_only_description">يفتح Siri بالضغط المطوّل على زر الصوت في المقود فقط. لا يفعل الضغط القصير شيئًا في DiPlay.</string>
+    <string name="wheel_siri_long_press_only_description">يفتح Siri بالضغط المطوّل على زر الصوت في المقود فقط. لا يفعل الضغط القصير شيئًا في LynkPlay.</string>
     <string name="wheel_key_role_back">رجوع</string>
     <string name="wheel_key_service_label">أزرار المقود في LynkPlay</string>
     <string name="wheel_key_service_description">تصفية اختيارية لمفاتيح المقود لضبط صوت الملاحة أثناء الإرشادات الصوتية وتقريب خريطة لوحة العدادات وعصا تحكم CarPlay والتحكم بالمكالمات. لا تتم قراءة محتوى الشاشة.</string>
@@ -780,7 +780,7 @@
     <string name="settings_ambient_behavior_fixed">أثناء تشغيل الموسيقى · %1$s: تبقى الإضاءة بلون ثابت واحد عند المستوى %2$d.</string>
     <string name="settings_ambient_behavior_idle">عند الإيقاف المؤقت أو التوقف أو قطع الاتصال: تنخفض كل المناطق إلى أدنى مستوى، وقد يؤدي ذلك إلى إطفاء الإضاءة.</string>
     <string name="settings_ambient_behavior_idle_steady">عند الإيقاف المؤقت أو التوقف أو قطع الاتصال · %1$s: تبقى الإضاءة على اللون المختار عند المستوى %2$d.</string>
-    <string name="settings_ambient_behavior_idle_car">بعد 15 ثانية دون موسيقى: تعود الإضاءة إلى إعدادات السيارة، ويستعيد DiPlay التحكم عند بدء الموسيقى.</string>
+    <string name="settings_ambient_behavior_idle_car">بعد 15 ثانية دون موسيقى: تعود الإضاءة إلى إعدادات السيارة، ويستعيد LynkPlay التحكم عند بدء الموسيقى.</string>
     <string name="settings_ambient_behavior_other_zone">لا تتغير المنطقة الأخرى أثناء تشغيل الموسيقى.</string>
     <string name="settings_ambient_behavior_lowest">المستوى 0: تبقى كل المناطق على أدنى مستوى دائمًا، وقد يؤدي ذلك إلى إطفاء الإضاءة.</string>
     <string name="settings_ambient_idle">عند عدم تشغيل موسيقى</string>
@@ -878,7 +878,7 @@
     <string name="cluster_safe_area_hint">اسحب الحدود الخضراء الأربعة. يُطبَّق الحفظ عند اتصال CarPlay التالي. يحل الإطار المخصّص محل إزاحات العلامات؛ وتعيدها إعادة الضبط.</string>
     <string name="cluster_safe_area_live_hint">اسحب الحواف الخضراء هنا وراقب الإطار على شاشة العدادات. يُطبَّق التخطيط المحفوظ بعد إعادة الاتصال؛ ويحافظ الإلغاء على إطارك الحالي.</string>
     <string name="oem_cluster_map">إخفاء خريطة السيارة الأصلية من شاشة العدادات</string>
-    <string name="oem_cluster_map_description">اختياري: إبقاء الخريطة الأصلية مخفية عن شاشة العدادات أثناء عرض DiPlay عليها. لا يغيّر خيار الإيقاف شيئًا. يُخفي وضع المكوّن عرضها على شاشة العدادات فقط؛ ويعطّل وضع الحزمة تطبيق الخريطة الأصلي بالكامل حتى يتوقف العرض. يتطلب تفويض ADB المحلي. تُطبَّق التغييرات بعد إعادة الاتصال.</string>
+    <string name="oem_cluster_map_description">اختياري: إبقاء الخريطة الأصلية مخفية عن شاشة العدادات أثناء عرض LynkPlay عليها. لا يغيّر خيار الإيقاف شيئًا. يُخفي وضع المكوّن عرضها على شاشة العدادات فقط؛ ويعطّل وضع الحزمة تطبيق الخريطة الأصلي بالكامل حتى يتوقف العرض. يتطلب تفويض ADB المحلي. تُطبَّق التغييرات بعد إعادة الاتصال.</string>
     <string name="oem_cluster_hold_off">إيقاف</string>
     <string name="oem_cluster_hold_component">إخفاء عرضها على شاشة العدادات فقط</string>
     <string name="oem_cluster_hold_package">تعطيل تطبيق الخريطة الأصلي بالكامل</string>
@@ -891,14 +891,14 @@
     <string name="auto_grant_incomplete">لم يتحقق الإعداد من جميع الأذونات المطلوبة. راجع حالة كل إذن أدناه؛ وفعّل ADB عبر الشبكة ثم أعد المحاولة، أو استخدم الإعداد اليدوي. تُحفظ الأذونات الحالية.</string>
     <string name="connection_help_reset_wifi">قد تمنع مجموعة Wi-Fi Direct سابقة الاتصال. اضغط على إعادة ضبط Wi-Fi الخاص بـ CarPlay أدناه ثم حاول الاتصال مجددًا.</string>
     <string name="connection_help_bluetooth_unusable">لا يستطيع بلوتوث هذه الوحدة إرسال البيانات إلى iPhone، لذا لن يعمل CarPlay اللاسلكي هنا. استخدم كابل USB لنقل البيانات.</string>
-    <string name="connection_help_hotspot">تأكد من تشغيل نقطة اتصال السيارة وأن اسمها وكلمة مرورها يطابقان إعدادات DiPlay. استخدم تردد 5 غيغاهرتز إن توفر ثم أعد المحاولة.</string>
+    <string name="connection_help_hotspot">تأكد من تشغيل نقطة اتصال السيارة وأن اسمها وكلمة مرورها يطابقان إعدادات LynkPlay. استخدم تردد 5 غيغاهرتز إن توفر ثم أعد المحاولة.</string>
     <string name="connection_help_iphone_wifi">أبقِ Wi-Fi وبلوتوث قيد التشغيل. اتصل بنقطة اتصال السيارة من iPhone وفعّل الانضمام التلقائي ثم حاول مجددًا. احفظ تقرير تشخيص إذا استمر الفشل.</string>
-    <string name="connection_help_permissions">اسمح لـ DiPlay بأذونات USB أو الأجهزة القريبة أو الموقع المطلوبة على وحدة السيارة، ثم أعد المحاولة.</string>
+    <string name="connection_help_permissions">اسمح لـ LynkPlay بأذونات USB أو الأجهزة القريبة أو الموقع المطلوبة على وحدة السيارة، ثم أعد المحاولة.</string>
     <string name="connection_help_usb">استخدم منفذ USB وكابلًا يدعمان نقل البيانات. افتح قفل iPhone ووافق على طلبات الثقة وCarPlay ثم أعد المحاولة.</string>
     <string name="connection_help_bluetooth">افتح قفل iPhone وشغّل بلوتوث وWi-Fi واقرنه بوحدة السيارة. أبقه قريبًا ثم أعد المحاولة.</string>
-    <string name="connection_help_general">أعد محاولة الاتصال. إذا فشل مجددًا، ارجع إلى DiPlay واحفظ تقريرًا من الإعدادات ← التشخيص.</string>
+    <string name="connection_help_general">أعد محاولة الاتصال. إذا فشل مجددًا، ارجع إلى LynkPlay واحفظ تقريرًا من الإعدادات ← التشخيص.</string>
     <string name="connection_help_wifi_direct">أبقِ واي فاي وبلوتوث وحدة السيارة قيد التشغيل وiPhone مفتوح القفل وقريبًا، ثم أعد المحاولة. إذا استمر الفشل، انسَ السيارة على iPhone من الإعدادات ← عام ← CarPlay ثم اتصل مجددًا.</string>
-    <string name="connection_help_existing_wifi">تأكد من اتصال وحدة السيارة وiPhone بشبكة Wi-Fi نفسها وأن اسمها وكلمة مرورها يطابقان إعدادات DiPlay، ثم أعد المحاولة.</string>
+    <string name="connection_help_existing_wifi">تأكد من اتصال وحدة السيارة وiPhone بشبكة Wi-Fi نفسها وأن اسمها وكلمة مرورها يطابقان إعدادات LynkPlay، ثم أعد المحاولة.</string>
     <string name="settings_report_on_phone">الحصول على التقرير عبر هاتف</string>
     <string name="settings_report_on_phone_hint">امسح الرمز بكاميرا الهاتف لفتح هذه الصفحة في متصفحه، ثم اختر «تنزيل التقرير». أبقِ هذه الشاشة مفتوحة حتى يكتمل التنزيل.</string>
     <string name="settings_mfi_target_description">اختر USB/CH341 فقط عندما يكون محوّل مصادقة CH341 متصلًا بوحدة الوسائط. بدونه، اختر «محلي دون اتصال». يُطبَّق عند الاتصال التالي.</string>
@@ -908,11 +908,11 @@
     <string name="settings_navigation_attenuation_value">%1$d ديسيبل</string>
     <string name="settings_navigation_attenuation_description">يخفض صوت إرشادات ملاحة CarPlay فقط دون تغيير صوت الموسيقى أو المكالمات. يُطبَّق التغيير فورًا وتظل وحدة السيارة تتحكم بمستوى صوت الملاحة.</string>
     <string name="settings_car_hotspot_control">نقطة اتصال السيارة</string>
-    <string name="settings_auto_car_hotspot_system_description">يشغّل نقطة اتصال السيارة المحفوظة عند فتح DiPlay وقبل الاتصال اللاسلكي. يحتاج DiPlay إلى إذن Android «تعديل إعدادات النظام»؛ لا يلزم ADB. لتتوفر نقطة الاتصال بعد إعادة التشغيل الكاملة، فعّل أيضًا فتح DiPlay بعد تشغيل السيارة. لا يتم إيقاف نقطة الاتصال تلقائيًا.</string>
+    <string name="settings_auto_car_hotspot_system_description">يشغّل نقطة اتصال السيارة المحفوظة عند فتح LynkPlay وقبل الاتصال اللاسلكي. يحتاج LynkPlay إلى إذن Android «تعديل إعدادات النظام»؛ لا يلزم ADB. لتتوفر نقطة الاتصال بعد إعادة التشغيل الكاملة، فعّل أيضًا فتح LynkPlay بعد تشغيل السيارة. لا يتم إيقاف نقطة الاتصال تلقائيًا.</string>
     <string name="settings_write_settings_granted">إذن «تعديل إعدادات النظام»: مسموح</string>
-    <string name="settings_write_settings_missing">إذن «تعديل إعدادات النظام» غير مسموح بعد. اسمح به ليتمكن DiPlay من تشغيل نقطة الاتصال.</string>
+    <string name="settings_write_settings_missing">إذن «تعديل إعدادات النظام» غير مسموح بعد. اسمح به ليتمكن LynkPlay من تشغيل نقطة الاتصال.</string>
     <string name="settings_write_settings_allow">السماح بالإذن</string>
     <string name="settings_oem_siri_key_description">عند اتصال CarPlay، تفتح ضغطة قصيرة على زر الصوت الأصلي في المقود Siri، حتى عندما يكون CarPlay في الخلفية. عند إيقاف الخيار أو انقطاع الاتصال أو أثناء مكالمة أو تعذّر استخدام Siri، يحتفظ الزر بوظيفة الصوت الأصلية للسيارة. تسري التغييرات فورًا دون إعادة الاتصال. وتظل الضغطة الطويلة تفتح LynkPlay.</string>
     <string name="settings_wifi_direct_scan_pause">إيقاف بحث السيارة عن Wi-Fi أثناء CarPlay · يتطلب ADB</string>
-    <string name="settings_wifi_direct_scan_pause_description">مع Wi-Fi Direct تبحث السيارة عن شبكات Wi-Fi كل بضع ثوانٍ، وكل بحث يجعل الموسيقى والفيديو يتقطعان. عند تشغيل هذا الخيار يوقف DiPlay البحث أثناء تشغيل CarPlay. عندها لا تتصل السيارة تلقائيًا بشبكة معروفة، مثل نقطة اتصال هاتفك، حتى ينتهي CarPlay؛ ويمكنك الاتصال بها يدويًا من إعدادات Wi-Fi في السيارة. أوقفه لتتصل السيارة تلقائيًا. يُطبَّق عند الاتصال التالي.</string>
+    <string name="settings_wifi_direct_scan_pause_description">مع Wi-Fi Direct تبحث السيارة عن شبكات Wi-Fi كل بضع ثوانٍ، وكل بحث يجعل الموسيقى والفيديو يتقطعان. عند تشغيل هذا الخيار يوقف LynkPlay البحث أثناء تشغيل CarPlay. عندها لا تتصل السيارة تلقائيًا بشبكة معروفة، مثل نقطة اتصال هاتفك، حتى ينتهي CarPlay؛ ويمكنك الاتصال بها يدويًا من إعدادات Wi-Fi في السيارة. أوقفه لتتصل السيارة تلقائيًا. يُطبَّق عند الاتصال التالي.</string>
 </resources>

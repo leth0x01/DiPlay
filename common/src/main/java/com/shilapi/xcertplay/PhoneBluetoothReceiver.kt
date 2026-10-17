@@ -71,6 +71,6 @@ internal object PhoneWakeDiagnostics {
         return if (at == 0L) "Phone Bluetooth wake: no matching event recorded"
         else "Phone Bluetooth wake: matchedAtEpochMs=$at result=${prefs.getString("result", "unknown")} " +
             "failureClass=${prefs.getString("failureClass", "none")}; " +
-            "startActivity-returned does not prove the car displayed DiPlay."
+            "startActivity-returned does not prove the car displayed LynkPlay."
     }
 }

@@ -187,6 +187,17 @@ class Lynk06MediaCenterTest {
         assertEquals("原车播放器", focused)
     }
 
+    @Test fun multimediaListGetterReturnsNullParcelableEncoding() {
+        val playback = Binder()
+        val client = Lynk06MusicClient(playback, { CarPlayNowPlaying() }, { false }, {})
+        // getMultiMediaList(29) 返回 Parcelable IMediaLists（非 binder）；null 编码为 writeInt(0)。
+        // 误用 writeStrongBinder 会写出 flat-binder 魔数（readInt 非 0）并留下多余字节。
+        call(client, 29, { it.writeIntArray(intArrayOf(6)) }) {
+            assertEquals(0, it.readInt())
+            assertEquals(0, it.dataAvail())
+        }
+    }
+
     @Test fun registrationStateAndUnregistrationUseVerifiedTransactions() {
         val token = Binder()
         val transactions = mutableListOf<Int>()

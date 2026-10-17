@@ -121,7 +121,7 @@ object BydBluetoothSuspend {
         val wasPaused = state.isSuspended()
         if (!state.restore(ticket)) {
             Log.w(TAG, "Bluetooth recovery incomplete or superseded")
-            if (wasPaused) log("car Bluetooth recovery incomplete; DiPlay retries when it opens again")
+            if (wasPaused) log("car Bluetooth recovery incomplete; LynkPlay retries when it opens again")
         } else if (wasPaused) {
             log("car Bluetooth back on")
         }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_hide_byd_call_popup">BYDの着信ポップアップを隠す（実験的機能）</string>
-    <string name="settings_hide_byd_call_popup_description">Android 12LのBYDのみ対応。許可済みローカルADBが必要です。CarPlayが前面に表示されている間は車両純正の着信ポップアップを非表示にし、DiPlayがバックグラウンドになると元に戻します。Bluetooth通話の音声経路や電話アプリ自体は変更しません。</string>
+    <string name="settings_hide_byd_call_popup_description">Android 12LのBYDのみ対応。許可済みローカルADBが必要です。CarPlayが前面に表示されている間は車両純正の着信ポップアップを非表示にし、LynkPlayがバックグラウンドになると元に戻します。Bluetooth通話の音声経路や電話アプリ自体は変更しません。</string>
     <string name="carplay_night_mode">CarPlayの昼／夜モード</string>
     <string name="settings_app_appearance">アプリの外観</string>
     <string name="settings_app_appearance_dark">ダーク</string>
@@ -60,11 +60,11 @@
     <string name="hotspot_join_confirm">停車中にCarPlayを切断し、先に車の設定でホットスポットをオフにしてください。この操作では保存済みのホットスポット構成だけを変更し、読み戻して検証します。その後は手動でホットスポットをオンにして電波情報を更新してください。オフにすると接続中の端末も切断されます。元に戻せるよう、非公開のバックアップを保管してください。</string>
     <string name="hotspot_join_disconnect">ホットスポットを変更する前にCarPlayを切断してください。</string>
     <string name="hotspot_join_ready">対応する5 GHz構成です。非公開の完全バックアップを準備しました。ホットスポットはまだ変更していません。</string>
-    <string name="hotspot_join_present">確認済みの情報はすでに存在します。重複追加は行いません。既存の項目に対してDiPlayは復元権限を持ちません。</string>
+    <string name="hotspot_join_present">確認済みの情報はすでに存在します。重複追加は行いません。既存の項目に対してLynkPlayは復元権限を持ちません。</string>
     <string name="hotspot_join_applied">保存済みの構成を検証できました。車の設定でホットスポットをオンにし、電波情報を更新して自動接続を試してください。CarPlayの接続成功には実機試験が必要です。</string>
     <string name="hotspot_join_restored">保存済みの構成全体を復元し、読み戻して確認しました。車の設定でホットスポットをオンにしてください。</string>
     <string name="hotspot_join_unsupported">API・ファームウェア・周波数帯・メーカー情報のいずれかが非対応です。修復は行っていません。対応する5 GHz専用構成を使用してください。ほかの周波数帯は未検証です。</string>
-    <string name="hotspot_join_off_required">ホットスポットをオフにしたことを確認できません。接続中の端末を切断し、車の設定でオフにして再試行してください。DiPlayは自動再起動しません。</string>
+    <string name="hotspot_join_off_required">ホットスポットをオフにしたことを確認できません。接続中の端末を切断し、車の設定でオフにして再試行してください。LynkPlayは自動再起動しません。</string>
     <string name="hotspot_join_drift">バックアップ後に構成が変更されています。何も上書きしていません。再確認してください。未使用の復旧バックアップは保持しています。</string>
     <string name="hotspot_join_firmware_changed">ファームウェアが変更されています。非公開バックアップは保持しますが、このバージョンでは安全に復元できません。</string>
     <string name="hotspot_join_cancelled">書き込み前にキャンセルしました。再確認して保存済みの復旧状態を調べてください。</string>
@@ -81,14 +81,14 @@
     <string name="picture_saturation">彩度</string>
     <string name="picture_warmth">色温度</string>
     <string name="picture_reset">画質をリセット</string>
-    <string name="settings_language_summary">DiPlayで使用する言語を選択</string>
+    <string name="settings_language_summary">LynkPlayで使用する言語を選択</string>
     <string name="platform21_cluster_mode">Platform 21メーター表示（実験的機能）</string>
     <string name="platform21_cluster_description">2023年式Tang DM-iのコントローラー21向けの機能です。初期状態ではオフです。検証済みの投影ディスプレイだけを使用し、中央寄せの半幅地図を維持します。純正メーターのモードや純正地図は変更しません。事前に許可されたローカルADBが必要です。設定を適用するとCarPlayが再接続されます。この統合機能は停車中の実車検証が必要です。</string>
     <string name="default_connection_mode">標準の接続方法</string>
     <string name="default_connection_last_used">前回使用した方法</string>
     <string name="default_connection_wireless">ワイヤレス</string>
     <string name="default_connection_usb">USB</string>
-    <string name="default_connection_description">DiPlay起動時に標準の接続方法と選択したiPhoneを使用します。手動接続ボタンからは指定した方式で接続できます。</string>
+    <string name="default_connection_description">LynkPlay起動時に標準の接続方法と選択したiPhoneを使用します。手動接続ボタンからは指定した方式で接続できます。</string>
     <string name="custom_resolution_hint">30～160%の数値を入力してください。適用するとCarPlayを再接続します。</string>
     <string name="resolution_number_error">%1$d～%2$dの整数を入力してください。</string>
     <string name="custom_resolution_summary">%1$d%%</string>

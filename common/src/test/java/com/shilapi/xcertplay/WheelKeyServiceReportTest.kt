@@ -66,7 +66,7 @@ class WheelKeyServiceReportTest {
             entries(),
         )
         assertTrue(report().first(), report().first().startsWith(
-            "Wheel keys since DiPlay started: presses=1 kept=0 leftToHeadUnit=1 textKeysNotListed=0 boundForMs="))
+            "Wheel keys since LynkPlay started: presses=1 kept=0 leftToHeadUnit=1 textKeysNotListed=0 boundForMs="))
     }
 
     @Test fun aKeyDiPlayKeepsIsListedWithWhatItDid() {
@@ -178,7 +178,7 @@ class WheelKeyServiceReportTest {
         val lines = text.lines()
         val serviceLine = lines.indexOfFirst { it.startsWith("Wheel key service: ") }
         assertTrue(text, serviceLine >= 0)
-        assertTrue(lines[serviceLine + 1], lines[serviceLine + 1].startsWith("Wheel keys since DiPlay started: presses=1 "))
+        assertTrue(lines[serviceLine + 1], lines[serviceLine + 1].startsWith("Wheel keys since LynkPlay started: presses=1 "))
         assertTrue(lines[serviceLine + 2], lines[serviceLine + 2].endsWith("  wheel key service connected"))
         assertTrue(lines[serviceLine + 3], lines[serviceLine + 3].endsWith("  key 137/0 device 7 left to the head unit"))
         assertEquals("", lines[serviceLine + 4])

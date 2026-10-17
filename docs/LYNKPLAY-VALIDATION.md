@@ -1,5 +1,30 @@
 # LynkPlay 验证记录
 
+## 2026-10-17：原厂 CarPlay 归属澄清（ThunderSoft，非 Neusoft）
+
+复核 2026-10-16 采集资料包（`.private/lynk06-field.zip`）里的只读证据，澄清领克 06 原厂 CarPlay 的
+真实实现，以及原厂逆向 `carplay.*` 键映射的适用范围。
+
+**已核实**
+
+| 项 | 结果 | 证据 |
+| --- | --- | --- |
+| `com.neusoft.carplay` 存在性 | 不存在 | `ecarx.txt`：`dumpsys package` 的 dexopt/compiler 段均输出 `Unable to find package: com.neusoft.carplay`；`pm list packages` 仅见 `com.neusoft.extraservice/avmlogin/dvrlogin` |
+| 原厂 CarPlay 应用 | `com.thunder.carplay`（ThunderCarplay） | `packages.txt`：`/system/app/ThunderCarplay/ThunderCarplay.apk=com.thunder.carplay`；`ps -A`：`u0_a54 … com.thunder.carplay` |
+| Neusoft E02 运行时落点 | 领克 06 均不存在 | `/vendor/etc/CarPlay/`、`/etc/airplay.conf`、`/data/vendor/CarPlay/` 均 `No such file or directory`；`ps` 无 `vendor.alfusos.hardware.applecore@1.0-service`；`/dev/usb_iAP2` 与 `usbncm0` 均不存在 |
+| `carplay.*` 键 | 采集数据无任何实例 | `getprop`、应用诊断报告、全量文件 grep 均无 `carplay.*` |
+| MFi 芯片（i2c 地址 0x10） | 全车 12 条 I2C 总线无 0x10 驱动绑定设备 | `/sys/bus/i2c/devices`：`0-001a`/`2-0043`/`3-0008`/`4-002c`… 等，无 `*-0010` |
+
+**结论**
+
+- 领克 06（BX11/IHU514G）原厂 CarPlay 为 `com.thunder.carplay`（ThunderCarplay，已证实）；
+  「ThunderSoft / 中科创达」为按包名推断（`com.thunder.*`），未直接证实。
+- 原厂逆向建立的 `carplay.*` 键映射（pack `REVERSE_ENGINEERING_MAC.md` §2.3b）仅适用于
+  ECARX E02/Neusoft 原厂；领克 06 原厂的封面 / 地图 / MFi 机制应以 `com.thunder.carplay` 的 APK
+  为对象另行分析，不能套用该映射。
+- MFi 芯片仍待探测：`/sys/bus/i2c/devices` 只列有驱动绑定的设备，E02 的裸 I2C `0x10` 芯片
+  （ioctl 直访，无驱动）不会出现在 sysfs；需 `i2cdetect` 或 ioctl 探测才能定论（本轮采集只读，未探测）。
+
 ## 2026-10-16：领克 06 实车采集（方控 / 仪表地图 / 连接稳定性）
 
 在 2023 款领克 06 燃油版（BX11 / IHU514G / xecarx / Android 9 / SDK 28）完成一轮只读采集与按键取证：

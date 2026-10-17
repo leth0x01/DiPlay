@@ -10,14 +10,14 @@
     <string name="home_no_widgets">No widgets installed</string>
     <string name="home_add_widget">Add a widget</string>
     <string name="home_allow_widgets">Allow widgets</string>
-    <string name="home_allow_widgets_description">This head unit has no screen to allow widgets. Allow DiPlay Home once over ADB:\n\nadb shell appwidget grantbind --package %1$s --user 0</string>
+    <string name="home_allow_widgets_description">This head unit has no screen to allow widgets. Allow LynkPlay Home once over ADB:\n\nadb shell appwidget grantbind --package %1$s --user 0</string>
     <string name="home_remove_widget">Remove widget</string>
-    <string name="home_map_stopped">DiPlay stopped</string>
-    <string name="home_map_not_installed">DiPlay is not installed</string>
-    <string name="home_map_connecting">Connecting to DiPlay…</string>
-    <string name="home_map_refused">DiPlay refused the connection</string>
-    <string name="home_map_missing">DiPlay sent no map</string>
-    <string name="home_map_disabled">In DiPlay, turn on\n\"Share the live map with other launchers\"</string>
+    <string name="home_map_stopped">LynkPlay stopped</string>
+    <string name="home_map_not_installed">LynkPlay is not installed</string>
+    <string name="home_map_connecting">Connecting to LynkPlay…</string>
+    <string name="home_map_refused">LynkPlay refused the connection</string>
+    <string name="home_map_missing">LynkPlay sent no map</string>
+    <string name="home_map_disabled">In LynkPlay, turn on\n\"Share the live map with other launchers\"</string>
     <string name="home_map_unsupported">This head unit is too old for the live map</string>
-    <string name="home_map_error">DiPlay could not show the map</string>
+    <string name="home_map_error">LynkPlay could not show the map</string>
 </resources>

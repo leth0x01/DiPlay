@@ -46,7 +46,7 @@ class UsbAutoConfirmService : AccessibilityService() {
             if (!isTargetPrompt(texts.joinToString(" "), appLabel)) {
                 if (ignoredWindowId != usbWindowId) {
                     ignoredWindowId = usbWindowId
-                    Log.i(TAG, "System dialog does not ask for DiPlay USB access; left alone")
+                    Log.i(TAG, "System dialog does not ask for LynkPlay USB access; left alone")
                 }
                 return
             }
@@ -64,7 +64,7 @@ class UsbAutoConfirmService : AccessibilityService() {
             }
             if (confirmed) {
                 lastClickTime = now
-                Log.i(TAG, "Successfully auto-confirmed DiPlay USB permission dialog")
+                Log.i(TAG, "Successfully auto-confirmed LynkPlay USB permission dialog")
             }
         } finally {
             @Suppress("DEPRECATION")

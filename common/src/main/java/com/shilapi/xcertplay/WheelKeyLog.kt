@@ -71,9 +71,9 @@ internal object WheelKeyLog {
         synchronized(this) {
             val boundAt = boundAtMillis
             if (boundAt == null && entries.isEmpty()) {
-                return listOf("Wheel keys: the service has not run since DiPlay started")
+                return listOf("Wheel keys: the service has not run since LynkPlay started")
             }
-            summary = "Wheel keys since DiPlay started: presses=$presses kept=$kept " +
+            summary = "Wheel keys since LynkPlay started: presses=$presses kept=$kept " +
                 "leftToHeadUnit=${presses - kept} textKeysNotListed=$textKeys " +
                 (if (bound && boundAt != null) "boundForMs=${nowMillis - boundAt}" else "bound=false") +
                 if (bound && presses + textKeys == 0) "; no key has reached the service" else ""

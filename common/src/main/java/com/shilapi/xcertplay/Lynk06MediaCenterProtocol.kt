@@ -136,7 +136,9 @@ internal class Lynk06MusicClient(
             13 -> reply.writeLong(snapshot().positionMillisAt(System.nanoTime()) ?: 0)
             14, 28 -> reply.writeList(emptyList<Any>())
             25, 33, 34 -> Unit
-            29 -> reply.writeStrongBinder(null)
+            // getMultiMediaList 返回 Parcelable IMediaLists（非 binder）；null 编码为 writeInt(0)，
+            // 误用 writeStrongBinder 会让原车 readInt 读到 flat-binder 魔数后 createFromParcel 报错。
+            29 -> reply.writeInt(0)
             else -> reply.writeInt(0)
         }
         return true
