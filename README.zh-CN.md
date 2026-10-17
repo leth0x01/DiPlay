@@ -2,11 +2,11 @@
 
 基于 [DiPlay](https://github.com/shihabal3amri/DiPlay) 的 CarPlay 接收器，面向 **2023 款领克 06 燃油版、Android 9 车机**维护。
 
-当前 LynkPlay 版本为 **0.2.3**（versionCode 54），已同步 DiPlay 0.2.20。
+当前 LynkPlay 版本为 **0.2.4**（versionCode 55），已同步 DiPlay 0.2.20。
 
 已有实车反馈确认无线、有线 CarPlay 均能在目标车机上连接。旧版断开车机蓝牙后，方控无法控制音乐。本版已接入原车媒体中心。2026-10-16 在 2023 款领克 06 上的实车采集已确认媒体方控、语音键唤起 Siri、仪表显示 CarPlay 地图与 USB 插拔恢复，详见[验证记录](docs/LYNKPLAY-VALIDATION.md)。
 
-本次更新接入原车媒体中心的播放/暂停、上一首、下一首回调，补充媒体按键诊断，并包含领克 06 语音键、麦克风及仪表适配；本版同时把车测包与正式包合并为同一个平台签名包。详见 [LynkPlay 0.2.1 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.2.1.md)、[车测说明](docs/LYNKPLAY-CAR-TEST.md) 和 [验证记录](docs/LYNKPLAY-VALIDATION.md)。
+本次更新改进有线 CarPlay 断开后的 USB 重新连接和 2023 款领克 06 方向盘媒体控制兼容性，完善触摸、仪表地图、音乐封面、媒体按键及通话音频诊断，并统一 LynkPlay 品牌文案。详见 [LynkPlay 0.2.4 版本说明](docs/LYNKPLAY-RELEASE-NOTES-0.2.4.md)、[车测说明](docs/LYNKPLAY-CAR-TEST.md) 和 [验证记录](docs/LYNKPLAY-VALIDATION.md)。
 
 ## 安装与构建
 
